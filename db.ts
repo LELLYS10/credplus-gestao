@@ -7,9 +7,16 @@ const STORAGE_KEY = 'loan_management_db_v1';
 
 const getEnv = (key: string): string => {
   try {
-    return (typeof process !== 'undefined' && process.env?.[key]) || 
-           (window as any).process?.env?.[key] || 
-           '';
+    // Standard Vite access
+    const metaEnv = (import.meta as any).env;
+    if (key === 'SUPABASE_URL') return metaEnv.VITE_SUPABASE_URL || process.env.SUPABASE_URL || '';
+    if (key === 'SUPABASE_ANON_KEY') return metaEnv.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || '';
+    
+    // Fallback for other keys
+    const viteKey = `VITE_${key}`;
+    if (metaEnv && metaEnv[viteKey]) return metaEnv[viteKey];
+    const processEnv = (typeof process !== 'undefined') ? process.env : null;
+    return (processEnv?.[key] as string) || '';
   } catch {
     return '';
   }

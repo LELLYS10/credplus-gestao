@@ -32,18 +32,34 @@ const App: React.FC = () => {
 
   useEffect(() => {
     const init = async () => {
-      const data = await loadDB();
-      const updatedData = runCompetenceSync(data);
-      const savedUser = localStorage.getItem(SESSION_KEY);
-      if (savedUser) {
-        try {
-          const parsedUser = JSON.parse(savedUser);
-          const validUser = updatedData.users.find((u: any) => u.email === parsedUser.email && u.password === parsedUser.password);
-          if (validUser) setUser(validUser);
-        } catch (e) { localStorage.removeItem(SESSION_KEY); }
+      try {
+        const data = await loadDB();
+        const updatedData = runCompetenceSync(data);
+        const savedUser = localStorage.getItem(SESSION_KEY);
+        if (savedUser) {
+          try {
+            const parsedUser = JSON.parse(savedUser);
+            const validUser = updatedData.users.find((u: any) => u.email === parsedUser.email && u.password === parsedUser.password);
+            if (validUser) setUser(validUser);
+          } catch (e) { localStorage.removeItem(SESSION_KEY); }
+        }
+        setDb(updatedData);
+      } catch (error) {
+        console.error("Failed to initialize app:", error);
+        // Fallback to initial state if everything fails
+        setDb({
+          users: [{ id: '1', email: 'credplusemp@gmail.com', password: '123456', role: UserRole.ADMIN }],
+          groups: [],
+          clients: [],
+          competences: [],
+          requests: [],
+          reports: [],
+          transactions: [],
+          settings: {}
+        });
+      } finally {
+        setIsLoading(false);
       }
-      setDb(updatedData);
-      setIsLoading(false);
     };
     init();
   }, []);
