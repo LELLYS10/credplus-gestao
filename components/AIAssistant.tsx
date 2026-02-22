@@ -228,6 +228,7 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ db, user, onAddClient, onAddT
           REGRAS CRÍTICAS:
           1. MEMÓRIA: Se o usuário já disse um dado, NUNCA peça novamente.
           2. FORMATO DE LISTA: Responda APENAS com a lista do que falta.
+          3. EXCLUSÃO: Após chamar a ferramenta de exclusão, confirme APENAS UMA VEZ. Não repita a exclusão se o usuário mudar de assunto.
           
           FLUXO DE CONSULTA (Vencimentos):
           - Gatilhos: "quem vence hoje", "quem vence amanhã", "vencidos", "atrasados".
@@ -292,8 +293,12 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ db, user, onAddClient, onAddT
             const args = call.args as any;
             if (user.role === 'ADMIN') {
               const client = db.clients.find(c => c.id === args.clientId);
-              onDeleteClient(args.clientId);
-              setMessages(prev => [...prev, { role: 'model', text: `🗑️ Cliente **${client?.name}** excluído permanentemente.` }]);
+              if (client) {
+                await (onDeleteClient as any)(args.clientId);
+                setMessages(prev => [...prev, { role: 'model', text: `🗑️ Cliente **${client.name}** excluído permanentemente.` }]);
+              } else {
+                setMessages(prev => [...prev, { role: 'model', text: `⚠️ Cliente não encontrado para exclusão.` }]);
+              }
             } else {
               setMessages(prev => [...prev, { role: 'model', text: `❌ Você não tem permissão para excluir clientes.` }]);
             }
@@ -302,8 +307,12 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ db, user, onAddClient, onAddT
             const args = call.args as any;
             if (user.role === 'ADMIN') {
               const group = db.groups.find(g => g.id === args.groupId);
-              onDeleteGroup(args.groupId);
-              setMessages(prev => [...prev, { role: 'model', text: `🗑️ Sócio **${group?.name}** e todos os seus dados foram excluídos.` }]);
+              if (group) {
+                await (onDeleteGroup as any)(args.groupId);
+                setMessages(prev => [...prev, { role: 'model', text: `🗑️ Sócio **${group.name}** e todos os seus dados foram excluídos.` }]);
+              } else {
+                setMessages(prev => [...prev, { role: 'model', text: `⚠️ Sócio não encontrado para exclusão.` }]);
+              }
             } else {
               setMessages(prev => [...prev, { role: 'model', text: `❌ Você não tem permissão para excluir sócios.` }]);
             }

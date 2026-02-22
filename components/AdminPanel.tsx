@@ -119,7 +119,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ groups, clients, users, compete
            {groups.map(g => (
              <div key={g.id} className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm relative group overflow-hidden">
                 <div className="absolute top-0 right-0 p-4">
-                  <button onClick={() => onDeleteGroup(g.id)} className="text-slate-300 hover:text-red-500 transition-colors p-2"><Trash2 size={18}/></button>
+                  <button onClick={() => { if(confirm('Isso excluirá o sócio e TODOS os seus clientes e dados vinculados. Confirmar?')) onDeleteGroup(g.id); }} className="text-slate-300 hover:text-red-500 transition-colors p-2"><Trash2 size={18}/></button>
                 </div>
                 <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center font-black text-xl mb-4">
                   {g.name.charAt(0).toUpperCase()}

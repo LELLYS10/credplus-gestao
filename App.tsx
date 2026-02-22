@@ -106,68 +106,71 @@ const App: React.FC = () => {
     });
   };
 
-  const handleDeleteClient = (id: string) => {
+  const handleDeleteClient = async (id: string) => {
     if (user?.role !== UserRole.ADMIN || !db) return;
     
     // Limpeza profunda no Supabase (Remover resquícios de teste)
-    deleteFromDB('clients', id);
-    
-    const competencesToDelete = db.competences.filter((cp: any) => cp.clientId === id);
-    competencesToDelete.forEach((cp: any) => deleteFromDB('competences', cp.id));
-    
-    const transactionsToDelete = db.transactions.filter((t: any) => t.clientId === id);
-    transactionsToDelete.forEach((t: any) => deleteFromDB('transactions', t.id));
-    
-    const requestsToDelete = db.requests.filter((r: any) => r.clientId === id);
-    requestsToDelete.forEach((r: any) => deleteFromDB('requests', r.id));
+    try {
+      const deletions = [
+        deleteFromDB('clients', id),
+        ...db.competences.filter((cp: any) => cp.clientId === id).map((cp: any) => deleteFromDB('competences', cp.id)),
+        ...db.transactions.filter((t: any) => t.clientId === id).map((t: any) => deleteFromDB('transactions', t.id)),
+        ...db.requests.filter((r: any) => r.clientId === id).map((r: any) => deleteFromDB('requests', r.id))
+      ];
+      await Promise.all(deletions);
+    } catch (e) {
+      console.error("Erro na exclusão profunda:", e);
+    }
 
-    setDb((prev: any) => ({ 
-      ...prev, 
-      clients: prev.clients.filter((c: any) => c.id !== id),
-      competences: prev.competences.filter((cp: any) => cp.clientId !== id),
-      transactions: prev.transactions.filter((t: any) => t.clientId !== id),
-      requests: prev.requests.filter((r: any) => r.clientId !== id)
-    }));
+    setDb((prev: any) => {
+      return { 
+        ...prev, 
+        clients: prev.clients.filter((c: any) => c.id !== id),
+        competences: prev.competences.filter((cp: any) => cp.clientId !== id),
+        transactions: prev.transactions.filter((t: any) => t.clientId !== id),
+        requests: prev.requests.filter((r: any) => r.clientId !== id)
+      };
+    });
   };
 
-  const handleDeleteGroup = (id: string) => {
+  const handleDeleteGroup = async (id: string) => {
     if (user?.role !== UserRole.ADMIN || !db) return;
-    if (!confirm('Isso excluirá o sócio e TODOS os seus clientes e dados vinculados. Confirmar?')) return;
     
-    // 1. Deletar Usuários do Sócio
-    const usersToDelete = db.users.filter((u: any) => u.groupId === id);
-    usersToDelete.forEach((u: any) => deleteFromDB('users', u.id));
-    
-    // 2. Deletar Clientes e seus dados (Juros, Transações, etc)
-    const clientsToDelete = db.clients.filter((c: any) => c.groupId === id);
-    clientsToDelete.forEach(client => {
-      deleteFromDB('clients', client.id);
-      db.competences.filter((cp: any) => cp.clientId === client.id).forEach((cp: any) => deleteFromDB('competences', cp.id));
-      db.transactions.filter((t: any) => t.clientId === client.id).forEach((t: any) => deleteFromDB('transactions', t.id));
-      db.requests.filter((r: any) => r.clientId === client.id).forEach((r: any) => deleteFromDB('requests', r.id));
+    try {
+      // 1. Deletar Usuários do Sócio
+      const usersToDelete = db.users.filter((u: any) => u.groupId === id);
+      const userDeletions = usersToDelete.map((u: any) => deleteFromDB('users', u.id));
+      
+      // 2. Deletar Clientes e seus dados
+      const clientsToDelete = db.clients.filter((c: any) => c.groupId === id);
+      const clientDataDeletions: any[] = [];
+      clientsToDelete.forEach(client => {
+        clientDataDeletions.push(deleteFromDB('clients', client.id));
+        db.competences.filter((cp: any) => cp.clientId === client.id).forEach((cp: any) => clientDataDeletions.push(deleteFromDB('competences', cp.id)));
+        db.transactions.filter((t: any) => t.clientId === client.id).forEach((t: any) => clientDataDeletions.push(deleteFromDB('transactions', t.id)));
+        db.requests.filter((r: any) => r.clientId === client.id).forEach((r: any) => clientDataDeletions.push(deleteFromDB('requests', r.id)));
+      });
+
+      // 3. Deletar o Grupo
+      await Promise.all([...userDeletions, ...clientDataDeletions, deleteFromDB('groups', id)]);
+    } catch (e) {
+      console.error("Erro na exclusão do grupo:", e);
+    }
+
+    setDb((prev: any) => {
+      const clientsToKeep = prev.clients.filter((c: any) => c.groupId !== id);
+      const clientIdsToKeep = new Set(clientsToKeep.map((c: any) => c.id));
+
+      return { 
+        ...prev, 
+        groups: prev.groups.filter((g: any) => g.id !== id), 
+        users: prev.users.filter((u: any) => u.groupId !== id),
+        clients: clientsToKeep,
+        competences: prev.competences.filter((cp: any) => clientIdsToKeep.has(cp.clientId)),
+        transactions: prev.transactions.filter((t: any) => clientIdsToKeep.has(t.clientId)),
+        requests: prev.requests.filter((r: any) => clientIdsToKeep.has(r.clientId))
+      };
     });
-
-    // 3. Deletar o Grupo
-    deleteFromDB('groups', id);
-
-    setDb((prev: any) => ({ 
-      ...prev, 
-      groups: prev.groups.filter((g: any) => g.id !== id), 
-      users: prev.users.filter((u: any) => u.groupId !== id),
-      clients: prev.clients.filter((c: any) => c.groupId !== id),
-      competences: prev.competences.filter((cp: any) => {
-        const client = prev.clients.find((c: any) => c.id === cp.clientId);
-        return client?.groupId !== id;
-      }),
-      transactions: prev.transactions.filter((t: any) => {
-        const client = prev.clients.find((c: any) => c.id === t.clientId);
-        return client?.groupId !== id;
-      }),
-      requests: prev.requests.filter((r: any) => {
-        const client = prev.clients.find((c: any) => c.id === r.clientId);
-        return client?.groupId !== id;
-      })
-    }));
   };
 
   const renderContent = () => {
