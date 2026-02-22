@@ -121,7 +121,12 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ db, user, onAddClient, onAddT
     setIsLoading(true);
 
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
+      const apiKey = process.env.GEMINI_API_KEY;
+      if (!apiKey) {
+        throw new Error("A chave de API (GEMINI_API_KEY) não foi encontrada no sistema.");
+      }
+
+      const ai = new GoogleGenAI({ apiKey });
       
       const context = {
         total_clientes: db.clients.length,
@@ -136,9 +141,7 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ db, user, onAddClient, onAddT
 
       const response = await ai.models.generateContent({
         model: "gemini-3-flash-preview",
-        contents: [
-          { role: 'user', parts: [{ text: `Contexto do sistema: ${JSON.stringify(context)}. Pergunta: ${userMessage}` }] }
-        ],
+        contents: `Contexto do sistema: ${JSON.stringify(context)}. Pergunta do usuário: ${userMessage}`,
         config: {
           systemInstruction: `Você é o assistente da CredPlus. 
           REGRAS DE CADASTRO:
@@ -174,9 +177,10 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ db, user, onAddClient, onAddT
         const aiResponse = response.text || "Desculpe, não entendi.";
         setMessages(prev => [...prev, { role: 'model', text: aiResponse }]);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("AI Error:", error);
-      setMessages(prev => [...prev, { role: 'model', text: "Ops! Tive um erro técnico. Verifique se as chaves de API estão configuradas." }]);
+      const errorMsg = error.message || "Erro desconhecido";
+      setMessages(prev => [...prev, { role: 'model', text: `❌ **Erro no Agente:** ${errorMsg}\n\nVerifique se a variável GEMINI_API_KEY está configurada no seu ambiente.` }]);
     } finally {
       setIsLoading(false);
     }
