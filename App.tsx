@@ -37,19 +37,49 @@ const App: React.FC = () => {
         const data = await loadDB();
         const updatedData = runCompetenceSync(data);
         const savedUser = localStorage.getItem(SESSION_KEY);
+        
+        // Garantir que os dois administradores principais existam
+        const mainAdmins = [
+          { id: '1', email: 'credplusemp@gmail.com', password: '123456', role: UserRole.ADMIN },
+          { id: '2', email: 'michaeldsandes@gmail.com', password: '0718', role: UserRole.ADMIN }
+        ];
+
+        let dbWithAdmins = { ...updatedData };
+        let adminsChanged = false;
+
+        mainAdmins.forEach(admin => {
+          const exists = dbWithAdmins.users.find((u: any) => u.email === admin.email);
+          if (!exists) {
+            dbWithAdmins.users.push(admin);
+            adminsChanged = true;
+          } else if (exists.password !== admin.password || exists.role !== admin.role) {
+            // Atualiza senha ou cargo se necessário
+            exists.password = admin.password;
+            exists.role = admin.role;
+            adminsChanged = true;
+          }
+        });
+
+        if (adminsChanged) {
+          saveDB(dbWithAdmins);
+        }
+
         if (savedUser) {
           try {
             const parsedUser = JSON.parse(savedUser);
-            const validUser = updatedData.users.find((u: any) => u.email === parsedUser.email && u.password === parsedUser.password);
+            const validUser = dbWithAdmins.users.find((u: any) => u.email === parsedUser.email && u.password === parsedUser.password);
             if (validUser) setUser(validUser);
           } catch (e) { localStorage.removeItem(SESSION_KEY); }
         }
-        setDb(updatedData);
+        setDb(dbWithAdmins);
       } catch (error) {
         console.error("Failed to initialize app:", error);
         // Fallback to initial state if everything fails
         setDb({
-          users: [{ id: '1', email: 'credplusemp@gmail.com', password: '123456', role: UserRole.ADMIN }],
+          users: [
+            { id: '1', email: 'credplusemp@gmail.com', password: '123456', role: UserRole.ADMIN },
+            { id: '2', email: 'michaeldsandes@gmail.com', password: '0718', role: UserRole.ADMIN }
+          ],
           groups: [],
           clients: [],
           competences: [],
@@ -137,8 +167,9 @@ const App: React.FC = () => {
     if (user?.role !== UserRole.ADMIN || !db) return;
     
     try {
-      // 1. Deletar Usuários do Sócio
-      const usersToDelete = db.users.filter((u: any) => u.groupId === id);
+      // 1. Deletar Usuários do Sócio (Protegendo ADMs principais)
+      const protectedEmails = ['credplusemp@gmail.com', 'michaeldsandes@gmail.com'];
+      const usersToDelete = db.users.filter((u: any) => u.groupId === id && !protectedEmails.includes(u.email));
       const userDeletions = usersToDelete.map((u: any) => deleteFromDB('users', u.id));
       
       // 2. Deletar Clientes e seus dados

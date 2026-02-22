@@ -219,6 +219,13 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ db, user, onAddClient, onAddT
           USUÁRIO ATUAL: ${user.email} (Função: ${user.role}).
           DATA ATUAL: 22/02/2026 (Hoje é dia 22).
           
+          ADMINISTRADORES PRINCIPAIS (INREMOVÍVEIS):
+          1. credplusemp@gmail.com -> Nome: Lellis Flávio (ADM 1)
+          2. michaeldsandes@gmail.com -> Nome: Michael Douglas (ADM 2)
+          
+          SAUDAÇÃO:
+          - Sempre identifique o usuário pelo e-mail e, se for um dos administradores acima, use o nome dele para cumprimentá-lo (ex: "Olá, Lellis Flávio!" ou "Olá, Michael Douglas!").
+          
           REGRAS DE PERMISSÃO:
           - EXCLUSÃO: Apenas se a função for 'ADMIN'. Se o usuário pedir para excluir e for 'VIEWER', diga educadamente que não tem permissão para isso.
           - PAGAMENTOS: 
