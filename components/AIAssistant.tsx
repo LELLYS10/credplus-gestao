@@ -343,7 +343,7 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ db, user, onAddClient, onAddT
 
       {/* Janela do Chat */}
       {isOpen && (
-        <div className="fixed bottom-24 right-6 w-full max-w-[400px] h-[600px] bg-white rounded-[2.5rem] shadow-2xl flex flex-col z-50 overflow-hidden border border-slate-200 animate-in slide-in-from-bottom-10 duration-300">
+        <div className="fixed inset-0 md:inset-auto md:bottom-24 md:right-6 md:w-[400px] md:h-[600px] bg-white md:rounded-[2.5rem] shadow-2xl flex flex-col z-[60] overflow-hidden border border-slate-200 animate-in slide-in-from-bottom-10 duration-300">
           {/* Header */}
           <div className="bg-emerald-700 p-6 text-white flex items-center justify-between border-b-4 border-emerald-900">
             <div className="flex items-center gap-3">

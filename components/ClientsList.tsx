@@ -52,55 +52,94 @@ const ClientsList: React.FC<ClientsListProps> = ({ user, clients, groups, onView
              <p className="font-black uppercase tracking-widest text-[10px]">Nenhum cliente encontrado.</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse">
-              <thead className="bg-slate-50 border-b border-slate-100">
-                <tr>
-                  <th className="py-4 px-6 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Cliente</th>
-                  <th className="py-4 px-6 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Sócio</th>
-                  <th className="py-4 px-6 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Vencimento</th>
-                  <th className="py-4 px-6 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest">Capital</th>
-                  <th className="py-4 px-6 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest">Ações</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-50">
-                {filtered.map(client => (
-                  <tr 
-                    key={client.id} 
-                    className="hover:bg-emerald-50/30 transition-colors cursor-pointer group"
-                    onClick={() => onViewClient(client.id)}
-                  >
-                    <td className="py-4 px-6">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 bg-emerald-50 text-emerald-600 rounded-lg flex items-center justify-center font-black text-xs">
-                          {client.name.charAt(0).toUpperCase()}
-                        </div>
-                        <span className="font-black text-slate-800 tracking-tight group-hover:text-emerald-700 transition-colors">{client.name}</span>
-                      </div>
-                    </td>
-                    <td className="py-4 px-6">
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                        {groups.find(g => g.id === client.groupId)?.name || 'N/A'}
-                      </span>
-                    </td>
-                    <td className="py-4 px-6">
-                      <span className="bg-emerald-50 text-emerald-600 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest">
-                        Dia {client.dueDay}
-                      </span>
-                    </td>
-                    <td className="py-4 px-6 text-right">
-                      <span className="font-black text-slate-800">{formatCurrency(client.currentCapital)}</span>
-                    </td>
-                    <td className="py-4 px-6 text-right">
-                      <div className="flex justify-end">
-                        <ChevronRight size={18} className="text-slate-300 group-hover:text-emerald-500 transform group-hover:translate-x-1 transition-all" />
-                      </div>
-                    </td>
+          <>
+            {/* Desktop Table */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full border-collapse">
+                <thead className="bg-slate-50 border-b border-slate-100">
+                  <tr>
+                    <th className="py-4 px-6 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Cliente</th>
+                    <th className="py-4 px-6 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Sócio</th>
+                    <th className="py-4 px-6 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Vencimento</th>
+                    <th className="py-4 px-6 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest">Capital</th>
+                    <th className="py-4 px-6 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest">Ações</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-slate-50">
+                  {filtered.map(client => (
+                    <tr 
+                      key={client.id} 
+                      className="hover:bg-emerald-50/30 transition-colors cursor-pointer group"
+                      onClick={() => onViewClient(client.id)}
+                    >
+                      <td className="py-4 px-6">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 bg-emerald-50 text-emerald-600 rounded-lg flex items-center justify-center font-black text-xs">
+                            {client.name.charAt(0).toUpperCase()}
+                          </div>
+                          <span className="font-black text-slate-800 tracking-tight group-hover:text-emerald-700 transition-colors">{client.name}</span>
+                        </div>
+                      </td>
+                      <td className="py-4 px-6">
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                          {groups.find(g => g.id === client.groupId)?.name || 'N/A'}
+                        </span>
+                      </td>
+                      <td className="py-4 px-6">
+                        <span className="bg-emerald-50 text-emerald-600 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest">
+                          Dia {client.dueDay}
+                        </span>
+                      </td>
+                      <td className="py-4 px-6 text-right">
+                        <span className="font-black text-slate-800">{formatCurrency(client.currentCapital)}</span>
+                      </td>
+                      <td className="py-4 px-6 text-right">
+                        <div className="flex justify-end">
+                          <ChevronRight size={18} className="text-slate-300 group-hover:text-emerald-500 transform group-hover:translate-x-1 transition-all" />
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile Cards */}
+            <div className="md:hidden divide-y divide-slate-100">
+              {filtered.map(client => (
+                <div 
+                  key={client.id} 
+                  className="p-4 space-y-4 hover:bg-slate-50 transition-colors cursor-pointer"
+                  onClick={() => onViewClient(client.id)}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center font-black text-sm">
+                        {client.name.charAt(0).toUpperCase()}
+                      </div>
+                      <div>
+                        <h4 className="font-black text-slate-800 tracking-tight">{client.name}</h4>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                          {groups.find(g => g.id === client.groupId)?.name || 'N/A'}
+                        </p>
+                      </div>
+                    </div>
+                    <ChevronRight size={20} className="text-slate-300" />
+                  </div>
+                  <div className="flex justify-between items-center bg-slate-50 p-3 rounded-2xl">
+                    <div>
+                      <p className="text-[9px] text-slate-400 uppercase font-black">Vencimento</p>
+                      <p className="text-xs font-black text-emerald-600">Dia {client.dueDay}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-[9px] text-slate-400 uppercase font-black">Capital</p>
+                      <p className="text-sm font-black text-slate-900">{formatCurrency(client.currentCapital)}</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
         )}
       </div>
     </div>

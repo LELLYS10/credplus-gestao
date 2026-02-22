@@ -150,29 +150,65 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ groups, clients, users, compete
             <button onClick={() => setShowClientModal(true)} className="flex items-center gap-2 bg-emerald-600 text-white px-5 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-widest shadow-lg border-b-4 border-emerald-800"><UserPlus size={18} /> Novo Cliente</button>
           </div>
           <div className="bg-white rounded-[2rem] border border-slate-200 overflow-hidden shadow-sm">
-             <table className="w-full">
+            {/* Desktop Table */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full">
                 <thead className="bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">
-                   <tr><th className="py-4 px-6 text-left">Nome</th><th className="py-4 px-6 text-left">Início</th><th className="py-4 px-6 text-left">Capital</th><th className="py-4 px-6 text-left">Sócio</th><th className="py-4 px-6 text-right">Status</th></tr>
+                  <tr>
+                    <th className="py-4 px-6 text-left">Nome</th>
+                    <th className="py-4 px-6 text-left">Início</th>
+                    <th className="py-4 px-6 text-left">Capital</th>
+                    <th className="py-4 px-6 text-left">Sócio</th>
+                    <th className="py-4 px-6 text-right">Status</th>
+                  </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-50">
-                   {clients.map(c => (
-                     <tr key={c.id}>
-                        <td className="py-4 px-6 font-black text-slate-700">{c.name}</td>
-                        <td className="py-4 px-6 text-slate-400 font-bold text-xs">{new Date(c.createdAt).toLocaleDateString('pt-BR')}</td>
-                        <td className="py-4 px-6 text-emerald-600 font-bold">{formatCurrency(c.currentCapital)}</td>
-                        <td className="py-4 px-6 text-slate-500 font-bold">{groups.find(g=>g.id===c.groupId)?.name || 'N/A'}</td>
-                        <td className="py-4 px-6 text-right">
-                          <div className="flex items-center justify-end gap-2">
-                            <span className="bg-emerald-50 text-emerald-600 px-2 py-0.5 rounded-full text-[9px] font-black uppercase">Ativo</span>
-                            <button onClick={() => { if(confirm(`Excluir cliente ${c.name}?`)) onDeleteClient(c.id); }} className="text-slate-300 hover:text-red-500 p-1 transition-colors">
-                              <Trash2 size={14} />
-                            </button>
-                          </div>
-                        </td>
-                     </tr>
-                   ))}
+                  {clients.map(c => (
+                    <tr key={c.id}>
+                      <td className="py-4 px-6 font-black text-slate-700">{c.name}</td>
+                      <td className="py-4 px-6 text-slate-400 font-bold text-xs">{new Date(c.createdAt).toLocaleDateString('pt-BR')}</td>
+                      <td className="py-4 px-6 text-emerald-600 font-bold">{formatCurrency(c.currentCapital)}</td>
+                      <td className="py-4 px-6 text-slate-500 font-bold">{groups.find(g=>g.id===c.groupId)?.name || 'N/A'}</td>
+                      <td className="py-4 px-6 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <span className="bg-emerald-50 text-emerald-600 px-2 py-0.5 rounded-full text-[9px] font-black uppercase">Ativo</span>
+                          <button onClick={() => { if(confirm(`Excluir cliente ${c.name}?`)) onDeleteClient(c.id); }} className="text-slate-300 hover:text-red-500 p-1 transition-colors">
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
-             </table>
+              </table>
+            </div>
+
+            {/* Mobile Cards */}
+            <div className="md:hidden divide-y divide-slate-100">
+              {clients.map(c => (
+                <div key={c.id} className="p-4 space-y-3">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h4 className="font-black text-slate-800">{c.name}</h4>
+                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Desde {new Date(c.createdAt).toLocaleDateString('pt-BR')}</p>
+                    </div>
+                    <button onClick={() => { if(confirm(`Excluir cliente ${c.name}?`)) onDeleteClient(c.id); }} className="text-red-400 p-2">
+                      <Trash2 size={18} />
+                    </button>
+                  </div>
+                  <div className="flex justify-between items-center bg-slate-50 p-3 rounded-xl">
+                    <div>
+                      <p className="text-[9px] text-slate-400 uppercase font-black">Capital</p>
+                      <p className="text-sm font-black text-emerald-600">{formatCurrency(c.currentCapital)}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-[9px] text-slate-400 uppercase font-black">Sócio</p>
+                      <p className="text-sm font-bold text-slate-600">{groups.find(g=>g.id===c.groupId)?.name || 'N/A'}</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </section>
       )}

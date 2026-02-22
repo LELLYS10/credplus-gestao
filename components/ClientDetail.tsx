@@ -123,11 +123,60 @@ const ClientDetail: React.FC<ClientDetailProps> = ({ client, competences, transa
                   <CheckCircle2 size={20} /> Empréstimo totalmente quitado. Não há valores pendentes.
                 </div>
               )}
-              <div className="overflow-x-auto rounded-3xl border border-slate-100">
-                <table className="w-full">
-                  <thead className="bg-slate-50/50"><tr><th className="text-left py-5 px-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Vencimento</th><th className="text-left py-5 px-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Capital Base</th><th className="text-left py-5 px-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Valor Juros</th><th className="text-left py-5 px-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Recebido</th><th className="text-right py-5 px-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Status</th></tr></thead>
-                  <tbody className="divide-y divide-slate-50">{sortedComps.map(comp => (<tr key={comp.id} className="hover:bg-slate-50 transition-colors"><td className="py-5 px-6 font-black text-slate-800 text-sm">{getEffectiveDueDay(client.dueDay, comp.month, comp.year)}/{String(comp.month + 1).padStart(2, '0')}/{comp.year}</td><td className="py-5 px-6 text-slate-400 font-bold text-sm">{formatCurrency(comp.capitalAtTime || 0)}</td><td className="py-5 px-6 text-slate-500 font-bold text-sm">{formatCurrency(comp.originalValue)}</td><td className="py-5 px-6 text-emerald-600 font-black text-sm">{formatCurrency(comp.paidAmount)}</td><td className="py-5 px-6 text-right">{(comp.originalValue - comp.paidAmount) < 0.01 ? <span className="bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border border-emerald-200">LIQUIDADO</span> : <span className="bg-amber-50 text-amber-700 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border border-amber-200">PENDENTE</span>}</td></tr>))}</tbody>
-                </table>
+              <div className="rounded-3xl border border-slate-100 overflow-hidden">
+                {/* Desktop Table */}
+                <div className="hidden md:block overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-slate-50/50">
+                      <tr>
+                        <th className="text-left py-5 px-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Vencimento</th>
+                        <th className="text-left py-5 px-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Capital Base</th>
+                        <th className="text-left py-5 px-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Valor Juros</th>
+                        <th className="text-left py-5 px-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Recebido</th>
+                        <th className="text-right py-5 px-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-50">
+                      {sortedComps.map(comp => (
+                        <tr key={comp.id} className="hover:bg-slate-50 transition-colors">
+                          <td className="py-5 px-6 font-black text-slate-800 text-sm">{getEffectiveDueDay(client.dueDay, comp.month, comp.year)}/{String(comp.month + 1).padStart(2, '0')}/{comp.year}</td>
+                          <td className="py-5 px-6 text-slate-400 font-bold text-sm">{formatCurrency(comp.capitalAtTime || 0)}</td>
+                          <td className="py-5 px-6 text-slate-500 font-bold text-sm">{formatCurrency(comp.originalValue)}</td>
+                          <td className="py-5 px-6 text-emerald-600 font-black text-sm">{formatCurrency(comp.paidAmount)}</td>
+                          <td className="py-5 px-6 text-right">
+                            {(comp.originalValue - comp.paidAmount) < 0.01 
+                              ? <span className="bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border border-emerald-200">LIQUIDADO</span> 
+                              : <span className="bg-amber-50 text-amber-700 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border border-amber-200">PENDENTE</span>}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Mobile Cards */}
+                <div className="md:hidden divide-y divide-slate-50">
+                  {sortedComps.map(comp => (
+                    <div key={comp.id} className="p-4 space-y-3">
+                      <div className="flex justify-between items-center">
+                        <span className="font-black text-slate-800 text-sm">{getEffectiveDueDay(client.dueDay, comp.month, comp.year)}/{String(comp.month + 1).padStart(2, '0')}/{comp.year}</span>
+                        {(comp.originalValue - comp.paidAmount) < 0.01 
+                          ? <span className="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest">LIQUIDADO</span> 
+                          : <span className="bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest">PENDENTE</span>}
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 bg-slate-50 p-3 rounded-xl">
+                        <div>
+                          <p className="text-[8px] text-slate-400 uppercase font-black">Valor Juros</p>
+                          <p className="text-xs font-black text-slate-600">{formatCurrency(comp.originalValue)}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-[8px] text-slate-400 uppercase font-black">Recebido</p>
+                          <p className="text-xs font-black text-emerald-600">{formatCurrency(comp.paidAmount)}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           ) : (
@@ -157,11 +206,65 @@ const ClientDetail: React.FC<ClientDetailProps> = ({ client, competences, transa
                   </div>
                 )}
               </div>
-              <div className="overflow-x-auto rounded-3xl border border-slate-100">
-                <table className="w-full">
-                  <thead className="bg-slate-50/50"><tr><th className="text-left py-5 px-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Data</th><th className="text-left py-5 px-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Tipo</th><th className="text-left py-5 px-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Descrição</th><th className="text-right py-5 px-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Valor</th></tr></thead>
-                  <tbody className="divide-y divide-slate-50">{sortedTrxs.length === 0 ? <tr><td colSpan={4} className="py-10 text-center text-slate-400 text-xs font-black uppercase">Sem movimentações.</td></tr> : sortedTrxs.map(trx => (<tr key={trx.id} className="hover:bg-slate-50 transition-colors"><td className="py-5 px-6 font-bold text-slate-500 text-xs">{new Date(trx.createdAt).toLocaleDateString()}</td><td className="py-5 px-6"><span className={`inline-flex items-center gap-1.5 font-black text-[9px] uppercase tracking-widest ${trx.type === TransactionType.INVESTMENT ? 'text-emerald-600' : 'text-amber-600'}`}>{trx.type === TransactionType.INVESTMENT ? <ArrowUpRight size={14} /> : <ArrowDownLeft size={14} />}{trx.type === TransactionType.INVESTMENT ? 'Aporte' : trx.type === TransactionType.WITHDRAWAL ? 'Retirada' : 'Amortização'}</span></td><td className="py-5 px-6 text-slate-600 font-medium text-xs">{trx.description}</td><td className={`py-5 px-6 text-right font-black text-sm ${trx.type === TransactionType.INVESTMENT ? 'text-emerald-600' : 'text-red-500'}`}>{trx.type === TransactionType.INVESTMENT ? '+' : '-'}{formatCurrency(trx.amount)}</td></tr>))}</tbody>
-                </table>
+              <div className="rounded-3xl border border-slate-100 overflow-hidden">
+                {/* Desktop Table */}
+                <div className="hidden md:block overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-slate-50/50">
+                      <tr>
+                        <th className="text-left py-5 px-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Data</th>
+                        <th className="text-left py-5 px-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Tipo</th>
+                        <th className="text-left py-5 px-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Descrição</th>
+                        <th className="text-right py-5 px-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Valor</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-50">
+                      {sortedTrxs.length === 0 ? (
+                        <tr><td colSpan={4} className="py-10 text-center text-slate-400 text-xs font-black uppercase">Sem movimentações.</td></tr>
+                      ) : (
+                        sortedTrxs.map(trx => (
+                          <tr key={trx.id} className="hover:bg-slate-50 transition-colors">
+                            <td className="py-5 px-6 font-bold text-slate-500 text-xs">{new Date(trx.createdAt).toLocaleDateString()}</td>
+                            <td className="py-5 px-6">
+                              <span className={`inline-flex items-center gap-1.5 font-black text-[9px] uppercase tracking-widest ${trx.type === TransactionType.INVESTMENT ? 'text-emerald-600' : 'text-amber-600'}`}>
+                                {trx.type === TransactionType.INVESTMENT ? <ArrowUpRight size={14} /> : <ArrowDownLeft size={14} />}
+                                {trx.type === TransactionType.INVESTMENT ? 'Aporte' : trx.type === TransactionType.WITHDRAWAL ? 'Retirada' : 'Amortização'}
+                              </span>
+                            </td>
+                            <td className="py-5 px-6 text-slate-600 font-medium text-xs">{trx.description}</td>
+                            <td className={`py-5 px-6 text-right font-black text-sm ${trx.type === TransactionType.INVESTMENT ? 'text-emerald-600' : 'text-red-500'}`}>
+                              {trx.type === TransactionType.INVESTMENT ? '+' : '-'}{formatCurrency(trx.amount)}
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Mobile Cards */}
+                <div className="md:hidden divide-y divide-slate-50">
+                  {sortedTrxs.length === 0 ? (
+                    <div className="py-10 text-center text-slate-400 text-[10px] font-black uppercase">Sem movimentações.</div>
+                  ) : (
+                    sortedTrxs.map(trx => (
+                      <div key={trx.id} className="p-4 space-y-2">
+                        <div className="flex justify-between items-center">
+                          <span className="text-[10px] font-bold text-slate-400">{new Date(trx.createdAt).toLocaleDateString()}</span>
+                          <span className={`font-black text-sm ${trx.type === TransactionType.INVESTMENT ? 'text-emerald-600' : 'text-red-500'}`}>
+                            {trx.type === TransactionType.INVESTMENT ? '+' : '-'}{formatCurrency(trx.amount)}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className={`text-[8px] font-black uppercase tracking-widest ${trx.type === TransactionType.INVESTMENT ? 'text-emerald-600' : 'text-amber-600'}`}>
+                            {trx.type === TransactionType.INVESTMENT ? 'Aporte' : trx.type === TransactionType.WITHDRAWAL ? 'Retirada' : 'Amortização'}
+                          </span>
+                          <span className="text-[10px] text-slate-500 font-medium italic truncate max-w-[150px]">{trx.description}</span>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
               </div>
             </div>
           )}
