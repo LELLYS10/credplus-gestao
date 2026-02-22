@@ -121,9 +121,11 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ db, user, onAddClient, onAddT
     setIsLoading(true);
 
     try {
-      const apiKey = process.env.GEMINI_API_KEY;
+      // Tenta pegar a chave de ambos os lugares para garantir funcionamento no celular/Vercel
+      const apiKey = process.env.GEMINI_API_KEY || (import.meta.env.VITE_GEMINI_API_KEY as string);
+      
       if (!apiKey) {
-        throw new Error("A chave de API (GEMINI_API_KEY) não foi encontrada no sistema.");
+        throw new Error("A chave de API não foi configurada. No Vercel, adicione a variável VITE_GEMINI_API_KEY.");
       }
 
       const ai = new GoogleGenAI({ apiKey });
@@ -144,19 +146,19 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ db, user, onAddClient, onAddT
         contents: `Contexto do sistema: ${JSON.stringify(context)}. Pergunta do usuário: ${userMessage}`,
         config: {
           systemInstruction: `Você é o assistente da CredPlus. 
-          REGRAS DE CADASTRO:
-          Quando o usuário quiser fazer um "cadastro", você deve solicitar os dados EXATAMENTE nesta ordem e formato de lista:
-          1. Nome
-          2. Fone
-          3. Sócio (Apresente a lista de 'socios_disponiveis' aqui para o usuário escolher)
-          4. Capital
-          5. Vencimento
+          REGRAS OBRIGATÓRIAS DE CADASTRO:
+          Quando o usuário quiser fazer um "cadastro", você deve responder solicitando os dados EXATAMENTE nesta ordem de lista:
+          1. Nome:
+          2. Fone:
+          3. Sócio: (Liste aqui os nomes de 'socios_disponiveis')
+          4. Capital:
+          5. Vencimento:
 
-          IMPORTANTE:
-          - Não peça nome completo, apenas "Nome".
-          - Mostre os nomes dos sócios de 'socios_disponiveis' de forma clara.
-          - Só use a ferramenta 'registerClient' quando tiver todos os dados.
-          - Seja direto e profissional.`,
+          INSTRUÇÕES ADICIONAIS:
+          - Seja extremamente breve. Não peça "nome completo", apenas "Nome".
+          - Se o usuário já forneceu alguns dados, preencha a lista e peça apenas o que falta.
+          - Use a ferramenta 'registerClient' IMEDIATAMENTE após receber o último dado necessário.
+          - Responda sempre em Português do Brasil.`,
           tools: [{ functionDeclarations: [registerClientTool, registerTransactionTool] }]
         }
       });
