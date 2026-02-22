@@ -10,6 +10,7 @@ interface AIAssistantProps {
   user: User;
   onAddClient: (data: { name: string; phone: string; groupId: string; initialCapital: number; dueDay: number; notes: string }) => void;
   onAddTransaction: (data: { clientId: string; type: TransactionType; amount: number; description: string }) => void;
+  onAddPayment: (data: { clientId: string; interestAmount: number; amortizationAmount: number; description: string }) => void;
   onAddSocio: (data: { name: string; email: string; phone: string; interestRate: number; password: string }) => void;
 }
 
@@ -26,7 +27,7 @@ declare global {
   }
 }
 
-const AIAssistant: React.FC<AIAssistantProps> = ({ db, user, onAddClient, onAddTransaction, onAddSocio }) => {
+const AIAssistant: React.FC<AIAssistantProps> = ({ db, user, onAddClient, onAddTransaction, onAddSocio, onAddPayment }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [input, setInput] = useState('');
   const [isListening, setIsListening] = useState(false);
@@ -112,14 +113,29 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ db, user, onAddClient, onAddT
     name: "registerTransaction",
     parameters: {
       type: Type.OBJECT,
-      description: "Registra uma nova transação (Investimento, Retirada ou Amortização) para um cliente.",
+      description: "Registra uma nova transação (Investimento ou Retirada) para um cliente.",
       properties: {
         clientId: { type: Type.STRING, description: "ID do cliente" },
-        type: { type: Type.STRING, description: "Tipo da transação: INVESTMENT, WITHDRAWAL ou AMORTIZATION" },
+        type: { type: Type.STRING, description: "Tipo da transação: INVESTMENT ou WITHDRAWAL" },
         amount: { type: Type.NUMBER, description: "Valor da transação" },
         description: { type: Type.STRING, description: "Descrição ou motivo do lançamento" }
       },
       required: ["clientId", "type", "amount"]
+    }
+  };
+
+  const registerPaymentTool: FunctionDeclaration = {
+    name: "registerPayment",
+    parameters: {
+      type: Type.OBJECT,
+      description: "Registra o pagamento de juros e/ou amortização de capital.",
+      properties: {
+        clientId: { type: Type.STRING, description: "ID do cliente" },
+        interestAmount: { type: Type.NUMBER, description: "Valor pago referente aos JUROS" },
+        amortizationAmount: { type: Type.NUMBER, description: "Valor pago para AMORTIZAR o capital" },
+        description: { type: Type.STRING, description: "Descrição opcional" }
+      },
+      required: ["clientId", "interestAmount", "amortizationAmount"]
     }
   };
 
@@ -150,12 +166,18 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ db, user, onAddClient, onAddT
       const context = {
         total_clientes: db.clients.length,
         socios_disponiveis: db.groups.map(g => ({ id: g.id, nome: g.name })),
-        clientes: db.clients.map(c => ({ 
-          id: c.id,
-          nome: c.name, 
-          capital: c.currentCapital, 
-          grupo: db.groups.find(g => g.id === c.groupId)?.name
-        }))
+        clientes: db.clients.map(c => {
+          const clientCompetences = db.competences.filter(cp => cp.clientId === c.id && cp.paidAmount < cp.originalValue);
+          const totalInterestPending = clientCompetences.reduce((sum, cp) => sum + (cp.originalValue - cp.paidAmount), 0);
+          return { 
+            id: c.id,
+            nome: c.name, 
+            capital_atual: c.currentCapital, 
+            juros_pendentes: totalInterestPending,
+            vencimento_dia: c.dueDay,
+            grupo: db.groups.find(g => g.id === c.groupId)?.name
+          };
+        })
       };
 
       const response = await ai.models.generateContent({
@@ -167,33 +189,40 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ db, user, onAddClient, onAddT
         ],
         config: {
           systemInstruction: `Você é o assistente ultra-eficiente da CredPlus. 
-          REGRAS CRÍTICAS:
-          1. MEMÓRIA: Se o usuário já disse um dado (ex: Nome ou Sócio), NUNCA peça novamente.
-          2. FORMATO DE LISTA: Sempre que faltar dados, responda APENAS com a lista do que falta, marcando o que já tem.
+          DATA ATUAL: 22/02/2026 (Hoje é dia 22).
           
-          FLUXO DE SÓCIO (Gatilho: "cadastrar sócio", "novo sócio"):
-          - Lista: 1. Nome, 2. Email, 3. Fone, 4. Taxa de Juros, 5. Senha.
-          - Se o usuário disse "Cadastrar João como sócio", responda:
-            "Ok! Para o sócio João, informe:
-            2. Email:
-            3. Fone:
-            4. Taxa de Juros:
-            5. Senha:"
+          REGRAS CRÍTICAS:
+          1. MEMÓRIA: Se o usuário já disse um dado, NUNCA peça novamente.
+          2. FORMATO DE LISTA: Responda APENAS com a lista do que falta.
+          
+          FLUXO DE CONSULTA (Vencimentos):
+          - Gatilhos: "quem vence hoje", "quem vence amanhã", "vencidos", "atrasados".
+          - Formato de resposta (um por linha):
+            "• [Nome] | Cap: R$ [Capital] | Juros: R$ [Juros] | Sócio: [Sócio]"
+          - Regra Vencidos: Clientes com 'vencimento_dia' menor que 22 e 'juros_pendentes' > 0.
+          - Regra Hoje: Clientes com 'vencimento_dia' igual a 22.
+          - Regra Amanhã: Clientes com 'vencimento_dia' igual a 23.
 
-          FLUXO DE CLIENTE (Gatilho: "cadastrar cliente", "novo cliente", ou nomes soltos):
-          - Lista: 1. Nome, 2. Fone, 3. Sócio (liste os disponíveis), 4. Capital, 5. Vencimento.
-          - Se o usuário disse "Flavio, sócio JOAO", responda:
-            "Ok! Para o cliente Flavio (Sócio: JOAO), informe:
-            2. Fone:
-            4. Capital:
-            5. Vencimento:"
+          FLUXO DE PAGAMENTO/BAIXA (Gatilho: "pagamento", "dar baixa", "pagou"):
+          - Lista: 1. Valor dos Juros, 2. Amortizar Capital, 3. Descrição (opcional).
+          - Se o usuário disser "Pagamento de Valdomiro", veja no contexto quanto ele deve de juros e capital e confirme:
+            "Ok! Para Valdomiro (Dívida: R$ [capital], Juros: R$ [juros]), informe:
+            1. Valor dos Juros:
+            2. Amortizar Capital:
+            3. Descrição:"
+
+          FLUXO DE SÓCIO:
+          - Lista: 1. Nome, 2. Email, 3. Fone, 4. Taxa de Juros, 5. Senha.
+
+          FLUXO DE CLIENTE:
+          - Lista: 1. Nome, 2. Fone, 3. Sócio, 4. Capital, 5. Vencimento.
 
           REGRAS GERAIS:
-          - Seja CURTO. Sem "Por favor", sem "Olá novamente". Vá direto ao ponto.
-          - Use a ferramenta assim que o ÚLTIMO dado for fornecido.
-          - Ignore maiúsculas/minúsculas.
-          - Identifique o Sócio pelo nome fornecido no contexto.`,
-          tools: [{ functionDeclarations: [registerSocioTool, registerClientTool, registerTransactionTool] }]
+          - Seja CURTO e DIRETO.
+          - Use a ferramenta 'registerPayment' para pagamentos de juros/capital.
+          - Use a ferramenta 'registerTransaction' APENAS para Investimentos ou Retiradas puras.
+          - Identifique o Cliente pelo nome fornecido no contexto.`,
+          tools: [{ functionDeclarations: [registerSocioTool, registerClientTool, registerTransactionTool, registerPaymentTool] }]
         }
       });
 
@@ -210,7 +239,14 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ db, user, onAddClient, onAddT
           }
           if (call.name === "registerTransaction") {
             onAddTransaction(call.args as any);
-            setMessages(prev => [...prev, { role: 'model', text: `✅ Lançamento de **R$ ${(call.args as any).amount}** registrado com sucesso!` }]);
+            setMessages(prev => [...prev, { role: 'model', text: `✅ Lançamento registrado com sucesso!` }]);
+          }
+          if (call.name === "registerPayment") {
+            onAddPayment(call.args as any);
+            const args = call.args as any;
+            const client = db.clients.find(c => c.id === args.clientId);
+            const newCap = (client?.currentCapital || 0) - args.amortizationAmount;
+            setMessages(prev => [...prev, { role: 'model', text: `✅ Pagamento de **${client?.name}** processado!\n- Juros pagos: R$ ${args.interestAmount}\n- Amortização: R$ ${args.amortizationAmount}\n- **Novo Capital: R$ ${newCap}**` }]);
           }
         }
       } else {

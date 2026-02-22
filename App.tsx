@@ -268,6 +268,52 @@ const App: React.FC = () => {
             users: [...prev.users, newUser]
           }));
         }}
+        onAddPayment={(data) => {
+          setDb((prev: any) => {
+            const updatedCompetences = applyFIFOPayment(
+              [...prev.competences],
+              data.clientId,
+              data.interestAmount,
+              0
+            );
+            
+            const updatedClients = prev.clients.map((c: any) => {
+              if (c.id === data.clientId) {
+                return { ...c, currentCapital: Math.max(0, c.currentCapital - data.amortizationAmount) };
+              }
+              return c;
+            });
+
+            const newTransactions = [...prev.transactions];
+            if (data.interestAmount > 0) {
+              newTransactions.push({
+                id: `t-int-${Date.now()}`,
+                clientId: data.clientId,
+                type: 'INTEREST_PAYMENT' as any,
+                amount: data.interestAmount,
+                description: data.description || 'Pagamento de juros via Agente',
+                createdAt: Date.now()
+              });
+            }
+            if (data.amortizationAmount > 0) {
+              newTransactions.push({
+                id: `t-amo-${Date.now()}`,
+                clientId: data.clientId,
+                type: 'AMORTIZATION' as any,
+                amount: data.amortizationAmount,
+                description: data.description || 'Amortização via Agente',
+                createdAt: Date.now()
+              });
+            }
+
+            return {
+              ...prev,
+              competences: updatedCompetences,
+              clients: updatedClients,
+              transactions: newTransactions
+            };
+          });
+        }}
       />
     </>
   );
