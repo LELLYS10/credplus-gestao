@@ -108,7 +108,20 @@ const App: React.FC = () => {
   const renderContent = () => {
     if (!db || !user) return null;
     switch (activeTab) {
-      case 'dashboard': return <Dashboard user={user} clients={db.clients} competences={db.competences} groups={db.groups} settings={db.settings} onViewClient={id => {setSelectedClientId(id); setActiveTab('client-detail');}} pendingRequests={db.requests} />;
+      case 'dashboard': return <Dashboard 
+        user={user} 
+        clients={db.clients} 
+        competences={db.competences} 
+        groups={db.groups} 
+        settings={db.settings} 
+        onViewClient={id => {setSelectedClientId(id); setActiveTab('client-detail');}} 
+        pendingRequests={db.requests} 
+        onSyncCloud={async () => {
+          await saveDB(db);
+          const freshData = await loadDB();
+          setDb(freshData);
+        }}
+      />;
       case 'clients': return <ClientsList user={user} clients={db.clients} groups={db.groups} onViewClient={id => {setSelectedClientId(id); setActiveTab('client-detail');}} />;
       case 'requests': return <RequestsList user={user} requests={db.requests} clients={db.clients} groups={db.groups} onAction={handleProcessRequest} />;
       case 'admin': 

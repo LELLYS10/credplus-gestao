@@ -11,11 +11,13 @@ interface DashboardProps {
   groups: Group[];
   settings: AppSettings;
   onViewClient: (clientId: string) => void;
+  onSyncCloud?: () => Promise<void>;
   pendingRequests?: PaymentRequest[];
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ user, clients, competences, groups, settings, onViewClient, pendingRequests = [] }) => {
+const Dashboard: React.FC<DashboardProps> = ({ user, clients, competences, groups, settings, onViewClient, onSyncCloud, pendingRequests = [] }) => {
   const [showOverdueModal, setShowOverdueModal] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
   const { day: todayDay, month: todayMonth, year: todayYear } = getToday();
   const todayDate = new Date(todayYear, todayMonth, todayDay);
   const tomorrowDate = new Date(todayYear, todayMonth, todayDay + 1);
@@ -110,18 +112,20 @@ const Dashboard: React.FC<DashboardProps> = ({ user, clients, competences, group
   const StatCard = ({ title, value, icon: Icon, colorClass, highlight, onClick }: any) => (
     <div 
       onClick={onClick}
-      className={`bg-white p-6 rounded-2xl border transition-all duration-300 shadow-sm flex items-start gap-4 cursor-pointer group ${
+      className={`bg-white p-5 rounded-2xl border transition-all duration-300 shadow-sm flex items-center gap-3 cursor-pointer group ${
         highlight 
         ? 'border-red-400 ring-4 ring-red-50 animate-pulse-subtle' 
         : 'border-slate-200 hover:border-emerald-200 hover:shadow-md'
       }`}
     >
-      <div className={`p-3 rounded-xl transition-transform group-hover:scale-110 ${colorClass}`}>
-        <Icon size={24} />
+      <div className={`p-3 rounded-xl shrink-0 transition-transform group-hover:scale-110 ${colorClass}`}>
+        <Icon size={20} className="lg:w-6 lg:h-6" />
       </div>
-      <div>
-        <p className="text-sm font-medium text-slate-500 mb-1">{title}</p>
-        <p className={`text-2xl font-black tracking-tight ${highlight ? 'text-red-600' : 'text-slate-900'}`}>{formatCurrency(value)}</p>
+      <div className="min-w-0 flex-1">
+        <p className="text-[10px] lg:text-xs font-bold text-slate-400 uppercase tracking-wider mb-0.5 truncate">{title}</p>
+        <p className={`text-lg lg:text-xl xl:text-2xl font-black tracking-tighter truncate ${highlight ? 'text-red-600' : 'text-slate-900'}`}>
+          {formatCurrency(value)}
+        </p>
       </div>
     </div>
   );
@@ -149,24 +153,54 @@ const Dashboard: React.FC<DashboardProps> = ({ user, clients, competences, group
     );
   };
 
+  const handleSync = async () => {
+    if (!onSyncCloud) return;
+    setIsSyncing(true);
+    try {
+      await onSyncCloud();
+      alert("✅ Sincronização concluída com sucesso!");
+    } catch (error) {
+      console.error(error);
+      alert("❌ Erro ao sincronizar dados.");
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
   if (!user) return null;
 
   return (
     <div className="space-y-8">
       {/* OCULTA PAINEL DASHBOARD PARA SÓCIOS */}
       {user.role === UserRole.ADMIN && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatCard title="Capital Emprestado" value={stats.totalCapital} icon={TrendingUp} colorClass="bg-emerald-100 text-emerald-600" />
-          <StatCard 
-            title="Juros Atrasados" 
-            value={stats.overdueInterest} 
-            icon={AlertCircle} 
-            colorClass="bg-red-100 text-red-600" 
-            highlight={stats.overdueInterest > 0} 
-            onClick={() => stats.overdueInterest > 0 && setShowOverdueModal(true)}
-          />
-          <StatCard title="Vence Hoje" value={stats.dueTodayInterest} icon={Clock} colorClass="bg-amber-100 text-amber-600" highlight={stats.dueTodayInterest > 0} />
-          <StatCard title="Recebido no Mês" value={stats.receivedThisMonth} icon={CheckCircle2} colorClass="bg-green-100 text-green-600" />
+        <div className="space-y-4">
+          <div className="flex justify-end">
+            <button 
+              onClick={handleSync}
+              disabled={isSyncing}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border-b-4 ${
+                isSyncing 
+                ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed' 
+                : 'bg-white text-emerald-600 border-emerald-100 hover:bg-emerald-50 shadow-sm'
+              }`}
+            >
+              <TrendingUp size={14} className={isSyncing ? 'animate-spin' : ''} />
+              {isSyncing ? 'Sincronizando...' : 'Sincronizar com Nuvem'}
+            </button>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <StatCard title="Capital Emprestado" value={stats.totalCapital} icon={TrendingUp} colorClass="bg-emerald-100 text-emerald-600" />
+            <StatCard 
+              title="Juros Atrasados" 
+              value={stats.overdueInterest} 
+              icon={AlertCircle} 
+              colorClass="bg-red-100 text-red-600" 
+              highlight={stats.overdueInterest > 0} 
+              onClick={() => stats.overdueInterest > 0 && setShowOverdueModal(true)}
+            />
+            <StatCard title="Vence Hoje" value={stats.dueTodayInterest} icon={Clock} colorClass="bg-amber-100 text-amber-600" highlight={stats.dueTodayInterest > 0} />
+            <StatCard title="Recebido no Mês" value={stats.receivedThisMonth} icon={CheckCircle2} colorClass="bg-green-100 text-green-600" />
+          </div>
         </div>
       )}
 

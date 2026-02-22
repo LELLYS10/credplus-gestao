@@ -1,22 +1,23 @@
-
-// @ts-ignore
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.7';
+import { createClient } from '@supabase/supabase-js';
 import { User, Group, Client, Competence, PaymentRequest, UserRole, RequestStatus, DBState, Report, Transaction } from './types';
 
 const STORAGE_KEY = 'loan_management_db_v1';
 
 const getEnv = (key: string): string => {
   try {
-    // Standard Vite access
+    // Standard Vite access via import.meta.env
     const metaEnv = (import.meta as any).env;
-    if (key === 'SUPABASE_URL') return metaEnv.VITE_SUPABASE_URL || process.env.SUPABASE_URL || '';
-    if (key === 'SUPABASE_ANON_KEY') return metaEnv.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || '';
-    
-    // Fallback for other keys
     const viteKey = `VITE_${key}`;
+    
+    // 1. Try VITE_ prefix (standard for Vite/Vercel)
     if (metaEnv && metaEnv[viteKey]) return metaEnv[viteKey];
+    
+    // 2. Try direct key from process.env (injected by vite.config.ts)
     const processEnv = (typeof process !== 'undefined') ? process.env : null;
-    return (processEnv?.[key] as string) || '';
+    if (processEnv && processEnv[key]) return processEnv[key] as string;
+    if (processEnv && processEnv[viteKey]) return processEnv[viteKey] as string;
+
+    return '';
   } catch {
     return '';
   }
@@ -24,6 +25,10 @@ const getEnv = (key: string): string => {
 
 const supabaseUrl = getEnv('SUPABASE_URL');
 const supabaseKey = getEnv('SUPABASE_ANON_KEY');
+
+if (!supabaseUrl || !supabaseKey) {
+  console.warn("⚠️ Supabase: Chaves não encontradas. O sistema funcionará apenas em modo LOCAL (navegador).");
+}
 
 export const supabase = (supabaseUrl && supabaseKey) 
   ? createClient(supabaseUrl, supabaseKey)
@@ -48,13 +53,13 @@ export const loadDB = async (): Promise<DBState> => {
 
   try {
     const [
-      { data: users },
-      { data: groups },
-      { data: clients },
-      { data: competences },
-      { data: requests },
-      { data: reports },
-      { data: transactions }
+      { data: users, error: uErr },
+      { data: groups, error: gErr },
+      { data: clients, error: cErr },
+      { data: competences, error: cpErr },
+      { data: requests, error: rErr },
+      { data: reports, error: rpErr },
+      { data: transactions, error: tErr }
     ] = await Promise.all([
       supabase.from('users').select('*'),
       supabase.from('groups').select('*'),
@@ -64,6 +69,11 @@ export const loadDB = async (): Promise<DBState> => {
       supabase.from('reports').select('*'),
       supabase.from('transactions').select('*')
     ]);
+
+    if (uErr) console.error("Erro na tabela users:", uErr);
+    if (gErr) console.error("Erro na tabela groups:", gErr);
+    if (cErr) console.error("Erro na tabela clients:", cErr);
+    if (tErr) console.error("Erro na tabela transactions:", tErr);
 
     return {
       users: users || initialState.users,
@@ -76,7 +86,7 @@ export const loadDB = async (): Promise<DBState> => {
       settings: {}
     };
   } catch (error) {
-    console.error("Erro ao carregar:", error);
+    console.error("Erro crítico ao carregar do Supabase:", error);
     const data = localStorage.getItem(STORAGE_KEY);
     return data ? JSON.parse(data) : initialState;
   }
