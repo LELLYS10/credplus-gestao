@@ -21,7 +21,7 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ db, user, onAddClient, onAddT
   const [isOpen, setIsOpen] = useState(false);
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState<Message[]>([
-    { role: 'model', text: `Olá ${user.email.split('@')[0]}! Sou o assistente da CredPlus. Posso te ajudar a consultar dados ou até registrar novos clientes e lançamentos. O que deseja fazer?` }
+    { role: 'model', text: `Olá! Sou o assistente CredPlus. 🤖\n\nPara cadastrar um novo cliente, diga **"Cadastro"**.\n\nEu vou solicitar os dados nesta ordem:\n1. **Nome**\n2. **Fone**\n3. **Sócio** (vou listar os disponíveis)\n4. **Capital**\n5. **Vencimento**\n\nComo posso ajudar hoje?` }
   ]);
   const [isLoading, setIsLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -32,12 +32,12 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ db, user, onAddClient, onAddT
       type: Type.OBJECT,
       description: "Registra um novo cliente no sistema.",
       properties: {
-        name: { type: Type.STRING, description: "Nome completo do cliente" },
+        name: { type: Type.STRING, description: "Nome do cliente" },
         phone: { type: Type.STRING, description: "Telefone de contato" },
         groupId: { type: Type.STRING, description: "ID do grupo/sócio responsável" },
         initialCapital: { type: Type.NUMBER, description: "Capital inicial investido" },
         dueDay: { type: Type.NUMBER, description: "Dia de vencimento mensal (1-31)" },
-        notes: { type: Type.STRING, description: "Observações adicionais" }
+        notes: { type: Type.STRING, description: "Observações adicionais (opcional)" }
       },
       required: ["name", "phone", "groupId", "initialCapital", "dueDay"]
     }
@@ -77,7 +77,7 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ db, user, onAddClient, onAddT
       
       const context = {
         total_clientes: db.clients.length,
-        grupos: db.groups.map(g => ({ id: g.id, nome: g.name })),
+        socios_disponiveis: db.groups.map(g => ({ id: g.id, nome: g.name })),
         clientes: db.clients.map(c => ({ 
           id: c.id,
           nome: c.name, 
@@ -92,7 +92,20 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ db, user, onAddClient, onAddT
           { role: 'user', parts: [{ text: `Contexto do sistema: ${JSON.stringify(context)}. Pergunta: ${userMessage}` }] }
         ],
         config: {
-          systemInstruction: "Você é o assistente da CredPlus. Você pode registrar clientes e transações usando as ferramentas fornecidas. Se faltar alguma informação obrigatória para uma ferramenta, peça ao usuário educadamente. Para registrar transações, você precisa do ID do cliente, que pode encontrar na lista de clientes fornecida no contexto.",
+          systemInstruction: `Você é o assistente da CredPlus. 
+          REGRAS DE CADASTRO:
+          Quando o usuário quiser fazer um "cadastro", você deve solicitar os dados EXATAMENTE nesta ordem e formato de lista:
+          1. Nome
+          2. Fone
+          3. Sócio (Apresente a lista de 'socios_disponiveis' aqui para o usuário escolher)
+          4. Capital
+          5. Vencimento
+
+          IMPORTANTE:
+          - Não peça nome completo, apenas "Nome".
+          - Mostre os nomes dos sócios de 'socios_disponiveis' de forma clara.
+          - Só use a ferramenta 'registerClient' quando tiver todos os dados.
+          - Seja direto e profissional.`,
           tools: [{ functionDeclarations: [registerClientTool, registerTransactionTool] }]
         }
       });
