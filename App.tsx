@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { User, UserRole, Group, Client, Competence, PaymentRequest, RequestStatus, Transaction } from './types';
-import { loadDB, saveDB } from './db';
+import { loadDB, saveDB, deleteFromDB } from './db';
 import { generatePendingCompetences, applyFIFOPayment } from './logic';
 import Layout from './components/Layout';
 import Dashboard from './components/Dashboard';
@@ -106,6 +106,70 @@ const App: React.FC = () => {
     });
   };
 
+  const handleDeleteClient = (id: string) => {
+    if (user?.role !== UserRole.ADMIN || !db) return;
+    
+    // Limpeza profunda no Supabase (Remover resquícios de teste)
+    deleteFromDB('clients', id);
+    
+    const competencesToDelete = db.competences.filter((cp: any) => cp.clientId === id);
+    competencesToDelete.forEach((cp: any) => deleteFromDB('competences', cp.id));
+    
+    const transactionsToDelete = db.transactions.filter((t: any) => t.clientId === id);
+    transactionsToDelete.forEach((t: any) => deleteFromDB('transactions', t.id));
+    
+    const requestsToDelete = db.requests.filter((r: any) => r.clientId === id);
+    requestsToDelete.forEach((r: any) => deleteFromDB('requests', r.id));
+
+    setDb((prev: any) => ({ 
+      ...prev, 
+      clients: prev.clients.filter((c: any) => c.id !== id),
+      competences: prev.competences.filter((cp: any) => cp.clientId !== id),
+      transactions: prev.transactions.filter((t: any) => t.clientId !== id),
+      requests: prev.requests.filter((r: any) => r.clientId !== id)
+    }));
+  };
+
+  const handleDeleteGroup = (id: string) => {
+    if (user?.role !== UserRole.ADMIN || !db) return;
+    if (!confirm('Isso excluirá o sócio e TODOS os seus clientes e dados vinculados. Confirmar?')) return;
+    
+    // 1. Deletar Usuários do Sócio
+    const usersToDelete = db.users.filter((u: any) => u.groupId === id);
+    usersToDelete.forEach((u: any) => deleteFromDB('users', u.id));
+    
+    // 2. Deletar Clientes e seus dados (Juros, Transações, etc)
+    const clientsToDelete = db.clients.filter((c: any) => c.groupId === id);
+    clientsToDelete.forEach(client => {
+      deleteFromDB('clients', client.id);
+      db.competences.filter((cp: any) => cp.clientId === client.id).forEach((cp: any) => deleteFromDB('competences', cp.id));
+      db.transactions.filter((t: any) => t.clientId === client.id).forEach((t: any) => deleteFromDB('transactions', t.id));
+      db.requests.filter((r: any) => r.clientId === client.id).forEach((r: any) => deleteFromDB('requests', r.id));
+    });
+
+    // 3. Deletar o Grupo
+    deleteFromDB('groups', id);
+
+    setDb((prev: any) => ({ 
+      ...prev, 
+      groups: prev.groups.filter((g: any) => g.id !== id), 
+      users: prev.users.filter((u: any) => u.groupId !== id),
+      clients: prev.clients.filter((c: any) => c.groupId !== id),
+      competences: prev.competences.filter((cp: any) => {
+        const client = prev.clients.find((c: any) => c.id === cp.clientId);
+        return client?.groupId !== id;
+      }),
+      transactions: prev.transactions.filter((t: any) => {
+        const client = prev.clients.find((c: any) => c.id === t.clientId);
+        return client?.groupId !== id;
+      }),
+      requests: prev.requests.filter((r: any) => {
+        const client = prev.clients.find((c: any) => c.id === r.clientId);
+        return client?.groupId !== id;
+      })
+    }));
+  };
+
   const renderContent = () => {
     if (!db || !user) return null;
     switch (activeTab) {
@@ -135,9 +199,7 @@ const App: React.FC = () => {
             const newUser: User = { id: `u-${Date.now()}`, email: d.email, password: d.password, role: UserRole.VIEWER, groupId: newGroupId };
             setDb((prev: any) => ({ ...prev, groups: [...prev.groups, newGroup], users: [...prev.users, newUser] }));
           }} 
-          onDeleteGroup={id => {
-            setDb((prev: any) => ({ ...prev, groups: prev.groups.filter((g: any) => g.id !== id), users: prev.users.filter((u: any) => u.groupId !== id) }));
-          }} 
+          onDeleteGroup={handleDeleteGroup} 
           onAddClient={d => {
             const newClientId = `c-${Date.now()}`;
             const newClient = { id: newClientId, ...d, status: 'ACTIVE' };
@@ -146,6 +208,7 @@ const App: React.FC = () => {
               return runCompetenceSync(newState);
             });
           }} 
+          onDeleteClient={handleDeleteClient}
           onAddReport={r => setDb((prev: any) => {
             const newState = { ...prev, reports: [...prev.reports, r] };
             return runCompetenceSync(newState);
@@ -170,8 +233,7 @@ const App: React.FC = () => {
             setDb((prev: any) => ({ ...prev, clients: prev.clients.map((c: any) => c.id === id ? { ...c, ...data } : c) }));
           }}
           onDeleteClient={id => {
-            if (user.role !== UserRole.ADMIN) return;
-            setDb((prev: any) => ({ ...prev, clients: prev.clients.filter((c: any) => c.id !== id) }));
+            handleDeleteClient(id);
             setActiveTab('dashboard');
           }} 
           onAddTransaction={trx => {
@@ -313,6 +375,25 @@ const App: React.FC = () => {
               transactions: newTransactions
             };
           });
+        }}
+        onDeleteClient={handleDeleteClient}
+        onDeleteGroup={handleDeleteGroup}
+        onRequestPayment={(clientId, i, a, d, obs) => {
+          const client = db.clients.find((c: any) => c.id === clientId);
+          if (!client || !user) return;
+          const newReq: PaymentRequest = { 
+            id: `req-${Date.now()}`, 
+            clientId: client.id, 
+            groupId: client.groupId, 
+            interestValue: i, 
+            amortizationValue: a, 
+            discountValue: d, 
+            observation: obs, 
+            status: RequestStatus.PENDING, 
+            requesterId: user.id, 
+            createdAt: Date.now() 
+          };
+          setDb((prev: any) => ({ ...prev, requests: [...prev.requests, newReq] }));
         }}
       />
     </>

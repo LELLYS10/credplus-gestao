@@ -110,3 +110,12 @@ export const saveDB = async (state: DBState) => {
     console.error("Erro ao sincronizar:", error);
   }
 };
+
+export const deleteFromDB = async (table: string, id: string) => {
+  if (!supabase) return;
+  try {
+    await supabase.from(table).delete().eq('id', id);
+  } catch (error) {
+    console.error(`Erro ao deletar de ${table}:`, error);
+  }
+};

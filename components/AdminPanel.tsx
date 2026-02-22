@@ -14,10 +14,11 @@ interface AdminPanelProps {
   onAddGroup: (data: any) => void;
   onDeleteGroup: (id: string) => void;
   onAddClient: (data: any) => void;
+  onDeleteClient: (id: string) => void;
   onAddReport: (report: Report) => void;
 }
 
-const AdminPanel: React.FC<AdminPanelProps> = ({ groups, clients, users, competences, reports, user, onAddGroup, onDeleteGroup, onAddClient, onAddReport }) => {
+const AdminPanel: React.FC<AdminPanelProps> = ({ groups, clients, users, competences, reports, user, onAddGroup, onDeleteGroup, onAddClient, onDeleteClient, onAddReport }) => {
   const [activeSubTab, setActiveSubTab] = React.useState<'partners' | 'clients' | 'reports'>('partners');
   const [showGroupModal, setShowGroupModal] = React.useState(false);
   const [showClientModal, setShowClientModal] = React.useState(false);
@@ -117,8 +118,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ groups, clients, users, compete
         <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
            {groups.map(g => (
              <div key={g.id} className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm relative group overflow-hidden">
-                <div className="absolute top-0 right-0 p-4 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button onClick={() => onDeleteGroup(g.id)} className="text-red-300 hover:text-red-500"><Trash2 size={18}/></button>
+                <div className="absolute top-0 right-0 p-4">
+                  <button onClick={() => onDeleteGroup(g.id)} className="text-slate-300 hover:text-red-500 transition-colors p-2"><Trash2 size={18}/></button>
                 </div>
                 <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center font-black text-xl mb-4">
                   {g.name.charAt(0).toUpperCase()}
@@ -160,7 +161,14 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ groups, clients, users, compete
                         <td className="py-4 px-6 text-slate-400 font-bold text-xs">{new Date(c.createdAt).toLocaleDateString('pt-BR')}</td>
                         <td className="py-4 px-6 text-emerald-600 font-bold">{formatCurrency(c.currentCapital)}</td>
                         <td className="py-4 px-6 text-slate-500 font-bold">{groups.find(g=>g.id===c.groupId)?.name || 'N/A'}</td>
-                        <td className="py-4 px-6 text-right"><span className="bg-emerald-50 text-emerald-600 px-2 py-0.5 rounded-full text-[9px] font-black uppercase">Ativo</span></td>
+                        <td className="py-4 px-6 text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <span className="bg-emerald-50 text-emerald-600 px-2 py-0.5 rounded-full text-[9px] font-black uppercase">Ativo</span>
+                            <button onClick={() => { if(confirm(`Excluir cliente ${c.name}?`)) onDeleteClient(c.id); }} className="text-slate-300 hover:text-red-500 p-1 transition-colors">
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        </td>
                      </tr>
                    ))}
                 </tbody>

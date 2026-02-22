@@ -12,6 +12,9 @@ interface AIAssistantProps {
   onAddTransaction: (data: { clientId: string; type: TransactionType; amount: number; description: string }) => void;
   onAddPayment: (data: { clientId: string; interestAmount: number; amortizationAmount: number; description: string }) => void;
   onAddSocio: (data: { name: string; email: string; phone: string; interestRate: number; password: string }) => void;
+  onDeleteClient: (id: string) => void;
+  onDeleteGroup: (id: string) => void;
+  onRequestPayment: (clientId: string, interest: number, amortization: number, discount: number, obs: string) => void;
 }
 
 interface Message {
@@ -27,7 +30,7 @@ declare global {
   }
 }
 
-const AIAssistant: React.FC<AIAssistantProps> = ({ db, user, onAddClient, onAddTransaction, onAddSocio, onAddPayment }) => {
+const AIAssistant: React.FC<AIAssistantProps> = ({ db, user, onAddClient, onAddTransaction, onAddSocio, onAddPayment, onDeleteClient, onDeleteGroup, onRequestPayment }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [input, setInput] = useState('');
   const [isListening, setIsListening] = useState(false);
@@ -139,6 +142,30 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ db, user, onAddClient, onAddT
     }
   };
 
+  const deleteClientTool: FunctionDeclaration = {
+    name: "deleteClient",
+    parameters: {
+      type: Type.OBJECT,
+      description: "Exclui um cliente permanentemente do sistema. APENAS PARA ADMINISTRADORES.",
+      properties: {
+        clientId: { type: Type.STRING, description: "ID do cliente a ser excluído" }
+      },
+      required: ["clientId"]
+    }
+  };
+
+  const deleteGroupTool: FunctionDeclaration = {
+    name: "deleteGroup",
+    parameters: {
+      type: Type.OBJECT,
+      description: "Exclui um sócio (grupo) e todos os seus dados permanentemente. APENAS PARA ADMINISTRADORES.",
+      properties: {
+        groupId: { type: Type.STRING, description: "ID do grupo/sócio a ser excluído" }
+      },
+      required: ["groupId"]
+    }
+  };
+
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
@@ -189,7 +216,14 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ db, user, onAddClient, onAddT
         ],
         config: {
           systemInstruction: `Você é o assistente ultra-eficiente da CredPlus. 
+          USUÁRIO ATUAL: ${user.email} (Função: ${user.role}).
           DATA ATUAL: 22/02/2026 (Hoje é dia 22).
+          
+          REGRAS DE PERMISSÃO:
+          - EXCLUSÃO: Apenas se a função for 'ADMIN'. Se o usuário pedir para excluir e for 'VIEWER', diga educadamente que não tem permissão para isso.
+          - PAGAMENTOS: 
+            - Se for 'ADMIN', use 'registerPayment' para dar baixa imediata.
+            - Se for 'VIEWER' (Sócio), use 'registerPayment' mas informe que será gerada uma SOLICITAÇÃO para o administrador confirmar.
           
           REGRAS CRÍTICAS:
           1. MEMÓRIA: Se o usuário já disse um dado, NUNCA peça novamente.
@@ -221,8 +255,9 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ db, user, onAddClient, onAddT
           - Seja CURTO e DIRETO.
           - Use a ferramenta 'registerPayment' para pagamentos de juros/capital.
           - Use a ferramenta 'registerTransaction' APENAS para Investimentos ou Retiradas puras.
+          - Use a ferramenta 'deleteClient' ou 'deleteGroup' se o usuário ADMIN pedir para excluir.
           - Identifique o Cliente pelo nome fornecido no contexto.`,
-          tools: [{ functionDeclarations: [registerSocioTool, registerClientTool, registerTransactionTool, registerPaymentTool] }]
+          tools: [{ functionDeclarations: [registerSocioTool, registerClientTool, registerTransactionTool, registerPaymentTool, deleteClientTool, deleteGroupTool] }]
         }
       });
 
@@ -242,11 +277,36 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ db, user, onAddClient, onAddT
             setMessages(prev => [...prev, { role: 'model', text: `✅ Lançamento registrado com sucesso!` }]);
           }
           if (call.name === "registerPayment") {
-            onAddPayment(call.args as any);
             const args = call.args as any;
-            const client = db.clients.find(c => c.id === args.clientId);
-            const newCap = (client?.currentCapital || 0) - args.amortizationAmount;
-            setMessages(prev => [...prev, { role: 'model', text: `✅ Pagamento de **${client?.name}** processado!\n- Juros pagos: R$ ${args.interestAmount}\n- Amortização: R$ ${args.amortizationAmount}\n- **Novo Capital: R$ ${newCap}**` }]);
+            if (user.role === 'ADMIN') {
+              onAddPayment(args);
+              const client = db.clients.find(c => c.id === args.clientId);
+              const newCap = (client?.currentCapital || 0) - args.amortizationAmount;
+              setMessages(prev => [...prev, { role: 'model', text: `✅ Pagamento de **${client?.name}** processado!\n- Juros pagos: R$ ${args.interestAmount}\n- Amortização: R$ ${args.amortizationAmount}\n- **Novo Capital: R$ ${newCap}**` }]);
+            } else {
+              onRequestPayment(args.clientId, args.interestAmount, args.amortizationAmount, 0, args.description || 'Solicitado via Agente');
+              setMessages(prev => [...prev, { role: 'model', text: `⏳ Solicitação de pagamento enviada para o Administrador confirmar. Aguarde a aprovação.` }]);
+            }
+          }
+          if (call.name === "deleteClient") {
+            const args = call.args as any;
+            if (user.role === 'ADMIN') {
+              const client = db.clients.find(c => c.id === args.clientId);
+              onDeleteClient(args.clientId);
+              setMessages(prev => [...prev, { role: 'model', text: `🗑️ Cliente **${client?.name}** excluído permanentemente.` }]);
+            } else {
+              setMessages(prev => [...prev, { role: 'model', text: `❌ Você não tem permissão para excluir clientes.` }]);
+            }
+          }
+          if (call.name === "deleteGroup") {
+            const args = call.args as any;
+            if (user.role === 'ADMIN') {
+              const group = db.groups.find(g => g.id === args.groupId);
+              onDeleteGroup(args.groupId);
+              setMessages(prev => [...prev, { role: 'model', text: `🗑️ Sócio **${group?.name}** e todos os seus dados foram excluídos.` }]);
+            } else {
+              setMessages(prev => [...prev, { role: 'model', text: `❌ Você não tem permissão para excluir sócios.` }]);
+            }
           }
         }
       } else {
