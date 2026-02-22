@@ -1,5 +1,5 @@
 {
   "name": "CredPlus Gestação de Emprestimos",
   "description": "Sistema profissional para gestão de empréstimos com juros mensais recorrentes, controle de grupos, amortização e liquidação FIFO.",
-  "requestFramePermissions": []
+  "requestFramePermissions": ["microphone"]
 }

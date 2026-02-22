@@ -2,7 +2,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { GoogleGenAI, Type, FunctionDeclaration } from "@google/genai";
 import { DBState, User, TransactionType } from '../types';
-import { MessageSquare, Send, X, Bot, Sparkles, User as UserIcon } from 'lucide-react';
+import { MessageSquare, Send, X, Bot, Sparkles, User as UserIcon, Mic, MicOff } from 'lucide-react';
 import Markdown from 'react-markdown';
 
 interface AIAssistantProps {
@@ -17,14 +17,62 @@ interface Message {
   text: string;
 }
 
+// Declarando tipos para Web Speech API
+declare global {
+  interface Window {
+    SpeechRecognition: any;
+    webkitSpeechRecognition: any;
+  }
+}
+
 const AIAssistant: React.FC<AIAssistantProps> = ({ db, user, onAddClient, onAddTransaction }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [input, setInput] = useState('');
+  const [isListening, setIsListening] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
     { role: 'model', text: `Olá! Sou o assistente CredPlus. 🤖\n\nPara cadastrar um novo cliente, diga **"Cadastro"**.\n\nEu vou solicitar os dados nesta ordem:\n1. **Nome**\n2. **Fone**\n3. **Sócio** (vou listar os disponíveis)\n4. **Capital**\n5. **Vencimento**\n\nComo posso ajudar hoje?` }
   ]);
   const [isLoading, setIsLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const recognitionRef = useRef<any>(null);
+
+  useEffect(() => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (SpeechRecognition) {
+      recognitionRef.current = new SpeechRecognition();
+      recognitionRef.current.continuous = false;
+      recognitionRef.current.interimResults = false;
+      recognitionRef.current.lang = 'pt-BR';
+
+      recognitionRef.current.onresult = (event: any) => {
+        const transcript = event.results[0][0].transcript;
+        setInput(transcript);
+        setIsListening(false);
+      };
+
+      recognitionRef.current.onerror = (event: any) => {
+        console.error('Speech recognition error:', event.error);
+        setIsListening(false);
+      };
+
+      recognitionRef.current.onend = () => {
+        setIsListening(false);
+      };
+    }
+  }, []);
+
+  const toggleListening = () => {
+    if (isListening) {
+      recognitionRef.current?.stop();
+    } else {
+      try {
+        recognitionRef.current?.start();
+        setIsListening(true);
+      } catch (error) {
+        console.error('Speech recognition start error:', error);
+      }
+    }
+  };
 
   const registerClientTool: FunctionDeclaration = {
     name: "registerClient",
@@ -195,19 +243,27 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ db, user, onAddClient, onAddT
 
           {/* Input Area */}
           <div className="p-4 bg-white border-t border-slate-100">
-            <div className="relative flex items-center">
-              <input
-                type="text"
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && handleSend()}
-                placeholder="Pergunte algo sobre seus empréstimos..."
-                className="w-full pl-4 pr-12 py-4 bg-slate-100 border-none rounded-2xl text-sm focus:ring-2 focus:ring-emerald-500 transition-all outline-none font-medium"
-              />
+            <div className="relative flex items-center gap-2">
+              <div className="relative flex-1">
+                <input
+                  type="text"
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && handleSend()}
+                  placeholder={isListening ? "Ouvindo..." : "Pergunte algo..."}
+                  className={`w-full pl-4 pr-12 py-4 bg-slate-100 border-none rounded-2xl text-sm focus:ring-2 focus:ring-emerald-500 transition-all outline-none font-medium ${isListening ? 'ring-2 ring-red-400 animate-pulse' : ''}`}
+                />
+                <button
+                  onClick={toggleListening}
+                  className={`absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-xl transition-all ${isListening ? 'bg-red-500 text-white' : 'bg-slate-200 text-slate-600 hover:bg-slate-300'}`}
+                >
+                  {isListening ? <MicOff size={18} /> : <Mic size={18} />}
+                </button>
+              </div>
               <button
                 onClick={handleSend}
                 disabled={isLoading || !input.trim()}
-                className="absolute right-2 p-2 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-colors disabled:opacity-50"
+                className="p-4 bg-emerald-600 text-white rounded-2xl hover:bg-emerald-700 transition-colors disabled:opacity-50 shadow-md"
               >
                 <Send size={18} />
               </button>
