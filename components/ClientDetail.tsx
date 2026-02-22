@@ -301,7 +301,7 @@ const ClientDetail: React.FC<ClientDetailProps> = ({ client, competences, transa
       )}
 
       {showRequestModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-2 md:p-4 bg-emerald-950/40 backdrop-blur-md overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-2 md:p-4 bg-emerald-900/40 backdrop-blur-md overflow-y-auto">
           <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-lg my-auto animate-in fade-in zoom-in duration-300 border-b-8 border-slate-300 flex flex-col max-h-[95vh]">
             <div className="p-8 bg-emerald-700 text-white flex items-center justify-between shrink-0"><div className="flex items-center gap-3"><DollarSign size={24}/><h3 className="text-2xl font-black tracking-tighter uppercase">Baixa no Recebimento</h3></div><button onClick={() => setShowRequestModal(false)}><X size={24} /></button></div>
             <form onSubmit={(e) => { e.preventDefault(); onRequestPayment(formData.interest, formData.amortization, formData.discount, formData.observation); setShowRequestModal(false); }} className="p-10 space-y-6 overflow-y-auto">

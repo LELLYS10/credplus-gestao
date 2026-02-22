@@ -26,7 +26,7 @@ const Layout: React.FC<LayoutProps> = ({ user, onLogout, children, activeTab, se
   ].filter(item => item.roles.includes(user.role));
 
   const SidebarContent = () => (
-    <div className="flex flex-col h-full bg-emerald-950 text-white p-4">
+    <div className="flex flex-col h-full bg-emerald-900 text-white p-4">
       <div className="mb-10 flex items-center gap-3 px-2 py-4">
         <Logo size="md" />
         <div>
@@ -45,8 +45,8 @@ const Layout: React.FC<LayoutProps> = ({ user, onLogout, children, activeTab, se
             }}
             className={`w-full flex items-center justify-between p-3 rounded-xl transition-all ${
               activeTab === item.id 
-                ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-900/40 border-b-2 border-emerald-700' 
-                : 'text-emerald-100/60 hover:bg-emerald-900/50 hover:text-white'
+                ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-800/40 border-b-2 border-emerald-700' 
+                : 'text-emerald-100/60 hover:bg-emerald-800/50 hover:text-white'
             }`}
           >
             <div className="flex items-center gap-3">
@@ -93,7 +93,7 @@ const Layout: React.FC<LayoutProps> = ({ user, onLogout, children, activeTab, se
       </aside>
 
       {/* Mobile Header */}
-      <div className="lg:hidden fixed top-0 left-0 right-0 bg-emerald-950 text-white z-40 px-4 py-3 flex items-center justify-between shadow-lg">
+      <div className="lg:hidden fixed top-0 left-0 right-0 bg-emerald-900 text-white z-40 px-4 py-3 flex items-center justify-between shadow-lg">
         <div className="flex items-center gap-3">
           <Logo size="sm" />
           <span className="font-black tracking-tighter">CREDPLUS</span>

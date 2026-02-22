@@ -291,7 +291,7 @@ const App: React.FC = () => {
     }
   };
 
-  if (isLoading) return <div className="min-h-screen flex items-center justify-center bg-emerald-950 text-white"><RefreshCw className="animate-spin" /></div>;
+  if (isLoading) return <div className="min-h-screen flex items-center justify-center bg-emerald-900 text-white"><RefreshCw className="animate-spin" /></div>;
 
   if (!user) return (
     <div className="min-h-screen flex items-center justify-center bg-slate-100 p-6">

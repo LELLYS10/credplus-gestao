@@ -216,7 +216,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, clients, competences, group
       )}
 
       {showOverdueModal && user.role === UserRole.ADMIN && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-emerald-950/60 backdrop-blur-sm animate-in fade-in duration-300">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-emerald-900/60 backdrop-blur-sm animate-in fade-in duration-300">
           <div className="bg-white w-full max-w-lg rounded-[2.5rem] shadow-2xl overflow-hidden border-b-8 border-red-200 animate-in zoom-in duration-300">
             <div className="bg-red-600 p-8 text-white relative">
               <button onClick={() => setShowOverdueModal(false)} className="absolute top-6 right-6 p-2 hover:bg-white/20 rounded-full transition-colors"><X size={24}/></button>

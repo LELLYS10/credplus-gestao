@@ -101,7 +101,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ groups, clients, users, compete
           <div className="p-2 bg-emerald-100 text-emerald-700 rounded-xl"><Settings2 size={32} /></div>
           PAINEL ADMINISTRATIVO
         </h2>
-        <button onClick={handleGenerateReport} disabled={isGenerating} className="flex items-center gap-2 bg-emerald-950 text-white px-6 py-3 rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-black transition-all shadow-xl shadow-emerald-200 border-b-4 border-emerald-800 disabled:opacity-50">
+        <button onClick={handleGenerateReport} disabled={isGenerating} className="flex items-center gap-2 bg-emerald-900 text-white px-6 py-3 rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-black transition-all shadow-xl shadow-emerald-200 border-b-4 border-emerald-800 disabled:opacity-50">
           {isGenerating ? <Loader2 size={18} className="animate-spin" /> : <FileText size={18} />} Fechamento Mensal
         </button>
       </div>
@@ -251,7 +251,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ groups, clients, users, compete
 
       {/* MODAL NOVO SÓCIO - RESTAURADO */}
       {showGroupModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-emerald-950/40 backdrop-blur-md p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-emerald-900/40 backdrop-blur-md p-4">
            <div className="bg-white p-10 rounded-[3rem] w-full max-w-md shadow-2xl animate-in zoom-in">
               <h3 className="text-2xl font-black text-slate-800 uppercase mb-6 flex items-center gap-2"><ShieldCheck size={28} className="text-emerald-600" /> Cadastro de Sócio</h3>
               <form onSubmit={e=>{e.preventDefault(); onAddGroup(groupFormData); setShowGroupModal(false);}} className="space-y-4">
@@ -273,7 +273,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ groups, clients, users, compete
 
       {/* MODAL NOVO CLIENTE */}
       {showClientModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-emerald-950/40 backdrop-blur-md p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-emerald-900/40 backdrop-blur-md p-4">
            <div className="bg-white p-10 rounded-[3rem] w-full max-w-md shadow-2xl animate-in zoom-in">
               <h3 className="text-2xl font-black text-slate-800 uppercase mb-6 flex items-center gap-2"><Users /> Novo Cliente</h3>
               <form onSubmit={e=>{e.preventDefault(); onAddClient({ ...clientFormData, currentCapital: clientFormData.initialCapital, createdAt: new Date(clientFormData.startDate).getTime() + 12 * 60 * 60 * 1000 }); setShowClientModal(false);}} className="space-y-4">
