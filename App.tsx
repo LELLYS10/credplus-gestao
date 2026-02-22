@@ -9,6 +9,7 @@ import ClientDetail from './components/ClientDetail';
 import RequestsList from './components/RequestsList';
 import AdminPanel from './components/AdminPanel';
 import ClientsList from './components/ClientsList';
+import AIAssistant from './components/AIAssistant';
 import Logo from './components/Logo';
 import { ChevronRight, RefreshCw } from 'lucide-react';
 
@@ -215,7 +216,39 @@ const App: React.FC = () => {
     </div>
   );
 
-  return <Layout user={user} onLogout={()=>{setUser(null); localStorage.removeItem(SESSION_KEY);}} activeTab={activeTab} setActiveTab={setActiveTab} pendingCount={db.requests.filter((r:any)=>r.status === RequestStatus.PENDING).length}>{renderContent()}</Layout>;
+  return (
+    <>
+      <Layout user={user} onLogout={()=>{setUser(null); localStorage.removeItem(SESSION_KEY);}} activeTab={activeTab} setActiveTab={setActiveTab} pendingCount={db.requests.filter((r:any)=>r.status === RequestStatus.PENDING).length}>
+        {renderContent()}
+      </Layout>
+      <AIAssistant 
+        db={db} 
+        user={user} 
+        onAddClient={(data) => {
+          const newClientId = `c-${Date.now()}`;
+          const newClient = { id: newClientId, ...data, status: 'ACTIVE' as const, createdAt: Date.now(), currentCapital: data.initialCapital };
+          setDb((prev: any) => {
+            const newState = { ...prev, clients: [...prev.clients, newClient] };
+            return runCompetenceSync(newState);
+          });
+        }}
+        onAddTransaction={(trx) => {
+          setDb((prev: any) => {
+            const updatedClients = prev.clients.map((c: any) => {
+              if (c.id === trx.clientId) {
+                let newCap = c.currentCapital;
+                if (trx.type === 'INVESTMENT') newCap += trx.amount;
+                if (trx.type === 'WITHDRAWAL' || trx.type === 'AMORTIZATION') newCap -= trx.amount;
+                return { ...c, currentCapital: Math.max(0, newCap) };
+              }
+              return c;
+            });
+            return { ...prev, clients: updatedClients, transactions: [...prev.transactions, { ...trx, id: `t-${Date.now()}`, createdAt: Date.now() }] };
+          });
+        }}
+      />
+    </>
+  );
 };
 
 export default App;
