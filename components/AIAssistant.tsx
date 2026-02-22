@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { GoogleGenAI, Type, FunctionDeclaration } from "@google/genai";
+import { GoogleGenAI, Type, FunctionDeclaration, ThinkingLevel } from "@google/genai";
 import { DBState, User, TransactionType } from '../types';
 import { MessageSquare, Send, X, Bot, Sparkles, User as UserIcon, Mic, MicOff } from 'lucide-react';
 import Markdown from 'react-markdown';
@@ -190,31 +190,37 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ db, user, onAddClient, onAddT
 
       const ai = new GoogleGenAI({ apiKey });
       
+      // Otimização de performance: Pré-calcula juros pendentes para evitar loops aninhados pesados
+      const pendingByClient = db.competences.reduce((acc: Record<string, number>, cp) => {
+        if (cp.paidAmount < cp.originalValue) {
+          acc[cp.clientId] = (acc[cp.clientId] || 0) + (cp.originalValue - cp.paidAmount);
+        }
+        return acc;
+      }, {});
+
+      // Otimização de contexto para Mobile: Limita dados se houver muitos clientes
       const context = {
         total_clientes: db.clients.length,
         socios_disponiveis: db.groups.map(g => ({ id: g.id, nome: g.name })),
-        clientes: db.clients.map(c => {
-          const clientCompetences = db.competences.filter(cp => cp.clientId === c.id && cp.paidAmount < cp.originalValue);
-          const totalInterestPending = clientCompetences.reduce((sum, cp) => sum + (cp.originalValue - cp.paidAmount), 0);
-          return { 
-            id: c.id,
-            nome: c.name, 
-            capital_atual: c.currentCapital, 
-            juros_pendentes: totalInterestPending,
-            vencimento_dia: c.dueDay,
-            grupo: db.groups.find(g => g.id === c.groupId)?.name
-          };
-        })
+        clientes: db.clients.slice(0, 150).map(c => ({ 
+          id: c.id,
+          nome: c.name, 
+          capital_atual: c.currentCapital, 
+          juros_pendentes: pendingByClient[c.id] || 0,
+          vencimento_dia: c.dueDay,
+          grupo: db.groups.find(g => g.id === c.groupId)?.name
+        }))
       };
 
       const response = await ai.models.generateContent({
         model: "gemini-3-flash-preview",
         contents: [
           { role: 'model', parts: [{ text: "Olá! Sou o assistente CredPlus. Como posso ajudar?" }] },
-          ...messages.map(m => ({ role: m.role, parts: [{ text: m.text }] })),
+          ...messages.slice(-10).map(m => ({ role: m.role, parts: [{ text: m.text }] })), // Apenas as últimas 10 mensagens para economizar tokens
           { role: 'user', parts: [{ text: `Contexto: ${JSON.stringify(context)}. Entrada: ${userMessage}` }] }
         ],
         config: {
+          thinkingConfig: { thinkingLevel: ThinkingLevel.LOW }, // Força resposta rápida
           systemInstruction: `Você é o assistente ultra-eficiente da CredPlus. 
           USUÁRIO ATUAL: ${user.email} (Função: ${user.role}).
           DATA ATUAL: 22/02/2026 (Hoje é dia 22).
@@ -270,7 +276,7 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ db, user, onAddClient, onAddT
       });
 
       const functionCalls = response.functionCalls;
-      if (functionCalls) {
+      if (functionCalls && functionCalls.length > 0) {
         for (const call of functionCalls) {
           if (call.name === "registerSocio") {
             onAddSocio(call.args as any);
@@ -326,13 +332,26 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ db, user, onAddClient, onAddT
           }
         }
       } else {
-        const aiResponse = response.text || "Desculpe, não entendi.";
-        setMessages(prev => [...prev, { role: 'model', text: aiResponse }]);
+        const aiResponse = response.text;
+        if (aiResponse) {
+          setMessages(prev => [...prev, { role: 'model', text: aiResponse }]);
+        } else {
+          setMessages(prev => [...prev, { role: 'model', text: "⚠️ O assistente não conseguiu gerar uma resposta. Isso pode ocorrer devido a filtros de segurança ou instabilidade na conexão." }]);
+        }
       }
     } catch (error: any) {
       console.error("AI Error:", error);
-      const errorMsg = error.message || "Erro desconhecido";
-      setMessages(prev => [...prev, { role: 'model', text: `❌ **Erro no Agente:** ${errorMsg}\n\nVerifique se a variável GEMINI_API_KEY está configurada no seu ambiente.` }]);
+      let errorMsg = "Erro desconhecido";
+      
+      if (error.message?.includes("fetch")) {
+        errorMsg = "Falha de conexão. Verifique sua internet.";
+      } else if (error.message?.includes("API key")) {
+        errorMsg = "Chave de API inválida ou não configurada.";
+      } else {
+        errorMsg = error.message || "Erro ao processar sua solicitação.";
+      }
+
+      setMessages(prev => [...prev, { role: 'model', text: `❌ **Falha no Agente:** ${errorMsg}` }]);
     } finally {
       setIsLoading(false);
     }

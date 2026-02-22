@@ -40,7 +40,7 @@ const App: React.FC = () => {
         
         // Garantir que os dois administradores principais existam
         const mainAdmins = [
-          { id: '1', email: 'credplusemp@gmail.com', password: '123456', role: UserRole.ADMIN },
+          { id: '1', email: 'credplusemp@gmail.com', password: '5721', role: UserRole.ADMIN },
           { id: '2', email: 'michaeldsandes@gmail.com', password: '0718', role: UserRole.ADMIN }
         ];
 
@@ -77,7 +77,7 @@ const App: React.FC = () => {
         // Fallback to initial state if everything fails
         setDb({
           users: [
-            { id: '1', email: 'credplusemp@gmail.com', password: '123456', role: UserRole.ADMIN },
+            { id: '1', email: 'credplusemp@gmail.com', password: '5721', role: UserRole.ADMIN },
             { id: '2', email: 'michaeldsandes@gmail.com', password: '0718', role: UserRole.ADMIN }
           ],
           groups: [],
