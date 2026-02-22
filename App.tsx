@@ -246,6 +246,28 @@ const App: React.FC = () => {
             return { ...prev, clients: updatedClients, transactions: [...prev.transactions, { ...trx, id: `t-${Date.now()}`, createdAt: Date.now() }] };
           });
         }}
+        onAddSocio={(data) => {
+          const newGroupId = `g-${Date.now()}`;
+          const newGroup: Group = {
+            id: newGroupId,
+            name: data.name,
+            email: data.email,
+            phone: data.phone,
+            interestRate: data.interestRate
+          };
+          const newUser: User = {
+            id: `u-${Date.now()}`,
+            email: data.email,
+            password: data.password,
+            role: UserRole.VIEWER,
+            groupId: newGroupId
+          };
+          setDb((prev: any) => ({
+            ...prev,
+            groups: [...prev.groups, newGroup],
+            users: [...prev.users, newUser]
+          }));
+        }}
       />
     </>
   );

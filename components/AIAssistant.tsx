@@ -10,6 +10,7 @@ interface AIAssistantProps {
   user: User;
   onAddClient: (data: { name: string; phone: string; groupId: string; initialCapital: number; dueDay: number; notes: string }) => void;
   onAddTransaction: (data: { clientId: string; type: TransactionType; amount: number; description: string }) => void;
+  onAddSocio: (data: { name: string; email: string; phone: string; interestRate: number; password: string }) => void;
 }
 
 interface Message {
@@ -25,12 +26,12 @@ declare global {
   }
 }
 
-const AIAssistant: React.FC<AIAssistantProps> = ({ db, user, onAddClient, onAddTransaction }) => {
+const AIAssistant: React.FC<AIAssistantProps> = ({ db, user, onAddClient, onAddTransaction, onAddSocio }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [input, setInput] = useState('');
   const [isListening, setIsListening] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
-    { role: 'model', text: `Olá! Sou o assistente CredPlus. 🤖\n\nPara cadastrar um novo cliente, diga **"Cadastro"**.\n\nEu vou solicitar os dados nesta ordem:\n1. **Nome**\n2. **Fone**\n3. **Sócio** (vou listar os disponíveis)\n4. **Capital**\n5. **Vencimento**\n\nComo posso ajudar hoje?` }
+    { role: 'model', text: `Olá! Sou o assistente CredPlus. 🤖\n\nComo posso ajudar hoje? Você pode cadastrar sócios, clientes ou lançamentos.` }
   ]);
   const [isLoading, setIsLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -71,6 +72,22 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ db, user, onAddClient, onAddT
       } catch (error) {
         console.error('Speech recognition start error:', error);
       }
+    }
+  };
+
+  const registerSocioTool: FunctionDeclaration = {
+    name: "registerSocio",
+    parameters: {
+      type: Type.OBJECT,
+      description: "Registra um novo sócio (grupo) no sistema.",
+      properties: {
+        name: { type: Type.STRING, description: "Nome do sócio" },
+        email: { type: Type.STRING, description: "E-mail do sócio" },
+        phone: { type: Type.STRING, description: "Telefone do sócio" },
+        interestRate: { type: Type.NUMBER, description: "Taxa de juros mensal (%)" },
+        password: { type: Type.STRING, description: "Senha de acesso" }
+      },
+      required: ["name", "email", "phone", "interestRate", "password"]
     }
   };
 
@@ -146,29 +163,38 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ db, user, onAddClient, onAddT
         contents: `Contexto do sistema: ${JSON.stringify(context)}. Pergunta do usuário: ${userMessage}`,
         config: {
           systemInstruction: `Você é o assistente da CredPlus. 
-          REGRAS OBRIGATÓRIAS DE CADASTRO:
-          Quando o usuário quiser fazer um "cadastro", você deve responder solicitando os dados EXATAMENTE nesta ordem de lista:
-          1. Nome:
-          2. Fone:
-          3. Sócio: (Liste aqui os nomes de 'socios_disponiveis')
-          4. Capital:
-          5. Vencimento:
+          REGRAS OBRIGATÓRIAS:
+          
+          1. CADASTRO DE SÓCIO:
+             - Gatilho: "cadastrar sócio", "registrar sócio" ou similar.
+             - Peça nesta ordem: NOME, EMAIL, FONE, TAXA DE JUROS, SENHA.
+             - Use a ferramenta 'registerSocio' assim que tiver os dados.
 
-          INSTRUÇÕES ADICIONAIS:
-          - Seja extremamente breve. Não peça "nome completo", apenas "Nome".
-          - Se o usuário já forneceu alguns dados, preencha a lista e peça apenas o que falta.
-          - Use a ferramenta 'registerClient' IMEDIATAMENTE após receber o último dado necessário.
+          2. CADASTRO DE CLIENTE:
+             - Gatilho: "cadastrar cliente", "novo cliente" ou similar.
+             - Peça nesta ordem: NOME, FONE, SÓCIO (liste os disponíveis), CAPITAL, VENCIMENTO.
+             - Use a ferramenta 'registerClient' assim que tiver os dados.
+
+          INSTRUÇÕES GERAIS:
+          - Ignore maiúsculas/minúsculas.
+          - Não exija nomes completos, apenas o que for entendível.
+          - Seja extremamente breve e direto.
+          - Se o usuário já forneceu alguns dados, peça apenas o que falta.
           - Responda sempre em Português do Brasil.`,
-          tools: [{ functionDeclarations: [registerClientTool, registerTransactionTool] }]
+          tools: [{ functionDeclarations: [registerSocioTool, registerClientTool, registerTransactionTool] }]
         }
       });
 
       const functionCalls = response.functionCalls;
       if (functionCalls) {
         for (const call of functionCalls) {
+          if (call.name === "registerSocio") {
+            onAddSocio(call.args as any);
+            setMessages(prev => [...prev, { role: 'model', text: `✅ Sócio **${(call.args as any).name}** cadastrado com sucesso!` }]);
+          }
           if (call.name === "registerClient") {
             onAddClient(call.args as any);
-            setMessages(prev => [...prev, { role: 'model', text: `✅ Cliente **${(call.args as any).name}** registrado com sucesso no sistema!` }]);
+            setMessages(prev => [...prev, { role: 'model', text: `✅ Cliente **${(call.args as any).name}** registrado com sucesso!` }]);
           }
           if (call.name === "registerTransaction") {
             onAddTransaction(call.args as any);
