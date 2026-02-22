@@ -109,21 +109,25 @@ const Dashboard: React.FC<DashboardProps> = ({ user, clients, competences, group
     return { totalCapital, overdueInterest, dueTodayInterest, receivedThisMonth };
   }, [filteredClients, competences, todayDate, todayMonth, todayYear]);
 
-  const StatCard = ({ title, value, icon: Icon, colorClass, highlight, onClick }: any) => (
+  const StatCard = ({ title, value, icon: Icon, colorClass, highlight, highlightColor = 'red', dark, onClick }: any) => (
     <div 
       onClick={onClick}
-      className={`bg-white p-5 rounded-2xl border transition-all duration-300 shadow-sm flex items-center gap-3 cursor-pointer group ${
+      className={`p-5 rounded-2xl border transition-all duration-300 shadow-sm flex items-center gap-3 cursor-pointer group ${
+        dark 
+        ? 'bg-slate-800 border-slate-700 shadow-2xl shadow-slate-400/20' 
+        : 'bg-white border-slate-200 hover:border-emerald-200 hover:shadow-md'
+      } ${
         highlight 
-        ? 'border-red-400 ring-4 ring-red-50 animate-pulse-subtle' 
-        : 'border-slate-200 hover:border-emerald-200 hover:shadow-md'
+        ? (highlightColor === 'blue' ? 'border-blue-400 ring-4 ring-blue-50' : 'border-red-400 ring-4 ring-red-50 animate-pulse-subtle')
+        : ''
       }`}
     >
       <div className={`p-3 rounded-xl shrink-0 transition-transform group-hover:scale-110 ${colorClass}`}>
         <Icon size={20} className="lg:w-6 lg:h-6" />
       </div>
       <div className="min-w-0 flex-1">
-        <p className="text-[10px] lg:text-xs font-bold text-slate-400 uppercase tracking-wider mb-0.5 truncate">{title}</p>
-        <p className={`text-lg lg:text-xl xl:text-2xl font-black tracking-tighter truncate ${highlight ? 'text-red-600' : 'text-slate-900'}`}>
+        <p className={`text-[10px] lg:text-xs font-bold uppercase tracking-wider mb-0.5 truncate ${dark ? 'text-slate-400' : 'text-slate-400'}`}>{title}</p>
+        <p className={`text-lg lg:text-xl xl:text-2xl font-black tracking-tighter truncate ${highlight ? (highlightColor === 'blue' ? 'text-blue-600' : 'text-red-600') : (dark ? 'text-white' : 'text-slate-900')}`}>
           {formatCurrency(value)}
         </p>
       </div>
@@ -189,7 +193,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, clients, competences, group
             </button>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <StatCard title="Capital Emprestado" value={stats.totalCapital} icon={TrendingUp} colorClass="bg-emerald-100 text-emerald-600" />
+            <StatCard title="Capital Emprestado" value={stats.totalCapital} icon={TrendingUp} colorClass="bg-emerald-500/20 text-emerald-400" dark />
             <StatCard 
               title="Juros Atrasados" 
               value={stats.overdueInterest} 
@@ -198,7 +202,14 @@ const Dashboard: React.FC<DashboardProps> = ({ user, clients, competences, group
               highlight={stats.overdueInterest > 0} 
               onClick={() => stats.overdueInterest > 0 && setShowOverdueModal(true)}
             />
-            <StatCard title="Vence Hoje" value={stats.dueTodayInterest} icon={Clock} colorClass="bg-amber-100 text-amber-600" highlight={stats.dueTodayInterest > 0} />
+            <StatCard 
+              title="Vence Hoje" 
+              value={stats.dueTodayInterest} 
+              icon={Clock} 
+              colorClass="bg-amber-400 text-amber-950 shadow-lg shadow-amber-100" 
+              highlight={stats.dueTodayInterest > 0} 
+              highlightColor="blue"
+            />
             <StatCard title="Recebido no Mês" value={stats.receivedThisMonth} icon={CheckCircle2} colorClass="bg-green-100 text-green-600" />
           </div>
         </div>
