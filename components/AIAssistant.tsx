@@ -160,27 +160,39 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ db, user, onAddClient, onAddT
 
       const response = await ai.models.generateContent({
         model: "gemini-3-flash-preview",
-        contents: `Contexto do sistema: ${JSON.stringify(context)}. Pergunta do usuário: ${userMessage}`,
+        contents: [
+          { role: 'model', parts: [{ text: "Olá! Sou o assistente CredPlus. Como posso ajudar?" }] },
+          ...messages.map(m => ({ role: m.role, parts: [{ text: m.text }] })),
+          { role: 'user', parts: [{ text: `Contexto: ${JSON.stringify(context)}. Entrada: ${userMessage}` }] }
+        ],
         config: {
-          systemInstruction: `Você é o assistente da CredPlus. 
-          REGRAS OBRIGATÓRIAS:
+          systemInstruction: `Você é o assistente ultra-eficiente da CredPlus. 
+          REGRAS CRÍTICAS:
+          1. MEMÓRIA: Se o usuário já disse um dado (ex: Nome ou Sócio), NUNCA peça novamente.
+          2. FORMATO DE LISTA: Sempre que faltar dados, responda APENAS com a lista do que falta, marcando o que já tem.
           
-          1. CADASTRO DE SÓCIO:
-             - Gatilho: "cadastrar sócio", "registrar sócio" ou similar.
-             - Peça nesta ordem: NOME, EMAIL, FONE, TAXA DE JUROS, SENHA.
-             - Use a ferramenta 'registerSocio' assim que tiver os dados.
+          FLUXO DE SÓCIO (Gatilho: "cadastrar sócio", "novo sócio"):
+          - Lista: 1. Nome, 2. Email, 3. Fone, 4. Taxa de Juros, 5. Senha.
+          - Se o usuário disse "Cadastrar João como sócio", responda:
+            "Ok! Para o sócio João, informe:
+            2. Email:
+            3. Fone:
+            4. Taxa de Juros:
+            5. Senha:"
 
-          2. CADASTRO DE CLIENTE:
-             - Gatilho: "cadastrar cliente", "novo cliente" ou similar.
-             - Peça nesta ordem: NOME, FONE, SÓCIO (liste os disponíveis), CAPITAL, VENCIMENTO.
-             - Use a ferramenta 'registerClient' assim que tiver os dados.
+          FLUXO DE CLIENTE (Gatilho: "cadastrar cliente", "novo cliente", ou nomes soltos):
+          - Lista: 1. Nome, 2. Fone, 3. Sócio (liste os disponíveis), 4. Capital, 5. Vencimento.
+          - Se o usuário disse "Flavio, sócio JOAO", responda:
+            "Ok! Para o cliente Flavio (Sócio: JOAO), informe:
+            2. Fone:
+            4. Capital:
+            5. Vencimento:"
 
-          INSTRUÇÕES GERAIS:
+          REGRAS GERAIS:
+          - Seja CURTO. Sem "Por favor", sem "Olá novamente". Vá direto ao ponto.
+          - Use a ferramenta assim que o ÚLTIMO dado for fornecido.
           - Ignore maiúsculas/minúsculas.
-          - Não exija nomes completos, apenas o que for entendível.
-          - Seja extremamente breve e direto.
-          - Se o usuário já forneceu alguns dados, peça apenas o que falta.
-          - Responda sempre em Português do Brasil.`,
+          - Identifique o Sócio pelo nome fornecido no contexto.`,
           tools: [{ functionDeclarations: [registerSocioTool, registerClientTool, registerTransactionTool] }]
         }
       });
