@@ -122,22 +122,22 @@ const Dashboard: React.FC<DashboardProps> = ({ user, clients, competences, group
   const StatCard = ({ title, value, icon: Icon, colorClass, highlight, highlightColor = 'red', dark, onClick }: any) => (
     <div 
       onClick={onClick}
-      className={`p-5 rounded-2xl border transition-all duration-300 shadow-sm flex items-center gap-3 cursor-pointer group ${
+      className={`p-4 md:p-5 rounded-2xl border transition-all duration-300 shadow-sm flex items-center gap-3 cursor-pointer group ${
         dark 
-        ? 'bg-slate-800 border-slate-700 shadow-2xl shadow-slate-400/20' 
-        : 'bg-white border-slate-200 hover:border-emerald-200 hover:shadow-md'
+        ? 'bg-slate-900 border-slate-800 shadow-xl shadow-slate-900/20' 
+        : 'bg-white border-slate-100 hover:border-emerald-200 hover:shadow-lg hover:shadow-emerald-500/5'
       } ${
         highlight 
         ? (highlightColor === 'blue' ? 'border-blue-400 ring-4 ring-blue-50' : 'border-red-400 ring-4 ring-red-50 animate-pulse-subtle')
         : ''
       }`}
     >
-      <div className={`p-3 rounded-xl shrink-0 transition-transform group-hover:scale-110 ${colorClass}`}>
-        <Icon size={20} className="lg:w-6 lg:h-6" />
+      <div className={`p-2.5 md:p-3 rounded-xl shrink-0 transition-transform group-hover:scale-110 ${colorClass}`}>
+        <Icon size={18} className="md:w-5 md:h-5 lg:w-6 lg:h-6" />
       </div>
       <div className="min-w-0 flex-1">
-        <p className={`text-[10px] lg:text-xs font-bold uppercase tracking-wider mb-0.5 truncate ${dark ? 'text-slate-400' : 'text-slate-400'}`}>{title}</p>
-        <p className={`text-lg lg:text-xl xl:text-2xl font-black tracking-tighter truncate ${highlight ? (highlightColor === 'blue' ? 'text-blue-600' : 'text-red-600') : (dark ? 'text-white' : 'text-slate-900')}`}>
+        <p className={`text-[9px] md:text-[10px] lg:text-xs font-black uppercase tracking-widest mb-0.5 truncate ${dark ? 'text-slate-500' : 'text-slate-400'}`}>{title}</p>
+        <p className={`text-base md:text-lg lg:text-xl xl:text-2xl font-black tracking-tight truncate ${highlight ? (highlightColor === 'blue' ? 'text-blue-600' : 'text-red-600') : (dark ? 'text-white' : 'text-slate-900')}`}>
           {formatCurrency(value)}
         </p>
       </div>
@@ -152,16 +152,18 @@ const Dashboard: React.FC<DashboardProps> = ({ user, clients, competences, group
     return (
       <div 
         key={client.id} 
-        className="flex items-center justify-between p-4 bg-white rounded-xl border border-slate-200 hover:border-emerald-300 transition-all cursor-pointer group" 
+        className="flex items-center justify-between p-4 bg-white rounded-2xl border border-slate-100 hover:border-emerald-200 hover:shadow-md transition-all cursor-pointer group" 
         onClick={() => onViewClient(client.id)}
       >
-        <div>
-          <h4 className="font-bold text-slate-800 group-hover:text-emerald-700 transition-colors">{client.name}</h4>
-          <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest">{client.nextDate.toLocaleDateString('pt-BR')}</p>
+        <div className="min-w-0 flex-1 mr-2">
+          <h4 className="font-black text-slate-800 group-hover:text-emerald-700 transition-colors truncate text-sm">{client.name}</h4>
+          <p className="text-[9px] text-slate-400 font-black uppercase tracking-widest">{client.nextDate.toLocaleDateString('pt-BR')}</p>
         </div>
-        <div className="text-right">
-          <p className={`font-bold ${colorClass}`}>{formatCurrency(pendingValue)}</p>
-          <ChevronRight size={14} className="ml-auto text-slate-300" />
+        <div className="text-right shrink-0">
+          <p className={`font-black text-sm ${colorClass}`}>{formatCurrency(pendingValue)}</p>
+          <div className="flex justify-end mt-0.5">
+            <ChevronRight size={12} className="text-slate-300 group-hover:text-emerald-500 transition-colors" />
+          </div>
         </div>
       </div>
     );
@@ -202,7 +204,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, clients, competences, group
               {isSyncing ? 'Sincronizando...' : 'Sincronizar com Nuvem'}
             </button>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3 md:gap-4">
             <StatCard title="Capital Emprestado" value={stats.totalCapital} icon={TrendingUp} colorClass="bg-emerald-500/20 text-emerald-400" dark />
             <StatCard 
               title="Juros Atrasados" 
@@ -273,7 +275,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, clients, competences, group
         </div>
       )}
 
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 md:gap-8">
         <div className="space-y-4">
           <div className="flex items-center justify-between px-2"><h3 className="font-black text-sm uppercase tracking-widest text-slate-500 flex items-center gap-2"><span className="w-2.5 h-2.5 bg-red-500 rounded-full"></span> Vencidos</h3></div>
           <div className="space-y-3">{agenda.overdue.length === 0 ? <p className="text-center text-slate-400 py-10 bg-white rounded-3xl border border-dashed border-slate-300 text-[10px] font-black uppercase tracking-widest">Tudo em dia!</p> : agenda.overdue.map(c => <div key={c.id}><ClientAgendaCard client={c} colorClass="text-red-600" subtitle={`Vencido`} /></div>)}</div>
