@@ -59,9 +59,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ groups, clients, users, compete
     const { jsPDF } = (window as any).jspdf;
     const doc = new jsPDF();
     
-    doc.setFontSize(20);
+    doc.setFontSize(18);
     doc.setTextColor(5, 150, 105); // emerald-600
-    doc.text("CREDPLUS", 14, 22);
+    doc.text("CREDPLUS - GESTÃO FINANCEIRA", 14, 22);
     
     doc.setFontSize(14);
     doc.setTextColor(30, 41, 59); // slate-800
@@ -89,7 +89,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ groups, clients, users, compete
     
     doc.setFontSize(8);
     doc.setTextColor(148, 163, 184); // slate-400
-    doc.text("Este documento é um registro digital do sistema CREDPLUS.", 14, 280);
+    doc.text("Este documento é um registro digital do sistema CREDPLUS - GESTÃO FINANCEIRA.", 14, 280);
     
     doc.save(`CREDPLUS-${report.name.replace(/\//g, '-')}.pdf`);
   };

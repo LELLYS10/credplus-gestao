@@ -319,7 +319,7 @@ const App: React.FC = () => {
     <div className="min-h-screen flex items-center justify-center bg-slate-100 p-6">
       <div className="w-full max-w-md bg-white rounded-[2.5rem] shadow-2xl p-10">
         <Logo size="xl" className="mx-auto mb-6" />
-        <h1 className="text-3xl font-black text-center mb-8">CREDPLUS</h1>
+        <h1 className="text-2xl font-black text-center mb-8 uppercase tracking-tighter">CREDPLUS - GESTÃO FINANCEIRA</h1>
         <form onSubmit={e => {
           e.preventDefault();
           const found = db.users.find((u: any) => u.email === authForm.email && u.password === authForm.password);

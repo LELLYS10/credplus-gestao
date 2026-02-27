@@ -29,9 +29,9 @@ const Layout: React.FC<LayoutProps> = ({ user, onLogout, children, activeTab, se
     <div className="flex flex-col h-full bg-emerald-900 text-white p-4">
       <div className="mb-10 flex items-center gap-3 px-2 py-4">
         <Logo size="md" />
-        <div>
-          <span className="font-black text-xl tracking-tighter block leading-none">CREDPLUS</span>
-          <span className="text-[9px] font-bold text-emerald-400 uppercase tracking-widest">Gestão Financeira</span>
+        <div className="flex flex-col">
+          <span className="font-black text-lg tracking-tighter block leading-none">CREDPLUS</span>
+          <span className="text-[7px] font-black text-emerald-400 uppercase tracking-[0.2em] mt-1.5 leading-none">Gestão Financeira</span>
         </div>
       </div>
 
@@ -96,7 +96,7 @@ const Layout: React.FC<LayoutProps> = ({ user, onLogout, children, activeTab, se
       <div className="lg:hidden fixed top-0 left-0 right-0 bg-emerald-900 text-white z-40 px-4 py-3 flex items-center justify-between shadow-lg">
         <div className="flex items-center gap-3">
           <Logo size="sm" />
-          <span className="font-black tracking-tighter">CREDPLUS</span>
+          <span className="font-black tracking-tighter text-sm">CREDPLUS - GESTÃO FINANCEIRA</span>
         </div>
         <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="p-1">
           {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}

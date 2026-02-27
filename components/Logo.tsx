@@ -37,10 +37,10 @@ const Logo: React.FC<LogoProps> = ({ className = '', size = 'md' }) => {
 
   // Fallback elegante caso a imagem logo.png não exista no diretório
   return (
-    <div className={`${sizeClasses[size]} rounded-full bg-emerald-600 border-2 border-amber-400 flex items-center justify-center shadow-inner ${className}`}>
+    <div className={`${sizeClasses[size]} rounded-full bg-emerald-600 border-2 border-amber-400 flex items-center justify-center shadow-inner relative ${className}`}>
       <div className="relative">
         <DollarSign size={iconSizes[size]} className="text-white drop-shadow-md" />
-        <div className="absolute -top-1 -right-1 w-2 h-2 bg-amber-400 rounded-full animate-pulse"></div>
+        <div className="absolute -top-1 -right-1 w-[25%] h-[25%] bg-amber-400 rounded-full border border-emerald-700 shadow-sm"></div>
       </div>
     </div>
   );
