@@ -4,7 +4,7 @@ import { GoogleGenAI, Type, FunctionDeclaration, ThinkingLevel } from "@google/g
 import { DBState, User, TransactionType } from '../types';
 import { MessageSquare, Send, X, Bot, Sparkles, User as UserIcon, Mic, MicOff } from 'lucide-react';
 import Markdown from 'react-markdown';
-import { toTitleCase } from '../utils';
+import { toTitleCase, getEffectiveDueDay } from '../utils';
 
 interface AIAssistantProps {
   db: DBState;
@@ -201,16 +201,45 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ db, user, onAddClient, onAddT
 
       const now = new Date();
       const todayDay = now.getDate();
-      const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
-      const tomorrowDay = tomorrow.getDate();
+      const todayMonth = now.getMonth();
+      const todayYear = now.getFullYear();
+      const todayDate = new Date(todayYear, todayMonth, todayDay);
+      const tomorrowDate = new Date(todayYear, todayMonth, todayDay + 1);
+      const tomorrowDay = tomorrowDate.getDate();
       const dateStr = now.toLocaleDateString('pt-BR');
+
+      // Otimização de performance: Separa juros por status (vencido, hoje, futuro)
+      const clientStatus: Record<string, { vencido: number; hoje: number; futuro: number }> = {};
+      
+      db.competences.forEach(cp => {
+        if (cp.paidAmount < cp.originalValue) {
+          const client = db.clients.find(c => c.id === cp.clientId);
+          if (!client) return;
+          
+          const dueDay = getEffectiveDueDay(client.dueDay, cp.month, cp.year);
+          const dueDate = new Date(cp.year, cp.month, dueDay);
+          const pending = cp.originalValue - cp.paidAmount;
+          
+          if (!clientStatus[cp.clientId]) {
+            clientStatus[cp.clientId] = { vencido: 0, hoje: 0, futuro: 0 };
+          }
+          
+          if (dueDate < todayDate) {
+            clientStatus[cp.clientId].vencido += pending;
+          } else if (dueDate.getTime() === todayDate.getTime()) {
+            clientStatus[cp.clientId].hoje += pending;
+          } else {
+            clientStatus[cp.clientId].futuro += pending;
+          }
+        }
+      });
 
       // Calcula totais para o contexto do agente
       const statsContext = {
         capital_total: db.clients.reduce((acc: number, c: any) => acc + c.currentCapital, 0),
-        juros_atrasados: Object.values(pendingByClient).reduce((acc: number, val: any) => acc + val, 0),
-        vence_hoje: db.clients.filter((c: any) => c.dueDay === todayDay).reduce((acc: number, c: any) => acc + (pendingByClient[c.id] || 0), 0),
-        vence_amanha: db.clients.filter((c: any) => c.dueDay === tomorrowDay).reduce((acc: number, c: any) => acc + (pendingByClient[c.id] || 0), 0)
+        juros_vencidos_total: Object.values(clientStatus).reduce((acc, s) => acc + s.vencido, 0),
+        juros_hoje_total: Object.values(clientStatus).reduce((acc, s) => acc + s.hoje, 0),
+        juros_futuro_total: Object.values(clientStatus).reduce((acc, s) => acc + s.futuro, 0)
       };
 
       // Otimização de contexto para Mobile: Limita dados se houver muitos clientes
@@ -222,7 +251,9 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ db, user, onAddClient, onAddT
           id: c.id,
           nome: c.name, 
           capital_atual: c.currentCapital, 
-          juros_pendentes: pendingByClient[c.id] || 0,
+          juros_vencidos: clientStatus[c.id]?.vencido || 0,
+          juros_hoje: clientStatus[c.id]?.hoje || 0,
+          juros_futuro: clientStatus[c.id]?.futuro || 0,
           vencimento_dia: c.dueDay,
           grupo: db.groups.find(g => g.id === c.groupId)?.name
         }))
@@ -262,9 +293,9 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ db, user, onAddClient, onAddT
           FLUXO DE CONSULTA (Vencimentos):
           - Gatilhos: "quem vence hoje", "quem vence amanhã", "vencidos", "atrasados".
           - REGRAS DE FILTRAGEM (MUITO IMPORTANTE):
-            1. **Vencidos/Atrasados**: Liste APENAS clientes onde 'juros_pendentes' > 0 E 'vencimento_dia' < ${todayDay}.
-            2. **Hoje**: Liste APENAS clientes onde 'vencimento_dia' == ${todayDay}.
-            3. **Amanhã**: Liste APENAS clientes onde 'vencimento_dia' == ${tomorrowDay}.
+            1. **Vencidos/Atrasados**: Liste APENAS clientes onde 'juros_vencidos' > 0.
+            2. **Hoje**: Liste APENAS clientes onde 'juros_hoje' > 0.
+            3. **Amanhã/Futuro**: Se o usuário pedir amanhã, procure em 'clientes' aqueles que vencem no dia ${tomorrowDay} E tenham 'juros_futuro' > 0.
           - Se não houver ninguém que obedeça à regra solicitada, responda: "Nenhum registro encontrado para esta categoria."
           - Formato de resposta (um por linha):
             "• [Nome] | Cap: R$ [Capital] | Juros: R$ [Juros] | Sócio: [Sócio]"
