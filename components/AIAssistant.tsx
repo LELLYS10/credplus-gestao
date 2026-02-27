@@ -4,6 +4,7 @@ import { GoogleGenAI, Type, FunctionDeclaration, ThinkingLevel } from "@google/g
 import { DBState, User, TransactionType } from '../types';
 import { MessageSquare, Send, X, Bot, Sparkles, User as UserIcon, Mic, MicOff } from 'lucide-react';
 import Markdown from 'react-markdown';
+import { toTitleCase } from '../utils';
 
 interface AIAssistantProps {
   db: DBState;
@@ -279,6 +280,12 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ db, user, onAddClient, onAddT
 
           FLUXO DE CLIENTE:
           - Lista: 1. Nome, 2. Fone, 3. Sócio, 4. Capital, 5. Vencimento.
+          - VALIDAÇÃO DE SÓCIO: Antes de cadastrar um cliente, verifique se o 'Sócio' fornecido existe em 'socios_disponiveis'. 
+            - Se o sócio NÃO existir ou o nome for ambíguo, NÃO chame a ferramenta. Em vez disso, diga: "Não encontrei o sócio [Nome]. Por favor, escolha um dos sócios cadastrados: [Lista de Sócios]".
+            - Se houver apenas um sócio, você pode sugerir o uso dele.
+
+          PADRONIZAÇÃO DE NOMES:
+          - Sempre formate nomes de pessoas e sócios com a primeira letra de cada palavra em maiúscula (Ex: "joão silva" -> "João Silva").
 
           REGRAS GERAIS:
           - Seja CURTO e DIRETO.
@@ -294,12 +301,14 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ db, user, onAddClient, onAddT
       if (functionCalls && functionCalls.length > 0) {
         for (const call of functionCalls) {
           if (call.name === "registerSocio") {
-            onAddSocio(call.args as any);
-            setMessages(prev => [...prev, { role: 'model', text: `✅ Sócio **${(call.args as any).name}** cadastrado com sucesso!` }]);
+            const args = call.args as any;
+            onAddSocio({ ...args, name: toTitleCase(args.name) });
+            setMessages(prev => [...prev, { role: 'model', text: `✅ Sócio **${toTitleCase(args.name)}** cadastrado com sucesso!` }]);
           }
           if (call.name === "registerClient") {
-            onAddClient(call.args as any);
-            setMessages(prev => [...prev, { role: 'model', text: `✅ Cliente **${(call.args as any).name}** registrado com sucesso!` }]);
+            const args = call.args as any;
+            onAddClient({ ...args, name: toTitleCase(args.name) });
+            setMessages(prev => [...prev, { role: 'model', text: `✅ Cliente **${toTitleCase(args.name)}** registrado com sucesso!` }]);
           }
           if (call.name === "registerTransaction") {
             onAddTransaction(call.args as any);

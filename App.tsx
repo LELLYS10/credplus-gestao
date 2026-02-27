@@ -12,6 +12,7 @@ import ClientsList from './components/ClientsList';
 import AIAssistant from './components/AIAssistant';
 import Logo from './components/Logo';
 import { ChevronRight, RefreshCw } from 'lucide-react';
+import { toTitleCase } from './utils';
 
 const SESSION_KEY = 'credplus_session_v1';
 
@@ -229,14 +230,14 @@ const App: React.FC = () => {
           groups={db.groups} clients={db.clients} users={db.users} competences={db.competences} reports={db.reports} user={user} 
           onAddGroup={d => {
             const newGroupId = `g-${Date.now()}`;
-            const newGroup: Group = { id: newGroupId, name: d.name, email: d.email, phone: d.phone, interestRate: d.interestRate };
+            const newGroup: Group = { id: newGroupId, name: toTitleCase(d.name), email: d.email, phone: d.phone, interestRate: d.interestRate };
             const newUser: User = { id: `u-${Date.now()}`, email: d.email, password: d.password, role: UserRole.VIEWER, groupId: newGroupId };
             setDb((prev: any) => ({ ...prev, groups: [...prev.groups, newGroup], users: [...prev.users, newUser] }));
           }} 
           onDeleteGroup={handleDeleteGroup} 
           onAddClient={d => {
             const newClientId = `c-${Date.now()}`;
-            const newClient = { id: newClientId, ...d, status: 'ACTIVE' };
+            const newClient = { id: newClientId, ...d, name: toTitleCase(d.name), status: 'ACTIVE' };
             setDb((prev: any) => {
               const newState = { ...prev, clients: [...prev.clients, newClient] };
               return runCompetenceSync(newState);
@@ -264,7 +265,9 @@ const App: React.FC = () => {
           }} 
           onUpdateClient={(id, data) => {
             if (user.role !== UserRole.ADMIN) return;
-            setDb((prev: any) => ({ ...prev, clients: prev.clients.map((c: any) => c.id === id ? { ...c, ...data } : c) }));
+            const updatedData = { ...data };
+            if (updatedData.name) updatedData.name = toTitleCase(updatedData.name);
+            setDb((prev: any) => ({ ...prev, clients: prev.clients.map((c: any) => c.id === id ? { ...c, ...updatedData } : c) }));
           }}
           onDeleteClient={id => {
             handleDeleteClient(id);
