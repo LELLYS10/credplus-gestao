@@ -138,9 +138,20 @@ const App: React.FC = () => {
   };
 
   const handleDeleteClient = async (id: string) => {
-    if (user?.role !== UserRole.ADMIN || !db) return;
+    if (!db || !user) return;
     
-    // Limpeza profunda no Supabase (Remover resquícios de teste)
+    const client = db.clients.find((c: any) => c.id === id);
+    if (!client) return;
+
+    // Permissão: Admin pode tudo, Sócio só pode deletar o dele
+    if (user.role !== UserRole.ADMIN) {
+      const userGroupId = user.groupId || db.groups.find((g: any) => g.email === user.email)?.id;
+      if (client.groupId !== userGroupId) {
+        alert("Você não tem permissão para excluir este cliente.");
+        return;
+      }
+    }
+    
     try {
       const deletions = [
         deleteFromDB('clients', id),
@@ -153,56 +164,63 @@ const App: React.FC = () => {
       console.error("Erro na exclusão profunda:", e);
     }
 
-    setDb((prev: any) => {
-      return { 
-        ...prev, 
-        clients: prev.clients.filter((c: any) => c.id !== id),
-        competences: prev.competences.filter((cp: any) => cp.clientId !== id),
-        transactions: prev.transactions.filter((t: any) => t.clientId !== id),
-        requests: prev.requests.filter((r: any) => r.clientId !== id)
-      };
-    });
+    setDb((prev: any) => ({
+      ...prev,
+      clients: prev.clients.filter((c: any) => c.id !== id),
+      competences: prev.competences.filter((cp: any) => cp.clientId !== id),
+      transactions: prev.transactions.filter((t: any) => t.clientId !== id),
+      requests: prev.requests.filter((r: any) => r.clientId !== id)
+    }));
   };
 
   const handleDeleteGroup = async (id: string) => {
     if (user?.role !== UserRole.ADMIN || !db) return;
     
     try {
-      // 1. Deletar Usuários do Sócio (Protegendo ADMs principais)
+      // 1. Identificar o que será deletado
       const protectedEmails = ['credplusemp@gmail.com', 'michaeldsandes@gmail.com'];
       const usersToDelete = db.users.filter((u: any) => u.groupId === id && !protectedEmails.includes(u.email));
-      const userDeletions = usersToDelete.map((u: any) => deleteFromDB('users', u.id));
-      
-      // 2. Deletar Clientes e seus dados
       const clientsToDelete = db.clients.filter((c: any) => c.groupId === id);
-      const clientDataDeletions: any[] = [];
-      clientsToDelete.forEach(client => {
-        clientDataDeletions.push(deleteFromDB('clients', client.id));
-        db.competences.filter((cp: any) => cp.clientId === client.id).forEach((cp: any) => clientDataDeletions.push(deleteFromDB('competences', cp.id)));
-        db.transactions.filter((t: any) => t.clientId === client.id).forEach((t: any) => clientDataDeletions.push(deleteFromDB('transactions', t.id)));
-        db.requests.filter((r: any) => r.clientId === client.id).forEach((r: any) => clientDataDeletions.push(deleteFromDB('requests', r.id)));
+      const clientIdsToDelete = new Set(clientsToDelete.map((c: any) => c.id));
+
+      // 2. Preparar deleções no banco
+      const userDeletions = usersToDelete.map((u: any) => deleteFromDB('users', u.id));
+      const clientDeletions = clientsToDelete.map((c: any) => deleteFromDB('clients', c.id));
+      const competenceDeletions = db.competences.filter((cp: any) => clientIdsToDelete.has(cp.clientId)).map((cp: any) => deleteFromDB('competences', cp.id));
+      const transactionDeletions = db.transactions.filter((t: any) => clientIdsToDelete.has(t.clientId)).map((t: any) => deleteFromDB('transactions', t.id));
+      const requestDeletions = db.requests.filter((r: any) => clientIdsToDelete.has(r.clientId)).map((r: any) => deleteFromDB('requests', r.id));
+
+      // 3. Executar deleções no banco
+      await Promise.all([
+        ...userDeletions,
+        ...clientDeletions,
+        ...competenceDeletions,
+        ...transactionDeletions,
+        ...requestDeletions,
+        deleteFromDB('groups', id)
+      ]);
+
+      // 4. Atualizar Estado Local
+      setDb((prev: any) => {
+        const clientsToKeep = prev.clients.filter((c: any) => c.groupId !== id);
+        const clientIdsToKeep = new Set(clientsToKeep.map((c: any) => c.id));
+
+        return { 
+          ...prev, 
+          groups: prev.groups.filter((g: any) => g.id !== id), 
+          users: prev.users.filter((u: any) => u.groupId !== id && !protectedEmails.includes(u.email)),
+          clients: clientsToKeep,
+          competences: prev.competences.filter((cp: any) => clientIdsToKeep.has(cp.clientId)),
+          transactions: prev.transactions.filter((t: any) => clientIdsToKeep.has(t.clientId)),
+          requests: prev.requests.filter((r: any) => clientIdsToKeep.has(r.clientId))
+        };
       });
 
-      // 3. Deletar o Grupo
-      await Promise.all([...userDeletions, ...clientDataDeletions, deleteFromDB('groups', id)]);
+      alert("Sócio e todos os dados vinculados foram excluídos com sucesso.");
     } catch (e) {
       console.error("Erro na exclusão do grupo:", e);
+      alert("Ocorreu um erro ao tentar excluir o sócio.");
     }
-
-    setDb((prev: any) => {
-      const clientsToKeep = prev.clients.filter((c: any) => c.groupId !== id);
-      const clientIdsToKeep = new Set(clientsToKeep.map((c: any) => c.id));
-
-      return { 
-        ...prev, 
-        groups: prev.groups.filter((g: any) => g.id !== id), 
-        users: prev.users.filter((u: any) => u.groupId !== id),
-        clients: clientsToKeep,
-        competences: prev.competences.filter((cp: any) => clientIdsToKeep.has(cp.clientId)),
-        transactions: prev.transactions.filter((t: any) => clientIdsToKeep.has(t.clientId)),
-        requests: prev.requests.filter((r: any) => clientIdsToKeep.has(r.clientId))
-      };
-    });
   };
 
   const renderContent = () => {

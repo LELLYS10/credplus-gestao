@@ -63,7 +63,6 @@ const ClientDetail: React.FC<ClientDetailProps> = ({ client, competences, transa
 
   const handleEditSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isAdmin) return;
     onUpdateClient(client.id, { ...editData, createdAt: new Date(editData.createdAt).getTime() + 12 * 60 * 60 * 1000 });
     setShowEditModal(false);
   };
@@ -87,7 +86,7 @@ const ClientDetail: React.FC<ClientDetailProps> = ({ client, competences, transa
           >
             <Bot size={18} /> IA
           </button>
-          {isAdmin && <button onClick={() => setShowEditModal(true)} className="p-2.5 bg-slate-100 text-slate-500 rounded-xl hover:bg-slate-200 transition-all shadow-sm border border-slate-200"><Edit3 size={18} /></button>}
+          <button onClick={() => setShowEditModal(true)} className="p-2.5 bg-slate-100 text-slate-500 rounded-xl hover:bg-slate-200 transition-all shadow-sm border border-slate-200"><Edit3 size={18} /></button>
           <button onClick={handleSendWhatsAppReport} className="flex items-center gap-2 bg-green-500 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-green-600 transition-all shadow-md border-b-4 border-green-700"><Send size={14} /> Enviar Extrato</button>
         </div>
       </div>
@@ -291,16 +290,20 @@ const ClientDetail: React.FC<ClientDetailProps> = ({ client, competences, transa
         </div>
       )}
 
-      {isAdmin && showEditModal && (
+      {showEditModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-md">
            <div className="bg-white p-10 rounded-[2.5rem] w-full max-w-md shadow-2xl animate-in zoom-in duration-300">
-              <h3 className="text-2xl font-black text-slate-800 uppercase mb-6 flex items-center gap-2"><Edit3 /> Editar Cadastro</h3>
+              <h3 className="text-2xl font-black text-slate-800 uppercase mb-6 flex items-center gap-2"><Edit3 /> {isAdmin ? 'Editar Cadastro' : 'Gerenciar Cliente'}</h3>
               <form onSubmit={handleEditSubmit} className="space-y-4">
-                <div><label className="text-[9px] font-black text-slate-400 uppercase ml-2 tracking-widest">Nome do Cliente</label><input placeholder="Nome" className="w-full p-4 bg-slate-50 rounded-2xl border font-bold" value={editData.name} onChange={e=>setEditData({...editData, name: e.target.value})} /></div>
-                <div><label className="text-[9px] font-black text-slate-400 uppercase ml-2 tracking-widest">WhatsApp</label><input placeholder="WhatsApp" className="w-full p-4 bg-slate-50 rounded-2xl border font-bold" value={editData.phone} onChange={e=>setEditData({...editData, phone: e.target.value})} /></div>
-                <div><label className="text-[9px] font-black text-slate-400 uppercase ml-2 tracking-widest">Sócio Responsável</label><select className="w-full p-4 bg-slate-50 rounded-2xl border font-bold" value={editData.groupId} onChange={e=>setEditData({...editData, groupId: e.target.value})}><option value="">Selecione o Sócio</option>{groups.map(g=><option key={g.id} value={g.id}>{g.name}</option>)}</select></div>
-                <div className="grid grid-cols-2 gap-4"><div><label className="text-[9px] font-black text-slate-400 uppercase ml-2 tracking-widest">Dia Vencimento</label><input type="number" min="1" max="31" className="w-full p-4 bg-slate-50 rounded-2xl border font-bold" value={editData.dueDay} onChange={e=>setEditData({...editData, dueDay: parseInt(e.target.value)})} /></div><div><label className="text-[9px] font-black text-slate-400 uppercase ml-2 tracking-widest">Data Início</label><input type="date" className="w-full p-4 bg-slate-50 rounded-2xl border font-bold" value={editData.createdAt} onChange={e=>setEditData({...editData, createdAt: e.target.value})} /></div></div>
-                <div className="pt-4 space-y-3"><button type="submit" className="w-full p-4 bg-emerald-600 text-white rounded-2xl font-black uppercase text-xs tracking-widest shadow-lg border-b-4 border-emerald-800">Salvar Alterações</button><button type="button" onClick={() => { if(confirm('Excluir cliente e todo histórico?')) onDeleteClient(client.id); }} className="w-full p-4 bg-red-50 text-red-600 rounded-2xl font-black uppercase text-xs tracking-widest border border-red-100 hover:bg-red-100 transition-all flex items-center justify-center gap-2"><Trash2 size={16}/> Excluir Cliente Permanente</button><button type="button" onClick={()=>setShowEditModal(false)} className="w-full p-4 border rounded-2xl font-black text-slate-400 uppercase text-xs tracking-widest">Fechar</button></div>
+                <div><label className="text-[9px] font-black text-slate-400 uppercase ml-2 tracking-widest">Nome do Cliente</label><input disabled={!isAdmin} placeholder="Nome" className="w-full p-4 bg-slate-50 rounded-2xl border font-bold disabled:opacity-50" value={editData.name} onChange={e=>setEditData({...editData, name: e.target.value})} /></div>
+                <div><label className="text-[9px] font-black text-slate-400 uppercase ml-2 tracking-widest">WhatsApp</label><input disabled={!isAdmin} placeholder="WhatsApp" className="w-full p-4 bg-slate-50 rounded-2xl border font-bold disabled:opacity-50" value={editData.phone} onChange={e=>setEditData({...editData, phone: e.target.value})} /></div>
+                <div><label className="text-[9px] font-black text-slate-400 uppercase ml-2 tracking-widest">Sócio Responsável</label><select disabled={!isAdmin} className="w-full p-4 bg-slate-50 rounded-2xl border font-bold disabled:opacity-50" value={editData.groupId} onChange={e=>setEditData({...editData, groupId: e.target.value})}><option value="">Selecione o Sócio</option>{groups.map(g=><option key={g.id} value={g.id}>{g.name}</option>)}</select></div>
+                <div className="grid grid-cols-2 gap-4"><div><label className="text-[9px] font-black text-slate-400 uppercase ml-2 tracking-widest">Dia Vencimento</label><input disabled={!isAdmin} type="number" min="1" max="31" className="w-full p-4 bg-slate-50 rounded-2xl border font-bold disabled:opacity-50" value={editData.dueDay} onChange={e=>setEditData({...editData, dueDay: parseInt(e.target.value)})} /></div><div><label className="text-[9px] font-black text-slate-400 uppercase ml-2 tracking-widest">Data Início</label><input disabled={!isAdmin} type="date" className="w-full p-4 bg-slate-50 rounded-2xl border font-bold disabled:opacity-50" value={editData.createdAt} onChange={e=>setEditData({...editData, createdAt: e.target.value})} /></div></div>
+                <div className="pt-4 space-y-3">
+                  {isAdmin && <button type="submit" className="w-full p-4 bg-emerald-600 text-white rounded-2xl font-black uppercase text-xs tracking-widest shadow-lg border-b-4 border-emerald-800">Salvar Alterações</button>}
+                  <button type="button" onClick={() => { if(confirm('Excluir cliente e todo histórico?')) onDeleteClient(client.id); }} className="w-full p-4 bg-red-50 text-red-600 rounded-2xl font-black uppercase text-xs tracking-widest border border-red-100 hover:bg-red-100 transition-all flex items-center justify-center gap-2"><Trash2 size={16}/> Excluir Cliente Permanente</button>
+                  <button type="button" onClick={()=>setShowEditModal(false)} className="w-full p-4 border rounded-2xl font-black text-slate-400 uppercase text-xs tracking-widest">Fechar</button>
+                </div>
               </form>
            </div>
         </div>
