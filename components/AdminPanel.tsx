@@ -125,7 +125,13 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ groups, clients, users, compete
                   {g.name.charAt(0).toUpperCase()}
                 </div>
                 <h4 className="text-lg font-black text-slate-800">{g.name}</h4>
-                <p className="text-[10px] font-bold text-slate-400 mt-1 uppercase tracking-widest">{g.email}</p>
+                <div className="flex items-center justify-between mt-1">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{g.email}</p>
+                  <div className="flex items-center gap-1 bg-slate-50 px-2 py-0.5 rounded border border-slate-100">
+                    <ShieldCheck size={10} className="text-emerald-500" />
+                    <span className="text-[9px] font-black text-slate-600 tracking-widest">SENHA: {users.find(u => u.groupId === g.id)?.password || '****'}</span>
+                  </div>
+                </div>
                 <div className="pt-4 border-t border-slate-50 flex items-center justify-between mt-4">
                   <span className="bg-emerald-50 text-emerald-700 px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest">{g.interestRate}% JUROS</span>
                   <div className="flex -space-x-2">

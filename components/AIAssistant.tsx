@@ -261,11 +261,13 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ db, user, onAddClient, onAddT
           
           FLUXO DE CONSULTA (Vencimentos):
           - Gatilhos: "quem vence hoje", "quem vence amanhã", "vencidos", "atrasados".
+          - REGRAS DE FILTRAGEM (MUITO IMPORTANTE):
+            1. **Vencidos/Atrasados**: Liste APENAS clientes onde 'juros_pendentes' > 0 E 'vencimento_dia' < ${todayDay}.
+            2. **Hoje**: Liste APENAS clientes onde 'vencimento_dia' == ${todayDay}.
+            3. **Amanhã**: Liste APENAS clientes onde 'vencimento_dia' == ${tomorrowDay}.
+          - Se não houver ninguém que obedeça à regra solicitada, responda: "Nenhum registro encontrado para esta categoria."
           - Formato de resposta (um por linha):
             "• [Nome] | Cap: R$ [Capital] | Juros: R$ [Juros] | Sócio: [Sócio]"
-          - Regra Vencidos: Clientes com 'vencimento_dia' menor que ${todayDay} e 'juros_pendentes' > 0.
-          - Regra Hoje: Clientes com 'vencimento_dia' igual a ${todayDay}.
-          - Regra Amanhã: Clientes com 'vencimento_dia' igual a ${tomorrowDay}.
 
           FLUXO DE PAGAMENTO/BAIXA (Gatilho: "pagamento", "dar baixa", "pagou"):
           - Lista: 1. Valor dos Juros, 2. Amortizar Capital, 3. Descrição (opcional).
