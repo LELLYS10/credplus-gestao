@@ -349,11 +349,10 @@ const App: React.FC = () => {
       >
         {renderContent()}
       </Layout>
-      {user.role === UserRole.ADMIN && (
-        <AIAssistant 
-          db={db} 
-          user={user} 
-          onAddClient={(data) => {
+      <AIAssistant 
+        db={db} 
+        user={user} 
+        onAddClient={(data) => {
             const newClientId = `c-${Date.now()}`;
             const newClient = { id: newClientId, ...data, status: 'ACTIVE' as const, createdAt: Date.now(), currentCapital: data.initialCapital };
             setDb((prev: any) => {
@@ -463,7 +462,6 @@ const App: React.FC = () => {
             setDb((prev: any) => ({ ...prev, requests: [...prev.requests, newReq] }));
           }}
         />
-      )}
     </>
   );
 };

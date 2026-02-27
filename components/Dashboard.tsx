@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Client, Competence, Group, User, UserRole, PaymentRequest, RequestStatus, AppSettings } from '../types';
 import { formatCurrency, getToday, getEffectiveDueDay } from '../utils';
-import { TrendingUp, AlertCircle, Clock, CheckCircle2, ChevronRight, DollarSign, AlertTriangle, X, ArrowRight, Calendar } from 'lucide-react';
+import { TrendingUp, AlertCircle, Clock, CheckCircle2, ChevronRight, DollarSign, AlertTriangle, X, ArrowRight, Calendar, Bot, Sparkles } from 'lucide-react';
 
 interface DashboardProps {
   user: User | null;
@@ -279,15 +279,45 @@ const Dashboard: React.FC<DashboardProps> = ({ user, clients, competences, group
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 md:gap-8">
         <div className="space-y-4">
-          <div className="flex items-center justify-between px-2"><h3 className="font-black text-sm uppercase tracking-widest text-slate-500 flex items-center gap-2"><span className="w-2.5 h-2.5 bg-red-500 rounded-full"></span> Vencidos</h3></div>
+          <div className="flex items-center justify-between px-2">
+            <h3 className="font-black text-sm uppercase tracking-widest text-slate-500 flex items-center gap-2">
+              <span className="w-2.5 h-2.5 bg-red-500 rounded-full"></span> Vencidos
+            </h3>
+            <button 
+              onClick={() => window.dispatchEvent(new CustomEvent('open-ai', { detail: { message: 'Quem são os clientes vencidos?' } }))}
+              className="flex items-center gap-1.5 px-3 py-1 bg-slate-100 text-slate-500 rounded-full text-[9px] font-black uppercase tracking-widest hover:bg-emerald-100 hover:text-emerald-700 transition-all"
+            >
+              <Bot size={12} /> Consultar IA
+            </button>
+          </div>
           <div className="space-y-3">{agenda.overdue.length === 0 ? <p className="text-center text-slate-400 py-10 bg-white rounded-3xl border border-dashed border-slate-300 text-[10px] font-black uppercase tracking-widest">Tudo em dia!</p> : agenda.overdue.map(c => <div key={c.id}><ClientAgendaCard client={c} colorClass="text-red-600" subtitle={`Vencido`} /></div>)}</div>
         </div>
         <div className="space-y-4">
-          <div className="flex items-center justify-between px-2"><h3 className="font-black text-sm uppercase tracking-widest text-slate-500 flex items-center gap-2"><span className="w-2.5 h-2.5 bg-amber-500 rounded-full"></span> Vence Hoje</h3></div>
+          <div className="flex items-center justify-between px-2">
+            <h3 className="font-black text-sm uppercase tracking-widest text-slate-500 flex items-center gap-2">
+              <span className="w-2.5 h-2.5 bg-amber-500 rounded-full"></span> Vence Hoje
+            </h3>
+            <button 
+              onClick={() => window.dispatchEvent(new CustomEvent('open-ai', { detail: { message: 'Quem vence hoje?' } }))}
+              className="flex items-center gap-1.5 px-3 py-1 bg-slate-100 text-slate-500 rounded-full text-[9px] font-black uppercase tracking-widest hover:bg-emerald-100 hover:text-emerald-700 transition-all"
+            >
+              <Bot size={12} /> Consultar IA
+            </button>
+          </div>
           <div className="space-y-3">{agenda.dueToday.length === 0 ? <p className="text-center text-slate-400 py-10 bg-white rounded-3xl border border-dashed border-slate-300 text-[10px] font-black uppercase tracking-widest">Nada hoje.</p> : agenda.dueToday.map(c => <div key={c.id}><ClientAgendaCard client={c} colorClass="text-amber-600" subtitle="Pagamento Hoje" /></div>)}</div>
         </div>
         <div className="space-y-4">
-          <div className="flex items-center justify-between px-2"><h3 className="font-black text-sm uppercase tracking-widest text-slate-500 flex items-center gap-2"><span className="w-2.5 h-2.5 bg-emerald-500 rounded-full"></span> Vence Amanhã</h3></div>
+          <div className="flex items-center justify-between px-2">
+            <h3 className="font-black text-sm uppercase tracking-widest text-slate-500 flex items-center gap-2">
+              <span className="w-2.5 h-2.5 bg-emerald-500 rounded-full"></span> Vence Amanhã
+            </h3>
+            <button 
+              onClick={() => window.dispatchEvent(new CustomEvent('open-ai', { detail: { message: 'Quem vence amanhã?' } }))}
+              className="flex items-center gap-1.5 px-3 py-1 bg-slate-100 text-slate-500 rounded-full text-[9px] font-black uppercase tracking-widest hover:bg-emerald-100 hover:text-emerald-700 transition-all"
+            >
+              <Bot size={12} /> Consultar IA
+            </button>
+          </div>
           <div className="space-y-3">{agenda.dueTomorrow.length === 0 ? <p className="text-center text-slate-400 py-10 bg-white rounded-3xl border border-dashed border-slate-300 text-[10px] font-black uppercase tracking-widest italic">Livre para amanhã.</p> : agenda.dueTomorrow.map(c => <div key={c.id}><ClientAgendaCard client={c} colorClass="text-emerald-600" subtitle="Vence Amanhã" /></div>)}</div>
         </div>
       </div>

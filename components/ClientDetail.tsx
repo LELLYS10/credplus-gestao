@@ -2,7 +2,7 @@
 import React from 'react';
 import { Client, Competence, Group, User, UserRole, PaymentRequest, RequestStatus, Transaction, TransactionType } from '../types';
 import { formatCurrency, getMonthName, getEffectiveDueDay } from '../utils';
-import { ArrowLeft, Plus, History, Calendar, X, DollarSign, Send, Edit3, Trash2, ArrowUpRight, ArrowDownLeft, CheckCircle2, Settings2 } from 'lucide-react';
+import { ArrowLeft, Plus, History, Calendar, X, DollarSign, Send, Edit3, Trash2, ArrowUpRight, ArrowDownLeft, CheckCircle2, Settings2, Bot } from 'lucide-react';
 
 interface ClientDetailProps {
   client: Client;
@@ -81,6 +81,12 @@ const ClientDetail: React.FC<ClientDetailProps> = ({ client, competences, transa
       <div className="flex items-center justify-between px-2">
         <button onClick={onBack} className="flex items-center gap-2 text-slate-500 hover:text-emerald-700 transition-all font-black uppercase text-xs tracking-widest"><ArrowLeft size={18} /> Voltar</button>
         <div className="flex gap-2">
+          <button 
+            onClick={() => window.dispatchEvent(new CustomEvent('open-ai', { detail: { message: `Qual a situação atual do cliente ${client.name}?` } }))}
+            className="p-2.5 bg-emerald-50 text-emerald-600 rounded-xl hover:bg-emerald-100 transition-all shadow-sm border border-emerald-100 flex items-center gap-2 font-black uppercase text-[10px] tracking-widest"
+          >
+            <Bot size={18} /> IA
+          </button>
           {isAdmin && <button onClick={() => setShowEditModal(true)} className="p-2.5 bg-slate-100 text-slate-500 rounded-xl hover:bg-slate-200 transition-all shadow-sm border border-slate-200"><Edit3 size={18} /></button>}
           <button onClick={handleSendWhatsAppReport} className="flex items-center gap-2 bg-green-500 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-green-600 transition-all shadow-md border-b-4 border-green-700"><Send size={14} /> Enviar Extrato</button>
         </div>

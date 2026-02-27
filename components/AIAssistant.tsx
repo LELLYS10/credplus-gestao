@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { GoogleGenAI, Type, FunctionDeclaration, ThinkingLevel } from "@google/genai";
-import { DBState, User, TransactionType } from '../types';
+import { DBState, User, TransactionType, UserRole } from '../types';
 import { MessageSquare, Send, X, Bot, Sparkles, User as UserIcon, Mic, MicOff } from 'lucide-react';
 import Markdown from 'react-markdown';
 import { toTitleCase, getEffectiveDueDay } from '../utils';
@@ -143,6 +143,22 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ db, user, onAddClient, onAddT
     }
   };
 
+  const requestPaymentTool: FunctionDeclaration = {
+    name: "requestPayment",
+    parameters: {
+      type: Type.OBJECT,
+      description: "Cria uma solicitação de pagamento para ser aprovada pelo administrador. Use quando o usuário for um Sócio (VIEWER).",
+      properties: {
+        clientId: { type: Type.STRING, description: "ID do cliente" },
+        interestAmount: { type: Type.NUMBER, description: "Valor dos juros" },
+        amortizationAmount: { type: Type.NUMBER, description: "Valor da amortização" },
+        discountAmount: { type: Type.NUMBER, description: "Valor do desconto (opcional)" },
+        observation: { type: Type.STRING, description: "Observação ou motivo" }
+      },
+      required: ["clientId", "interestAmount", "amortizationAmount"]
+    }
+  };
+
   const deleteClientTool: FunctionDeclaration = {
     name: "deleteClient",
     parameters: {
@@ -168,10 +184,21 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ db, user, onAddClient, onAddT
   };
 
   useEffect(() => {
+    const handleOpenAI = (e: any) => {
+      setIsOpen(true);
+      if (e.detail?.message) {
+        setInput(e.detail.message);
+      }
+    };
+    window.addEventListener('open-ai', handleOpenAI as any);
+    return () => window.removeEventListener('open-ai', handleOpenAI as any);
+  }, []);
+
+  useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [messages]);
+  }, [messages, isOpen]);
 
   const handleSend = async () => {
     if (!input.trim() || isLoading) return;
@@ -211,10 +238,19 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ db, user, onAddClient, onAddT
       // Otimização de performance: Separa juros por status (vencido, hoje, futuro)
       const clientStatus: Record<string, { vencido: number; hoje: number; futuro: number }> = {};
       
+      // FILTRO PRIVACIDADE: Identifica o grupo do usuário se for sócio
+      const userGroupId = user.role === UserRole.VIEWER 
+        ? (user.groupId || db.groups.find(g => g.email === user.email)?.id)
+        : null;
+
       db.competences.forEach(cp => {
-        if (cp.paidAmount < cp.originalValue) {
+        // Usa threshold de 0.01 para evitar problemas de precisão
+        if ((cp.originalValue - cp.paidAmount) > 0.01) {
           const client = db.clients.find(c => c.id === cp.clientId);
           if (!client) return;
+          
+          // Se for sócio, ignora competências de clientes que não são dele
+          if (userGroupId && client.groupId !== userGroupId) return;
           
           const dueDay = getEffectiveDueDay(client.dueDay, cp.month, cp.year);
           const dueDate = new Date(cp.year, cp.month, dueDay);
@@ -236,7 +272,9 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ db, user, onAddClient, onAddT
 
       // Calcula totais para o contexto do agente
       const statsContext = {
-        capital_total: db.clients.reduce((acc: number, c: any) => acc + c.currentCapital, 0),
+        capital_total: db.clients
+          .filter(c => !userGroupId || c.groupId === userGroupId)
+          .reduce((acc: number, c: any) => acc + c.currentCapital, 0),
         juros_vencidos_total: Object.values(clientStatus).reduce((acc, s) => acc + s.vencido, 0),
         juros_hoje_total: Object.values(clientStatus).reduce((acc, s) => acc + s.hoje, 0),
         juros_futuro_total: Object.values(clientStatus).reduce((acc, s) => acc + s.futuro, 0)
@@ -245,18 +283,21 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ db, user, onAddClient, onAddT
       // Otimização de contexto para Mobile: Limita dados se houver muitos clientes
       const context = {
         stats: statsContext,
-        total_clientes: db.clients.length,
-        socios_disponiveis: db.groups.map(g => ({ id: g.id, nome: g.name })),
-        clientes: db.clients.slice(0, 150).map(c => ({ 
-          id: c.id,
-          nome: c.name, 
-          capital_atual: c.currentCapital, 
-          juros_vencidos: clientStatus[c.id]?.vencido || 0,
-          juros_hoje: clientStatus[c.id]?.hoje || 0,
-          juros_futuro: clientStatus[c.id]?.futuro || 0,
-          vencimento_dia: c.dueDay,
-          grupo: db.groups.find(g => g.id === c.groupId)?.name
-        }))
+        total_clientes: db.clients.filter(c => !userGroupId || c.groupId === userGroupId).length,
+        socios_disponiveis: user.role === UserRole.ADMIN ? db.groups.map(g => ({ id: g.id, nome: g.name })) : [],
+        clientes: db.clients
+          .filter(c => !userGroupId || c.groupId === userGroupId)
+          .slice(0, 150)
+          .map(c => ({ 
+            id: c.id,
+            nome: c.name, 
+            capital_atual: c.currentCapital, 
+            juros_vencidos: clientStatus[c.id]?.vencido || 0,
+            juros_hoje: clientStatus[c.id]?.hoje || 0,
+            juros_futuro: clientStatus[c.id]?.futuro || 0,
+            vencimento_dia: c.dueDay,
+            grupo: db.groups.find(g => g.id === c.groupId)?.name
+          }))
       };
 
       const response = await ai.models.generateContent({
@@ -280,10 +321,11 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ db, user, onAddClient, onAddT
           - Sempre identifique o usuário pelo e-mail e, se for um dos administradores acima, use o nome dele para cumprimentá-lo (ex: "Olá, Lellis Flávio!" ou "Olá, Michael Douglas!").
           
           REGRAS DE PERMISSÃO:
+          - PRIVACIDADE: Você só tem acesso aos dados do grupo/sócio do usuário atual. Se o usuário for um 'VIEWER' (Sócio), ele só verá seus próprios clientes.
           - EXCLUSÃO: Apenas se a função for 'ADMIN'. Se o usuário pedir para excluir e for 'VIEWER', diga educadamente que não tem permissão para isso.
           - PAGAMENTOS: 
             - Se for 'ADMIN', use 'registerPayment' para dar baixa imediata.
-            - Se for 'VIEWER' (Sócio), use 'registerPayment' mas informe que será gerada uma SOLICITAÇÃO para o administrador confirmar.
+            - Se for 'VIEWER' (Sócio), use 'requestPayment' (Solicitar Pagamento) para que o administrador confirme depois. Explique isso ao usuário.
           
           REGRAS CRÍTICAS:
           1. MEMÓRIA: Se o usuário já disse um dado, NUNCA peça novamente.
@@ -326,7 +368,7 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ db, user, onAddClient, onAddT
           - Use a ferramenta 'registerTransaction' APENAS para Investimentos ou Retiradas puras.
           - Use a ferramenta 'deleteClient' ou 'deleteGroup' se o usuário ADMIN pedir para excluir.
           - Identifique o Cliente pelo nome fornecido no contexto.`,
-          tools: [{ functionDeclarations: [registerSocioTool, registerClientTool, registerTransactionTool, registerPaymentTool, deleteClientTool, deleteGroupTool] }]
+          tools: [{ functionDeclarations: [registerSocioTool, registerClientTool, registerTransactionTool, registerPaymentTool, requestPaymentTool, deleteClientTool, deleteGroupTool] }]
         }
       });
 
@@ -349,7 +391,7 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ db, user, onAddClient, onAddT
           }
           if (call.name === "registerPayment") {
             const args = call.args as any;
-            if (user.role === 'ADMIN') {
+            if (user.role === UserRole.ADMIN) {
               onAddPayment(args);
               const client = db.clients.find(c => c.id === args.clientId);
               const newCap = (client?.currentCapital || 0) - args.amortizationAmount;
@@ -358,6 +400,11 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ db, user, onAddClient, onAddT
               onRequestPayment(args.clientId, args.interestAmount, args.amortizationAmount, 0, args.description || 'Solicitado via Agente');
               setMessages(prev => [...prev, { role: 'model', text: `⏳ Solicitação de pagamento enviada para o Administrador confirmar. Aguarde a aprovação.` }]);
             }
+          }
+          if (call.name === "requestPayment") {
+            const args = call.args as any;
+            onRequestPayment(args.clientId, args.interestAmount, args.amortizationAmount, args.discountAmount || 0, args.observation || 'Solicitado via Agente');
+            setMessages(prev => [...prev, { role: 'model', text: `⏳ Solicitação de pagamento enviada para o Administrador confirmar. Aguarde a aprovação.` }]);
           }
           if (call.name === "deleteClient") {
             const args = call.args as any;
