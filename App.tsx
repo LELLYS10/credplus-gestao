@@ -314,122 +314,130 @@ const App: React.FC = () => {
 
   return (
     <>
-      <Layout user={user} onLogout={()=>{setUser(null); localStorage.removeItem(SESSION_KEY);}} activeTab={activeTab} setActiveTab={setActiveTab} pendingCount={db.requests.filter((r:any)=>r.status === RequestStatus.PENDING).length}>
+      <Layout 
+        user={user} 
+        onLogout={()=>{setUser(null); localStorage.removeItem(SESSION_KEY);}} 
+        activeTab={activeTab} 
+        setActiveTab={setActiveTab} 
+        pendingCount={db.requests.filter((r:any)=>r.status === RequestStatus.PENDING && (user.role === UserRole.ADMIN || r.groupId === user.groupId)).length}
+      >
         {renderContent()}
       </Layout>
-      <AIAssistant 
-        db={db} 
-        user={user} 
-        onAddClient={(data) => {
-          const newClientId = `c-${Date.now()}`;
-          const newClient = { id: newClientId, ...data, status: 'ACTIVE' as const, createdAt: Date.now(), currentCapital: data.initialCapital };
-          setDb((prev: any) => {
-            const newState = { ...prev, clients: [...prev.clients, newClient] };
-            return runCompetenceSync(newState);
-          });
-        }}
-        onAddTransaction={(trx) => {
-          setDb((prev: any) => {
-            const updatedClients = prev.clients.map((c: any) => {
-              if (c.id === trx.clientId) {
-                let newCap = c.currentCapital;
-                if (trx.type === 'INVESTMENT') newCap += trx.amount;
-                if (trx.type === 'WITHDRAWAL' || trx.type === 'AMORTIZATION') newCap -= trx.amount;
-                return { ...c, currentCapital: Math.max(0, newCap) };
-              }
-              return c;
+      {user.role === UserRole.ADMIN && (
+        <AIAssistant 
+          db={db} 
+          user={user} 
+          onAddClient={(data) => {
+            const newClientId = `c-${Date.now()}`;
+            const newClient = { id: newClientId, ...data, status: 'ACTIVE' as const, createdAt: Date.now(), currentCapital: data.initialCapital };
+            setDb((prev: any) => {
+              const newState = { ...prev, clients: [...prev.clients, newClient] };
+              return runCompetenceSync(newState);
             });
-            return { ...prev, clients: updatedClients, transactions: [...prev.transactions, { ...trx, id: `t-${Date.now()}`, createdAt: Date.now() }] };
-          });
-        }}
-        onAddSocio={(data) => {
-          const newGroupId = `g-${Date.now()}`;
-          const newGroup: Group = {
-            id: newGroupId,
-            name: data.name,
-            email: data.email,
-            phone: data.phone,
-            interestRate: data.interestRate
-          };
-          const newUser: User = {
-            id: `u-${Date.now()}`,
-            email: data.email,
-            password: data.password,
-            role: UserRole.VIEWER,
-            groupId: newGroupId
-          };
-          setDb((prev: any) => ({
-            ...prev,
-            groups: [...prev.groups, newGroup],
-            users: [...prev.users, newUser]
-          }));
-        }}
-        onAddPayment={(data) => {
-          setDb((prev: any) => {
-            const updatedCompetences = applyFIFOPayment(
-              [...prev.competences],
-              data.clientId,
-              data.interestAmount,
-              0
-            );
-            
-            const updatedClients = prev.clients.map((c: any) => {
-              if (c.id === data.clientId) {
-                return { ...c, currentCapital: Math.max(0, c.currentCapital - data.amortizationAmount) };
-              }
-              return c;
+          }}
+          onAddTransaction={(trx) => {
+            setDb((prev: any) => {
+              const updatedClients = prev.clients.map((c: any) => {
+                if (c.id === trx.clientId) {
+                  let newCap = c.currentCapital;
+                  if (trx.type === 'INVESTMENT') newCap += trx.amount;
+                  if (trx.type === 'WITHDRAWAL' || trx.type === 'AMORTIZATION') newCap -= trx.amount;
+                  return { ...c, currentCapital: Math.max(0, newCap) };
+                }
+                return c;
+              });
+              return { ...prev, clients: updatedClients, transactions: [...prev.transactions, { ...trx, id: `t-${Date.now()}`, createdAt: Date.now() }] };
             });
-
-            const newTransactions = [...prev.transactions];
-            if (data.interestAmount > 0) {
-              newTransactions.push({
-                id: `t-int-${Date.now()}`,
-                clientId: data.clientId,
-                type: 'INTEREST_PAYMENT' as any,
-                amount: data.interestAmount,
-                description: data.description || 'Pagamento de juros via Agente',
-                createdAt: Date.now()
-              });
-            }
-            if (data.amortizationAmount > 0) {
-              newTransactions.push({
-                id: `t-amo-${Date.now()}`,
-                clientId: data.clientId,
-                type: 'AMORTIZATION' as any,
-                amount: data.amortizationAmount,
-                description: data.description || 'Amortização via Agente',
-                createdAt: Date.now()
-              });
-            }
-
-            return {
-              ...prev,
-              competences: updatedCompetences,
-              clients: updatedClients,
-              transactions: newTransactions
+          }}
+          onAddSocio={(data) => {
+            const newGroupId = `g-${Date.now()}`;
+            const newGroup: Group = {
+              id: newGroupId,
+              name: data.name,
+              email: data.email,
+              phone: data.phone,
+              interestRate: data.interestRate
             };
-          });
-        }}
-        onDeleteClient={handleDeleteClient}
-        onDeleteGroup={handleDeleteGroup}
-        onRequestPayment={(clientId, i, a, d, obs) => {
-          const client = db.clients.find((c: any) => c.id === clientId);
-          if (!client || !user) return;
-          const newReq: PaymentRequest = { 
-            id: `req-${Date.now()}`, 
-            clientId: client.id, 
-            groupId: client.groupId, 
-            interestValue: i, 
-            amortizationValue: a, 
-            discountValue: d, 
-            observation: obs, 
-            status: RequestStatus.PENDING, 
-            requesterId: user.id, 
-            createdAt: Date.now() 
-          };
-          setDb((prev: any) => ({ ...prev, requests: [...prev.requests, newReq] }));
-        }}
-      />
+            const newUser: User = {
+              id: `u-${Date.now()}`,
+              email: data.email,
+              password: data.password,
+              role: UserRole.VIEWER,
+              groupId: newGroupId
+            };
+            setDb((prev: any) => ({
+              ...prev,
+              groups: [...prev.groups, newGroup],
+              users: [...prev.users, newUser]
+            }));
+          }}
+          onAddPayment={(data) => {
+            setDb((prev: any) => {
+              const updatedCompetences = applyFIFOPayment(
+                [...prev.competences],
+                data.clientId,
+                data.interestAmount,
+                0
+              );
+              
+              const updatedClients = prev.clients.map((c: any) => {
+                if (c.id === data.clientId) {
+                  return { ...c, currentCapital: Math.max(0, c.currentCapital - data.amortizationAmount) };
+                }
+                return c;
+              });
+  
+              const newTransactions = [...prev.transactions];
+              if (data.interestAmount > 0) {
+                newTransactions.push({
+                  id: `t-int-${Date.now()}`,
+                  clientId: data.clientId,
+                  type: 'INTEREST_PAYMENT' as any,
+                  amount: data.interestAmount,
+                  description: data.description || 'Pagamento de juros via Agente',
+                  createdAt: Date.now()
+                });
+              }
+              if (data.amortizationAmount > 0) {
+                newTransactions.push({
+                  id: `t-amo-${Date.now()}`,
+                  clientId: data.clientId,
+                  type: 'AMORTIZATION' as any,
+                  amount: data.amortizationAmount,
+                  description: data.description || 'Amortização via Agente',
+                  createdAt: Date.now()
+                });
+              }
+  
+              return {
+                ...prev,
+                competences: updatedCompetences,
+                clients: updatedClients,
+                transactions: newTransactions
+              };
+            });
+          }}
+          onDeleteClient={handleDeleteClient}
+          onDeleteGroup={handleDeleteGroup}
+          onRequestPayment={(clientId, i, a, d, obs) => {
+            const client = db.clients.find((c: any) => c.id === clientId);
+            if (!client || !user) return;
+            const newReq: PaymentRequest = { 
+              id: `req-${Date.now()}`, 
+              clientId: client.id, 
+              groupId: client.groupId, 
+              interestValue: i, 
+              amortizationValue: a, 
+              discountValue: d, 
+              observation: obs, 
+              status: RequestStatus.PENDING, 
+              requesterId: user.id, 
+              createdAt: Date.now() 
+            };
+            setDb((prev: any) => ({ ...prev, requests: [...prev.requests, newReq] }));
+          }}
+        />
+      )}
     </>
   );
 };

@@ -198,8 +198,23 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ db, user, onAddClient, onAddT
         return acc;
       }, {});
 
+      const now = new Date();
+      const todayDay = now.getDate();
+      const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+      const tomorrowDay = tomorrow.getDate();
+      const dateStr = now.toLocaleDateString('pt-BR');
+
+      // Calcula totais para o contexto do agente
+      const statsContext = {
+        capital_total: db.clients.reduce((acc: number, c: any) => acc + c.currentCapital, 0),
+        juros_atrasados: Object.values(pendingByClient).reduce((acc: number, val: any) => acc + val, 0),
+        vence_hoje: db.clients.filter((c: any) => c.dueDay === todayDay).reduce((acc: number, c: any) => acc + (pendingByClient[c.id] || 0), 0),
+        vence_amanha: db.clients.filter((c: any) => c.dueDay === tomorrowDay).reduce((acc: number, c: any) => acc + (pendingByClient[c.id] || 0), 0)
+      };
+
       // Otimização de contexto para Mobile: Limita dados se houver muitos clientes
       const context = {
+        stats: statsContext,
         total_clientes: db.clients.length,
         socios_disponiveis: db.groups.map(g => ({ id: g.id, nome: g.name })),
         clientes: db.clients.slice(0, 150).map(c => ({ 
@@ -223,7 +238,7 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ db, user, onAddClient, onAddT
           thinkingConfig: { thinkingLevel: ThinkingLevel.LOW }, // Força resposta rápida
           systemInstruction: `Você é o assistente ultra-eficiente da CredPlus. 
           USUÁRIO ATUAL: ${user.email} (Função: ${user.role}).
-          DATA ATUAL: 22/02/2026 (Hoje é dia 22).
+          DATA ATUAL: ${dateStr} (Hoje é dia ${todayDay}).
           
           ADMINISTRADORES PRINCIPAIS (INREMOVÍVEIS):
           1. credplusemp@gmail.com -> Nome: Lellis Flávio (ADM 1)
@@ -247,9 +262,9 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ db, user, onAddClient, onAddT
           - Gatilhos: "quem vence hoje", "quem vence amanhã", "vencidos", "atrasados".
           - Formato de resposta (um por linha):
             "• [Nome] | Cap: R$ [Capital] | Juros: R$ [Juros] | Sócio: [Sócio]"
-          - Regra Vencidos: Clientes com 'vencimento_dia' menor que 22 e 'juros_pendentes' > 0.
-          - Regra Hoje: Clientes com 'vencimento_dia' igual a 22.
-          - Regra Amanhã: Clientes com 'vencimento_dia' igual a 23.
+          - Regra Vencidos: Clientes com 'vencimento_dia' menor que ${todayDay} e 'juros_pendentes' > 0.
+          - Regra Hoje: Clientes com 'vencimento_dia' igual a ${todayDay}.
+          - Regra Amanhã: Clientes com 'vencimento_dia' igual a ${tomorrowDay}.
 
           FLUXO DE PAGAMENTO/BAIXA (Gatilho: "pagamento", "dar baixa", "pagou"):
           - Lista: 1. Valor dos Juros, 2. Amortizar Capital, 3. Descrição (opcional).
@@ -362,27 +377,27 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ db, user, onAddClient, onAddT
       {/* Botão Flutuante */}
       <button
         onClick={() => setIsOpen(true)}
-        className="fixed bottom-6 right-6 w-14 h-14 bg-emerald-600 text-white rounded-full shadow-2xl flex items-center justify-center hover:scale-110 transition-all z-50 border-b-4 border-emerald-800"
+        className="fixed bottom-6 right-6 w-14 h-14 bg-emerald-600 text-white rounded-full shadow-2xl flex items-center justify-center hover:scale-110 transition-all z-[60] border-b-4 border-emerald-800"
       >
         <Bot size={28} />
       </button>
 
       {/* Janela do Chat */}
       {isOpen && (
-        <div className="fixed inset-0 md:inset-auto md:bottom-24 md:right-6 md:w-[400px] md:h-[600px] bg-white md:rounded-[2.5rem] shadow-2xl flex flex-col z-[60] overflow-hidden border border-slate-200 animate-in slide-in-from-bottom-10 duration-300">
+        <div className="fixed inset-0 md:inset-auto md:bottom-24 md:right-6 md:w-[400px] md:h-[600px] bg-white md:rounded-[2.5rem] shadow-2xl flex flex-col z-[70] overflow-hidden border border-slate-200 animate-in slide-in-from-bottom-10 duration-300">
           {/* Header */}
-          <div className="bg-emerald-700 p-6 text-white flex items-center justify-between border-b-4 border-emerald-900">
+          <div className="bg-emerald-700 p-5 md:p-6 text-white flex items-center justify-between border-b-4 border-emerald-900">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-white/20 rounded-xl backdrop-blur-md">
                 <Sparkles size={20} className="text-amber-300" />
               </div>
               <div>
-                <h3 className="font-black uppercase tracking-tighter text-lg">Agente CredPlus</h3>
-                <p className="text-[10px] font-bold text-emerald-200 uppercase tracking-widest">Inteligência Artificial</p>
+                <h3 className="font-black uppercase tracking-tighter text-base md:text-lg">Agente CredPlus</h3>
+                <p className="text-[9px] md:text-[10px] font-bold text-emerald-200 uppercase tracking-widest">Inteligência Artificial</p>
               </div>
             </div>
             <button onClick={() => setIsOpen(false)} className="p-2 hover:bg-white/10 rounded-full transition-colors">
-              <X size={20} />
+              <X size={24} />
             </button>
           </div>
 
@@ -417,7 +432,7 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ db, user, onAddClient, onAddT
           </div>
 
           {/* Input Area */}
-          <div className="p-4 bg-white border-t border-slate-100">
+          <div className="p-4 bg-white border-t border-slate-100 pb-safe">
             <div className="relative flex items-center gap-2">
               <div className="relative flex-1">
                 <input
@@ -438,7 +453,7 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ db, user, onAddClient, onAddT
               <button
                 onClick={handleSend}
                 disabled={isLoading || !input.trim()}
-                className="p-4 bg-emerald-600 text-white rounded-2xl hover:bg-emerald-700 transition-colors disabled:opacity-50 shadow-md"
+                className="p-4 bg-emerald-600 text-white rounded-2xl hover:bg-emerald-700 transition-colors disabled:opacity-50 shadow-md shrink-0"
               >
                 <Send size={18} />
               </button>

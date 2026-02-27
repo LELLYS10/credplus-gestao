@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Client, Competence, Group, User, UserRole, PaymentRequest, RequestStatus, AppSettings } from '../types';
 import { formatCurrency, getToday, getEffectiveDueDay } from '../utils';
-import { TrendingUp, AlertCircle, Clock, CheckCircle2, ChevronRight, DollarSign, AlertTriangle, X, ArrowRight } from 'lucide-react';
+import { TrendingUp, AlertCircle, Clock, CheckCircle2, ChevronRight, DollarSign, AlertTriangle, X, ArrowRight, Calendar } from 'lucide-react';
 
 interface DashboardProps {
   user: User | null;
@@ -106,8 +106,18 @@ const Dashboard: React.FC<DashboardProps> = ({ user, clients, competences, group
       })
       .reduce((acc, comp) => acc + comp.paidAmount, 0);
 
-    return { totalCapital, overdueInterest, dueTodayInterest, receivedThisMonth };
-  }, [filteredClients, competences, todayDate, todayMonth, todayYear]);
+    const tomorrow = new Date(todayYear, todayMonth, todayDay + 1);
+    const dueTomorrowInterest = competences
+      .filter(comp => {
+        const client = filteredClients.find(c => c.id === comp.clientId);
+        if (!client) return false;
+        const dueDay = getEffectiveDueDay(client.dueDay, comp.month, comp.year);
+        return comp.year === tomorrow.getFullYear() && comp.month === tomorrow.getMonth() && dueDay === tomorrow.getDate() && (comp.originalValue - comp.paidAmount) > 0.01;
+      })
+      .reduce((acc, comp) => acc + (comp.originalValue - comp.paidAmount), 0);
+
+    return { totalCapital, overdueInterest, dueTodayInterest, dueTomorrowInterest, receivedThisMonth };
+  }, [filteredClients, competences, todayDate, todayMonth, todayYear, todayDay]);
 
   const StatCard = ({ title, value, icon: Icon, colorClass, highlight, highlightColor = 'red', dark, onClick }: any) => (
     <div 
@@ -192,7 +202,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, clients, competences, group
               {isSyncing ? 'Sincronizando...' : 'Sincronizar com Nuvem'}
             </button>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
             <StatCard title="Capital Emprestado" value={stats.totalCapital} icon={TrendingUp} colorClass="bg-emerald-500/20 text-emerald-400" dark />
             <StatCard 
               title="Juros Atrasados" 
@@ -208,6 +218,14 @@ const Dashboard: React.FC<DashboardProps> = ({ user, clients, competences, group
               icon={Clock} 
               colorClass="bg-amber-400 text-amber-950 shadow-lg shadow-amber-100" 
               highlight={stats.dueTodayInterest > 0} 
+              highlightColor="blue"
+            />
+            <StatCard 
+              title="Vence Amanhã" 
+              value={stats.dueTomorrowInterest} 
+              icon={Calendar} 
+              colorClass="bg-blue-100 text-blue-600" 
+              highlight={stats.dueTomorrowInterest > 0}
               highlightColor="blue"
             />
             <StatCard title="Recebido no Mês" value={stats.receivedThisMonth} icon={CheckCircle2} colorClass="bg-green-100 text-green-600" />
