@@ -17,13 +17,14 @@ const ClientsList: React.FC<ClientsListProps> = ({ user, clients, groups, onView
   const filtered = React.useMemo(() => {
     let list = clients.filter(c => c.status === 'ACTIVE');
     if (user.role === UserRole.VIEWER) {
-      list = list.filter(c => c.groupId === user.groupId);
+      const userGroupId = user.groupId || groups.find(g => g.email === user.email)?.id;
+      list = list.filter(c => c.groupId === userGroupId);
     }
     if (searchTerm) {
       list = list.filter(c => c.name.toLowerCase().includes(searchTerm.toLowerCase()));
     }
     return list.sort((a, b) => a.name.localeCompare(b.name));
-  }, [clients, user, searchTerm]);
+  }, [clients, user, searchTerm, groups]);
 
   return (
     <div className="space-y-6">

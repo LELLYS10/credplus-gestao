@@ -25,15 +25,17 @@ const Dashboard: React.FC<DashboardProps> = ({ user, clients, competences, group
   // FILTRO PRIVACIDADE: Garante que o sócio não veja nada de outros sócios
   const filteredClients = React.useMemo(() => {
     if (!user) return [];
-    return user.role === UserRole.ADMIN 
-      ? clients.filter(c => c.status === 'ACTIVE')
-      : clients.filter(c => c.status === 'ACTIVE' && c.groupId === user.groupId);
-  }, [clients, user]);
+    if (user.role === UserRole.ADMIN) return clients.filter(c => c.status === 'ACTIVE');
+    
+    const userGroupId = user.groupId || groups.find(g => g.email === user.email)?.id;
+    return clients.filter(c => c.status === 'ACTIVE' && c.groupId === userGroupId);
+  }, [clients, user, groups]);
 
   const activePendingRequests = React.useMemo(() => {
     if (!user) return [];
-    return pendingRequests.filter(r => r.status === RequestStatus.PENDING && (user.role === UserRole.ADMIN || r.groupId === user.groupId));
-  }, [pendingRequests, user]);
+    const userGroupId = user.groupId || groups.find(g => g.email === user.email)?.id;
+    return pendingRequests.filter(r => r.status === RequestStatus.PENDING && (user.role === UserRole.ADMIN || r.groupId === userGroupId));
+  }, [pendingRequests, user, groups]);
 
   // LÓGICA DE SALTO DE DATA: Encontra a competência pendente mais antiga para definir a data na agenda
   const agenda = React.useMemo(() => {

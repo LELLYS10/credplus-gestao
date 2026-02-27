@@ -11,7 +11,7 @@ import AdminPanel from './components/AdminPanel';
 import ClientsList from './components/ClientsList';
 import AIAssistant from './components/AIAssistant';
 import Logo from './components/Logo';
-import { ChevronRight, RefreshCw } from 'lucide-react';
+import { ChevronRight, RefreshCw, X } from 'lucide-react';
 import { toTitleCase } from './utils';
 
 const SESSION_KEY = 'credplus_session_v1';
@@ -252,10 +252,29 @@ const App: React.FC = () => {
       case 'client-detail':
         const client = db.clients.find((c: any) => c.id === selectedClientId);
         if (!client) return <div>Não encontrado</div>;
+        
         // SEGURANÇA MÁXIMA: Impede o sócio de ver qualquer cliente que não seja seu
-        if (user.role === UserRole.VIEWER && client.groupId !== user.groupId) {
-           return <div className="p-20 text-center font-black uppercase text-red-500 bg-white rounded-3xl border-2 border-dashed">Acesso Restrito à sua carteira.</div>;
+        if (user.role === UserRole.VIEWER) {
+          const userGroupId = user.groupId || db.groups.find((g: any) => g.email === user.email)?.id;
+          if (client.groupId !== userGroupId) {
+            return (
+              <div className="p-10 md:p-20 text-center bg-white rounded-[2.5rem] border-2 border-dashed border-slate-200 shadow-sm animate-in fade-in duration-500">
+                <div className="w-20 h-20 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-6">
+                  <X size={40} />
+                </div>
+                <h3 className="text-2xl font-black text-slate-800 uppercase mb-2">Acesso Restrito</h3>
+                <p className="text-slate-500 font-medium max-w-xs mx-auto">Este cliente não pertence à sua carteira de sócio.</p>
+                <button 
+                  onClick={() => setActiveTab('dashboard')}
+                  className="mt-8 px-8 py-3 bg-slate-900 text-white rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-black transition-all"
+                >
+                  Voltar ao Início
+                </button>
+              </div>
+            );
+          }
         }
+        
         return <ClientDetail 
           client={client} group={db.groups.find((g: any) => g.id === client.groupId)} competences={db.competences} transactions={db.transactions} user={user} 
           onBack={() => setActiveTab('dashboard')} 
@@ -322,7 +341,11 @@ const App: React.FC = () => {
         onLogout={()=>{setUser(null); localStorage.removeItem(SESSION_KEY);}} 
         activeTab={activeTab} 
         setActiveTab={setActiveTab} 
-        pendingCount={db.requests.filter((r:any)=>r.status === RequestStatus.PENDING && (user.role === UserRole.ADMIN || r.groupId === user.groupId)).length}
+        pendingCount={db.requests.filter((r:any)=>{
+          if (user.role === UserRole.ADMIN) return r.status === RequestStatus.PENDING;
+          const userGroupId = user.groupId || db.groups.find((g: any) => g.email === user.email)?.id;
+          return r.status === RequestStatus.PENDING && r.groupId === userGroupId;
+        }).length}
       >
         {renderContent()}
       </Layout>

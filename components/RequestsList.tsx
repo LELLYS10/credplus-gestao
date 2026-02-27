@@ -19,13 +19,14 @@ const RequestsList: React.FC<RequestsListProps> = ({ user, requests, clients, gr
   const filteredRequests = React.useMemo(() => {
     let list = requests;
     if (user.role === UserRole.VIEWER) {
-      list = list.filter(r => r.groupId === user.groupId);
+      const userGroupId = user.groupId || groups.find(g => g.email === user.email)?.id;
+      list = list.filter(r => r.groupId === userGroupId);
     }
     if (filter !== 'ALL') {
       list = list.filter(r => r.status === filter);
     }
     return [...list].sort((a, b) => b.createdAt - a.createdAt);
-  }, [requests, user, filter]);
+  }, [requests, user, filter, groups]);
 
   const RequestCard: React.FC<{ req: PaymentRequest }> = ({ req }) => {
     const client = clients.find(c => c.id === req.clientId);
