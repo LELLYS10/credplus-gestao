@@ -118,15 +118,18 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ groups, clients, users, compete
         <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
            {groups.map(g => (
              <div key={g.id} className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm relative group overflow-hidden">
-                <div className="absolute top-4 right-4 z-20">
+                <div className="absolute top-2 right-2 z-50">
                   <button 
+                    type="button"
                     onClick={(e) => { 
+                      e.preventDefault();
                       e.stopPropagation();
-                      if(window.confirm('ATENÇÃO: Isso excluirá o sócio e TODOS os seus clientes e dados vinculados permanentemente. Deseja continuar?')) {
+                      const confirmed = window.confirm('ATENÇÃO CRÍTICA: Isso excluirá o sócio e TODOS os seus clientes, históricos e dados permanentemente. Esta ação não pode ser desfeita. Deseja continuar?');
+                      if (confirmed) {
                         onDeleteGroup(g.id);
                       }
                     }} 
-                    className="text-red-500 hover:text-red-700 hover:bg-red-50 transition-all p-2.5 rounded-xl border border-red-100 shadow-sm"
+                    className="bg-red-50 text-red-600 hover:bg-red-600 hover:text-white transition-all p-3 rounded-2xl border border-red-100 shadow-sm flex items-center justify-center"
                     title="Excluir Sócio"
                   >
                     <Trash2 size={20}/>

@@ -57,7 +57,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, clients, competences, group
         
         const clientWithDate = { ...client, nextDate: dDate };
 
-        if (todayDate > dDate) {
+        if (todayDate.getTime() > dDate.getTime()) {
           overdue.push(clientWithDate);
         } else if (todayDate.getTime() === dDate.getTime()) {
           dueToday.push(clientWithDate);
@@ -88,7 +88,8 @@ const Dashboard: React.FC<DashboardProps> = ({ user, clients, competences, group
         if (!client) return false;
         const dueDay = getEffectiveDueDay(client.dueDay, comp.month, comp.year);
         const dueDate = new Date(comp.year, comp.month, dueDay);
-        return dueDate < todayDate && (comp.originalValue - comp.paidAmount) > 0.01;
+        // Ajuste de precisão: garante que qualquer data anterior a hoje (00:00) seja considerada atrasada
+        return dueDate.getTime() < todayDate.getTime() && (comp.originalValue - comp.paidAmount) > 0.01;
       })
       .reduce((acc, comp) => acc + (comp.originalValue - comp.paidAmount), 0);
 
@@ -189,9 +190,9 @@ const Dashboard: React.FC<DashboardProps> = ({ user, clients, competences, group
 
   return (
     <div className="space-y-8">
-      {/* OCULTA PAINEL DASHBOARD PARA SÓCIOS */}
-      {user.role === UserRole.ADMIN && (
-        <div className="space-y-4">
+      {/* PAINEL DASHBOARD VISÍVEL PARA TODOS (FILTRADO POR PRIVACIDADE) */}
+      <div className="space-y-4">
+        {user.role === UserRole.ADMIN && (
           <div className="flex justify-end">
             <button 
               onClick={handleSync}
@@ -206,38 +207,38 @@ const Dashboard: React.FC<DashboardProps> = ({ user, clients, competences, group
               {isSyncing ? 'Sincronizando...' : 'Sincronizar com Nuvem'}
             </button>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3 md:gap-4">
-            <StatCard title="Capital Emprestado" value={stats.totalCapital} icon={TrendingUp} colorClass="bg-emerald-500/20 text-emerald-400" dark />
-            <StatCard 
-              title="Juros Atrasados" 
-              value={stats.overdueInterest} 
-              icon={AlertCircle} 
-              colorClass="bg-red-100 text-red-600" 
-              highlight={stats.overdueInterest > 0} 
-              onClick={() => stats.overdueInterest > 0 && setShowOverdueModal(true)}
-            />
-            <StatCard 
-              title="Vence Hoje" 
-              value={stats.dueTodayInterest} 
-              icon={Clock} 
-              colorClass="bg-amber-400 text-amber-950 shadow-lg shadow-amber-100" 
-              highlight={stats.dueTodayInterest > 0} 
-              highlightColor="blue"
-            />
-            <StatCard 
-              title="Vence Amanhã" 
-              value={stats.dueTomorrowInterest} 
-              icon={Calendar} 
-              colorClass="bg-blue-100 text-blue-600" 
-              highlight={stats.dueTomorrowInterest > 0}
-              highlightColor="blue"
-            />
-            <StatCard title="Recebido no Mês" value={stats.receivedThisMonth} icon={CheckCircle2} colorClass="bg-green-100 text-green-600" />
-          </div>
+        )}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3 md:gap-4">
+          <StatCard title="Capital Emprestado" value={stats.totalCapital} icon={TrendingUp} colorClass="bg-emerald-500/20 text-emerald-400" dark />
+          <StatCard 
+            title="Juros Atrasados" 
+            value={stats.overdueInterest} 
+            icon={AlertCircle} 
+            colorClass="bg-red-100 text-red-600" 
+            highlight={stats.overdueInterest > 0} 
+            onClick={() => stats.overdueInterest > 0 && setShowOverdueModal(true)}
+          />
+          <StatCard 
+            title="Vence Hoje" 
+            value={stats.dueTodayInterest} 
+            icon={Clock} 
+            colorClass="bg-amber-400 text-amber-950 shadow-lg shadow-amber-100" 
+            highlight={stats.dueTodayInterest > 0} 
+            highlightColor="blue"
+          />
+          <StatCard 
+            title="Vence Amanhã" 
+            value={stats.dueTomorrowInterest} 
+            icon={Calendar} 
+            colorClass="bg-blue-100 text-blue-600" 
+            highlight={stats.dueTomorrowInterest > 0}
+            highlightColor="blue"
+          />
+          <StatCard title="Recebido no Mês" value={stats.receivedThisMonth} icon={CheckCircle2} colorClass="bg-green-100 text-green-600" />
         </div>
-      )}
+      </div>
 
-      {showOverdueModal && user.role === UserRole.ADMIN && (
+      {showOverdueModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-emerald-900/60 backdrop-blur-sm animate-in fade-in duration-300">
           <div className="bg-white w-full max-w-lg rounded-[2.5rem] shadow-2xl overflow-hidden border-b-8 border-red-200 animate-in zoom-in duration-300">
             <div className="bg-red-600 p-8 text-white relative">
