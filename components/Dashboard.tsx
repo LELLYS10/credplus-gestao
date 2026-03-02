@@ -20,7 +20,9 @@ const Dashboard: React.FC<DashboardProps> = ({ user, clients, competences, group
   const [isSyncing, setIsSyncing] = useState(false);
   const { day: todayDay, month: todayMonth, year: todayYear } = getToday();
   const todayDate = new Date(todayYear, todayMonth, todayDay);
+  todayDate.setHours(0, 0, 0, 0);
   const tomorrowDate = new Date(todayYear, todayMonth, todayDay + 1);
+  tomorrowDate.setHours(0, 0, 0, 0);
 
   // FILTRO PRIVACIDADE: Garante que o sócio não veja nada de outros sócios
   const filteredClients = React.useMemo(() => {
@@ -149,7 +151,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, clients, competences, group
       .reduce((acc, comp) => acc + (comp.originalValue - comp.paidAmount), 0);
 
     return { totalCapital, overdueInterest, dueTodayInterest, dueTomorrowInterest, receivedThisMonth };
-  }, [filteredClients, competences, todayDate, todayMonth, todayYear, todayDay]);
+  }, [filteredClients, competences, todayDate, tomorrowDate, todayMonth, todayYear, todayDay]);
 
   const StatCard = ({ title, value, icon: Icon, colorClass, highlight, highlightColor = 'red', dark, onClick }: any) => (
     <div 

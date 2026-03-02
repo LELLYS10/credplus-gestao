@@ -179,53 +179,69 @@ const App: React.FC = () => {
     }));
   };
 
-  const handleDeleteGroup = async (id: string) => {
-    if (user?.role !== UserRole.ADMIN || !db) return;
+  const handleUpdateClient = (clientId: string, updates: any) => {
+    setDb((prev: any) => {
+      const newState = {
+        ...prev,
+        clients: prev.clients.map((c: any) => c.id === clientId ? { ...c, ...updates } : c)
+      };
+      return runCompetenceSync(newState);
+    });
+  };
+
+  const handleUpdateSocio = (groupId: string, updates: any) => {
+    setDb((prev: any) => ({
+      ...prev,
+      groups: prev.groups.map((g: any) => g.id === groupId ? { ...g, ...updates } : g),
+      users: prev.users.map((u: any) => u.groupId === groupId ? { ...u, ...updates } : u)
+    }));
+  };
+
+  const handleDeleteGroup = async (id: string): Promise<boolean> => {
+    if (user?.role !== UserRole.ADMIN || !db) return false;
     
     try {
-      // 1. Identificar o que será deletado
-      const protectedEmails = ['credplusemp@gmail.com', 'michaeldsandes@gmail.com'];
-      const usersToDelete = db.users.filter((u: any) => u.groupId === id && !protectedEmails.includes(u.email));
-      const clientsToDelete = db.clients.filter((c: any) => c.groupId === id);
-      const clientIdsToDelete = new Set(clientsToDelete.map((c: any) => c.id));
+      const group = db.groups.find((g: any) => g.id === id);
+      if (!group) return false;
 
-      // 2. Preparar deleções no banco
+      // 1. BLOQUEIO ABSOLUTO: Nunca permitir excluir o usuário admin principal
+      if (group.email === 'credplusemp@gmail.com') {
+        alert("Este usuário admin não pode ser excluído.");
+        return false;
+      }
+
+      // 2. DEPENDÊNCIAS (CLIENTES VINCULADOS): Verificar se existem clientes vinculados
+      const linkedClients = db.clients.filter((c: any) => c.groupId === id);
+      if (linkedClients.length > 0) {
+        alert("Não é possível excluir este sócio porque existem clientes vinculados. Transfira ou exclua os clientes primeiro.");
+        return false;
+      }
+
+      // 3. Identificar o que será deletado (usuário vinculado ao grupo)
+      const usersToDelete = db.users.filter((u: any) => u.groupId === id);
+
+      // 4. Preparar deleções no banco
       const userDeletions = usersToDelete.map((u: any) => deleteFromDB('users', u.id));
-      const clientDeletions = clientsToDelete.map((c: any) => deleteFromDB('clients', c.id));
-      const competenceDeletions = db.competences.filter((cp: any) => clientIdsToDelete.has(cp.clientId)).map((cp: any) => deleteFromDB('competences', cp.id));
-      const transactionDeletions = db.transactions.filter((t: any) => clientIdsToDelete.has(t.clientId)).map((t: any) => deleteFromDB('transactions', t.id));
-      const requestDeletions = db.requests.filter((r: any) => clientIdsToDelete.has(r.clientId)).map((r: any) => deleteFromDB('requests', r.id));
 
-      // 3. Executar deleções no banco
+      // 5. Executar deleções no banco
       await Promise.all([
         ...userDeletions,
-        ...clientDeletions,
-        ...competenceDeletions,
-        ...transactionDeletions,
-        ...requestDeletions,
         deleteFromDB('groups', id)
       ]);
 
-      // 4. Atualizar Estado Local
-      setDb((prev: any) => {
-        const clientsToKeep = prev.clients.filter((c: any) => c.groupId !== id);
-        const clientIdsToKeep = new Set(clientsToKeep.map((c: any) => c.id));
+      // 6. Atualizar Estado Local
+      setDb((prev: any) => ({ 
+        ...prev, 
+        groups: prev.groups.filter((g: any) => g.id !== id), 
+        users: prev.users.filter((u: any) => u.groupId !== id)
+      }));
 
-        return { 
-          ...prev, 
-          groups: prev.groups.filter((g: any) => g.id !== id), 
-          users: prev.users.filter((u: any) => u.groupId !== id && !protectedEmails.includes(u.email)),
-          clients: clientsToKeep,
-          competences: prev.competences.filter((cp: any) => clientIdsToKeep.has(cp.clientId)),
-          transactions: prev.transactions.filter((t: any) => clientIdsToKeep.has(t.clientId)),
-          requests: prev.requests.filter((r: any) => clientIdsToKeep.has(r.clientId))
-        };
-      });
-
-      alert("Sócio e todos os dados vinculados foram excluídos com sucesso.");
+      alert("Sócio excluído com sucesso.");
+      return true;
     } catch (e) {
       console.error("Erro na exclusão do grupo:", e);
       alert("Ocorreu um erro ao tentar excluir o sócio.");
+      return false;
     }
   };
 
@@ -268,7 +284,16 @@ const App: React.FC = () => {
           onAddClient={d => {
             try {
               const newClientId = `c-${Date.now()}`;
-              const newClient = { id: newClientId, ...d, name: toTitleCase(d.name), status: 'ACTIVE' };
+              const createdAt = new Date(d.startDate).getTime() + 12 * 60 * 60 * 1000;
+              const firstDueDate = new Date(d.firstDueDate).getTime() + 12 * 60 * 60 * 1000;
+              const newClient = { 
+                id: newClientId, 
+                ...d, 
+                name: toTitleCase(d.name), 
+                status: 'ACTIVE',
+                createdAt,
+                firstDueDate
+              };
               setDb((prev: any) => {
                 const newState = { ...prev, clients: [...prev.clients, newClient] };
                 return runCompetenceSync(newState);
@@ -427,14 +452,30 @@ const App: React.FC = () => {
       <AIAssistant 
         db={db} 
         user={user} 
+        onUpdateClient={handleUpdateClient}
+        onUpdateSocio={handleUpdateSocio}
         onAddClient={(data: any) => {
-            const newClientId = `c-${Date.now()}`;
-            const createdAt = data.startDate ? new Date(data.startDate).getTime() + 12 * 60 * 60 * 1000 : Date.now();
-            const newClient = { id: newClientId, ...data, status: 'ACTIVE' as const, createdAt, currentCapital: data.initialCapital };
-            setDb((prev: any) => {
-              const newState = { ...prev, clients: [...prev.clients, newClient] };
-              return runCompetenceSync(newState);
-            });
+            try {
+              const newClientId = `c-${Date.now()}`;
+              const createdAt = new Date(data.startDate).getTime() + 12 * 60 * 60 * 1000;
+              const firstDueDate = new Date(data.firstDueDate).getTime() + 12 * 60 * 60 * 1000;
+              const newClient = { 
+                id: newClientId, 
+                ...data, 
+                status: 'ACTIVE' as const, 
+                createdAt, 
+                firstDueDate,
+                currentCapital: data.initialCapital 
+              };
+              setDb((prev: any) => {
+                const newState = { ...prev, clients: [...prev.clients, newClient] };
+                return runCompetenceSync(newState);
+              });
+              alert("Cliente cadastrado com sucesso!");
+            } catch (err) {
+              console.error("Erro ao cadastrar cliente:", err);
+              alert("Erro ao cadastrar cliente. Verifique os dados.");
+            }
           }}
           onAddTransaction={(trx) => {
             setDb((prev: any) => {

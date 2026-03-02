@@ -30,20 +30,31 @@ export const generatePendingCompetences = (db: any) => {
     if (clientComps.length === 0) {
       // Only create first competence if there is capital
       if (currentCap > 0) {
-        const start = new Date(client.createdAt);
-        if (isNaN(start.getTime())) return; // Safety check
+        let m: number;
+        let y: number;
+        let dDate: number | undefined = undefined;
 
-        let m = start.getMonth();
-        let y = start.getFullYear();
-        
-        // Se o empréstimo começou NO dia ou DEPOIS do dia de vencimento deste mês,
-        // a primeira competência deve ser a do mês seguinte.
-        const dueDayInStartMonth = getEffectiveDueDay(client.dueDay || 1, m, y);
-        if (start.getDate() >= dueDayInStartMonth) {
-          m++;
-          if (m > 11) {
-            m = 0;
-            y++;
+        if (client.firstDueDate) {
+          const firstDue = new Date(client.firstDueDate);
+          m = firstDue.getMonth();
+          y = firstDue.getFullYear();
+          dDate = client.firstDueDate;
+        } else {
+          const start = new Date(client.createdAt);
+          if (isNaN(start.getTime())) return; // Safety check
+
+          m = start.getMonth();
+          y = start.getFullYear();
+          
+          // Se o empréstimo começou NO dia ou DEPOIS do dia de vencimento deste mês,
+          // a primeira competência deve ser a do mês seguinte.
+          const dueDayInStartMonth = getEffectiveDueDay(client.dueDay || 1, m, y);
+          if (start.getDate() >= dueDayInStartMonth) {
+            m++;
+            if (m > 11) {
+              m = 0;
+              y++;
+            }
           }
         }
         
@@ -57,7 +68,8 @@ export const generatePendingCompetences = (db: any) => {
             originalValue: expectedInterest,
             paidAmount: 0,
             capitalAtTime: currentCap,
-            lastUpdated: Date.now()
+            lastUpdated: Date.now(),
+            dueDate: dDate
           });
           changed = true;
           // Update clientComps for the loop below
@@ -113,6 +125,17 @@ export const generatePendingCompetences = (db: any) => {
         const nextId = `comp-${client.id}-${nextMonth}-${nextYear}`;
         const existing = newCompetences.find(c => c.id === nextId);
         if (!existing) {
+          let nextDueDate: number | undefined = undefined;
+          if (latest.dueDate) {
+            const currentDue = new Date(latest.dueDate);
+            const nextDue = new Date(currentDue.getFullYear(), currentDue.getMonth() + 1, currentDue.getDate());
+            // Se o dia mudou (ex: 31 de janeiro para 3 de março), ajustamos para o último dia do mês correto
+            if (nextDue.getDate() !== currentDue.getDate()) {
+              nextDue.setDate(0); // Último dia do mês anterior ao que virou (que seria o mês correto)
+            }
+            nextDueDate = nextDue.getTime();
+          }
+
           const nextComp = {
             id: nextId,
             clientId: client.id,
@@ -121,7 +144,8 @@ export const generatePendingCompetences = (db: any) => {
             originalValue: expectedInterest,
             paidAmount: 0,
             capitalAtTime: currentCap,
-            lastUpdated: Date.now()
+            lastUpdated: Date.now(),
+            dueDate: nextDueDate
           };
           newCompetences.push(nextComp);
           latest = nextComp;

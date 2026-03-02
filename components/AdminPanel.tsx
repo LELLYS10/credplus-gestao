@@ -27,7 +27,15 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ groups, clients, users, compete
   const [isGenerating, setIsGenerating] = React.useState(false);
   
   const [groupFormData, setGroupFormData] = React.useState({ name: '', email: '', phone: '', interestRate: 6, password: '' });
-  const [clientFormData, setClientFormData] = React.useState({ name: '', phone: '', groupId: '', initialCapital: 0, dueDay: 1, startDate: new Date().toISOString().split('T')[0] });
+  const [clientFormData, setClientFormData] = React.useState({ 
+    name: '', 
+    phone: '', 
+    groupId: '', 
+    initialCapital: 0, 
+    dueDay: 1, 
+    startDate: new Date().toISOString().split('T')[0],
+    firstDueDate: '' 
+  });
 
   const handleClientSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -35,13 +43,19 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ groups, clients, users, compete
       alert("Por favor, selecione um sócio.");
       return;
     }
+    if (!clientFormData.startDate) {
+      alert("Por favor, preencha a data de início do empréstimo.");
+      return;
+    }
+    if (!clientFormData.firstDueDate) {
+      alert("Por favor, preencha a data do primeiro vencimento.");
+      return;
+    }
     
     try {
-      const createdAt = new Date(clientFormData.startDate).getTime() + 12 * 60 * 60 * 1000;
       onAddClient({ 
         ...clientFormData, 
-        currentCapital: clientFormData.initialCapital, 
-        createdAt 
+        currentCapital: clientFormData.initialCapital
       });
       setShowClientModal(false);
       // Reset form
@@ -51,7 +65,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ groups, clients, users, compete
         groupId: '', 
         initialCapital: 0, 
         dueDay: 1, 
-        startDate: new Date().toISOString().split('T')[0] 
+        startDate: new Date().toISOString().split('T')[0],
+        firstDueDate: ''
       });
     } catch (err) {
       console.error("Erro ao processar formulário:", err);
@@ -187,23 +202,19 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ groups, clients, users, compete
         <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
            {groups.map(g => (
              <div key={g.id} className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm relative group overflow-hidden">
-                <div className="absolute top-2 right-2 z-50">
-                  <button 
-                    type="button"
-                    onClick={(e) => { 
-                      e.preventDefault();
-                      e.stopPropagation();
-                      const confirmed = window.confirm('ATENÇÃO CRÍTICA: Isso excluirá o sócio e TODOS os seus clientes, históricos e dados permanentemente. Esta ação não pode ser desfeita. Deseja continuar?');
-                      if (confirmed) {
-                        onDeleteGroup(g.id);
-                      }
-                    }} 
-                    className="bg-red-50 text-red-600 hover:bg-red-600 hover:text-white transition-all p-3 rounded-2xl border border-red-100 shadow-sm flex items-center justify-center"
-                    title="Excluir Sócio"
-                  >
-                    <Trash2 size={20}/>
-                  </button>
-                </div>
+                <button 
+                  type="button"
+                  onClick={(e) => { 
+                    e.stopPropagation();
+                    if (window.confirm(`Excluir sócio?\n\nTem certeza que deseja excluir ${g.name}? Essa ação não pode ser desfeita.`)) {
+                      onDeleteGroup(g.id);
+                    }
+                  }} 
+                  className="absolute top-4 right-4 z-50 bg-red-50 text-red-600 hover:bg-red-600 hover:text-white transition-all p-3 rounded-2xl border border-red-100 shadow-sm flex items-center justify-center"
+                  title="Excluir Sócio"
+                >
+                  <Trash2 size={20}/>
+                </button>
                 <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center font-black text-xl mb-4">
                   {g.name.charAt(0).toUpperCase()}
                 </div>
@@ -415,7 +426,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ groups, clients, users, compete
                  <input required placeholder="E-mail de Acesso" className="w-full p-4 bg-slate-50 rounded-2xl border font-bold" value={groupFormData.email} onChange={e=>setGroupFormData({...groupFormData, email: e.target.value})} />
                  <input required placeholder="Telefone/WhatsApp" className="w-full p-4 bg-slate-50 rounded-2xl border font-bold" value={groupFormData.phone} onChange={e=>setGroupFormData({...groupFormData, phone: e.target.value})} />
                  <div className="grid grid-cols-2 gap-4">
-                    <div><label className="text-[9px] font-black text-slate-400 uppercase ml-2 tracking-widest">Taxa de Juros (%)</label><input type="number" step="0.1" required className="w-full p-4 bg-slate-50 rounded-2xl border font-bold" value={groupFormData.interestRate} onChange={e=>setGroupFormData({...groupFormData, interestRate: parseFloat(e.target.value)})} /></div>
+                    <div><label className="text-[9px] font-black text-slate-400 uppercase ml-2 tracking-widest">Taxa de Juros (%)</label><input type="number" step="0.1" required className="w-full p-4 bg-slate-50 rounded-2xl border font-bold" value={isNaN(groupFormData.interestRate) ? '' : groupFormData.interestRate} onChange={e=>setGroupFormData({...groupFormData, interestRate: parseFloat(e.target.value)})} /></div>
                     <div><label className="text-[9px] font-black text-slate-400 uppercase ml-2 tracking-widest">Senha Inicial</label><input type="password" required className="w-full p-4 bg-slate-50 rounded-2xl border font-bold" value={groupFormData.password} onChange={e=>setGroupFormData({...groupFormData, password: e.target.value})} /></div>
                  </div>
                  <div className="flex gap-4 pt-4">
@@ -440,12 +451,18 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ groups, clients, users, compete
                     {groups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
                  </select>
                  <div className="grid grid-cols-2 gap-4">
-                    <div><label className="text-[9px] font-black text-slate-400 uppercase ml-2 tracking-widest">Capital Inicial</label><input type="number" required className="w-full p-4 bg-slate-50 rounded-2xl border font-bold" value={clientFormData.initialCapital} onChange={e=>setClientFormData({...clientFormData, initialCapital: parseFloat(e.target.value)})} /></div>
-                    <div><label className="text-[9px] font-black text-slate-400 uppercase ml-2 tracking-widest">Vencimento (Dia)</label><input type="number" min="1" max="31" required className="w-full p-4 bg-slate-50 rounded-2xl border font-bold" value={clientFormData.dueDay} onChange={e=>setClientFormData({...clientFormData, dueDay: parseInt(e.target.value)})} /></div>
+                    <div><label className="text-[9px] font-black text-slate-400 uppercase ml-2 tracking-widest">Capital Inicial</label><input type="number" required className="w-full p-4 bg-slate-50 rounded-2xl border font-bold" value={isNaN(clientFormData.initialCapital) ? '' : clientFormData.initialCapital} onChange={e=>setClientFormData({...clientFormData, initialCapital: parseFloat(e.target.value)})} /></div>
+                    <div><label className="text-[9px] font-black text-slate-400 uppercase ml-2 tracking-widest">Vencimento (Dia)</label><input type="number" min="1" max="31" required className="w-full p-4 bg-slate-50 rounded-2xl border font-bold" value={isNaN(clientFormData.dueDay) ? '' : clientFormData.dueDay} onChange={e=>setClientFormData({...clientFormData, dueDay: parseInt(e.target.value)})} /></div>
                  </div>
-                 <div>
-                    <label className="text-[9px] font-black text-slate-400 uppercase ml-2 tracking-widest">Data de Início do Empréstimo</label>
-                    <input type="date" required className="w-full p-4 bg-slate-50 rounded-2xl border font-bold" value={clientFormData.startDate} onChange={e=>setClientFormData({...clientFormData, startDate: e.target.value})} />
+                 <div className="grid grid-cols-2 gap-4">
+                    <div>
+                       <label className="text-[9px] font-black text-slate-400 uppercase ml-2 tracking-widest">Início do Empréstimo</label>
+                       <input type="date" required className="w-full p-4 bg-slate-50 rounded-2xl border font-bold" value={clientFormData.startDate} onChange={e=>setClientFormData({...clientFormData, startDate: e.target.value})} />
+                    </div>
+                    <div>
+                       <label className="text-[9px] font-black text-slate-400 uppercase ml-2 tracking-widest">Primeiro Vencimento</label>
+                       <input type="date" required className="w-full p-4 bg-slate-50 rounded-2xl border font-bold" value={clientFormData.firstDueDate} onChange={e=>setClientFormData({...clientFormData, firstDueDate: e.target.value})} />
+                    </div>
                  </div>
                  <div className="flex gap-4 pt-4">
                     <button type="button" onClick={()=>setShowClientModal(false)} className="flex-1 p-4 border rounded-2xl font-black text-slate-400 uppercase text-xs">Cancelar</button>

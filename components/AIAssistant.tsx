@@ -9,13 +9,15 @@ import { toTitleCase, getEffectiveDueDay } from '../utils';
 interface AIAssistantProps {
   db: DBState;
   user: User;
-  onAddClient: (data: { name: string; phone: string; groupId: string; initialCapital: number; dueDay: number; notes: string }) => void;
+  onAddClient: (data: { name: string; phone: string; groupId: string; initialCapital: number; dueDay: number; notes: string; startDate: string; firstDueDate: string }) => void;
   onAddTransaction: (data: { clientId: string; type: TransactionType; amount: number; description: string }) => void;
   onAddPayment: (data: { clientId: string; interestAmount: number; amortizationAmount: number; description: string }) => void;
   onAddSocio: (data: { name: string; email: string; phone: string; interestRate: number; password: string }) => void;
   onDeleteClient: (id: string) => void;
   onDeleteGroup: (id: string) => void;
   onRequestPayment: (clientId: string, interest: number, amortization: number, discount: number, obs: string) => void;
+  onUpdateClient: (clientId: string, updates: any) => void;
+  onUpdateSocio: (groupId: string, updates: any) => void;
 }
 
 interface Message {
@@ -31,7 +33,7 @@ declare global {
   }
 }
 
-const AIAssistant: React.FC<AIAssistantProps> = ({ db, user, onAddClient, onAddTransaction, onAddSocio, onAddPayment, onDeleteClient, onDeleteGroup, onRequestPayment }) => {
+const AIAssistant: React.FC<AIAssistantProps> = ({ db, user, onAddClient, onAddTransaction, onAddSocio, onAddPayment, onDeleteClient, onDeleteGroup, onRequestPayment, onUpdateClient, onUpdateSocio }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [input, setInput] = useState('');
   const [isListening, setIsListening] = useState(false);
@@ -106,11 +108,12 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ db, user, onAddClient, onAddT
         phone: { type: Type.STRING, description: "Telefone de contato" },
         groupId: { type: Type.STRING, description: "ID do grupo/sócio responsável" },
         initialCapital: { type: Type.NUMBER, description: "Capital inicial investido" },
-        dueDay: { type: Type.NUMBER, description: "Dia de vencimento mensal (1-31)" },
-        startDate: { type: Type.STRING, description: "Data de início do empréstimo (formato YYYY-MM-DD). Se não informado, use a data atual." },
+        dueDay: { type: Type.NUMBER, description: "Dia de vencimento mensal (1-31). Derive da Data do Primeiro Vencimento." },
+        startDate: { type: Type.STRING, description: "Data de início do empréstimo (YYYY-MM-DD)." },
+        firstDueDate: { type: Type.STRING, description: "Data do primeiro vencimento (YYYY-MM-DD)." },
         notes: { type: Type.STRING, description: "Observações adicionais (opcional)" }
       },
-      required: ["name", "phone", "groupId", "initialCapital", "dueDay"]
+      required: ["name", "phone", "groupId", "initialCapital", "dueDay", "startDate", "firstDueDate"]
     }
   };
 
@@ -181,6 +184,52 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ db, user, onAddClient, onAddT
         groupId: { type: Type.STRING, description: "ID do grupo/sócio a ser excluído" }
       },
       required: ["groupId"]
+    }
+  };
+  
+  const updateClientTool: FunctionDeclaration = {
+    name: "updateClient",
+    parameters: {
+      type: Type.OBJECT,
+      description: "Atualiza dados de um cliente (telefone, capital, sócio, vencimento, etc).",
+      properties: {
+        clientId: { type: Type.STRING, description: "ID do cliente" },
+        updates: {
+          type: Type.OBJECT,
+          description: "Campos para atualizar",
+          properties: {
+            phone: { type: Type.STRING },
+            initialCapital: { type: Type.NUMBER },
+            currentCapital: { type: Type.NUMBER },
+            dueDay: { type: Type.NUMBER },
+            firstDueDate: { type: Type.NUMBER, description: "Timestamp da nova data de vencimento" },
+            groupId: { type: Type.STRING }
+          }
+        }
+      },
+      required: ["clientId", "updates"]
+    }
+  };
+
+  const updateSocioTool: FunctionDeclaration = {
+    name: "updateSocio",
+    parameters: {
+      type: Type.OBJECT,
+      description: "Atualiza dados de um sócio (nome, e-mail, telefone, taxa).",
+      properties: {
+        groupId: { type: Type.STRING, description: "ID do sócio" },
+        updates: {
+          type: Type.OBJECT,
+          description: "Campos para atualizar",
+          properties: {
+            name: { type: Type.STRING },
+            email: { type: Type.STRING },
+            phone: { type: Type.STRING },
+            interestRate: { type: Type.NUMBER }
+          }
+        }
+      },
+      required: ["groupId", "updates"]
     }
   };
 
@@ -297,6 +346,7 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ db, user, onAddClient, onAddT
             juros_hoje: clientStatus[c.id]?.hoje || 0,
             juros_futuro: clientStatus[c.id]?.futuro || 0,
             vencimento_dia: c.dueDay,
+            data_vencimento_atual: c.firstDueDate ? new Date(c.firstDueDate).toLocaleDateString('pt-BR') : null,
             grupo: db.groups.find(g => g.id === c.groupId)?.name
           }))
       };
@@ -331,7 +381,9 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ db, user, onAddClient, onAddT
           REGRAS CRÍTICAS:
           1. MEMÓRIA: Se o usuário já disse um dado, NUNCA peça novamente.
           2. FORMATO DE LISTA: Responda APENAS com a lista do que falta.
-          3. EXCLUSÃO: Após chamar a ferramenta de exclusão, confirme APENAS UMA VEZ. Não repita a exclusão se o usuário mudar de assunto.
+          3. EXCLUSÃO: 
+            - Quando o usuário pedir para excluir (ex: "excluir cliente João"), você DEVE perguntar: "Confirma excluir [Nome] e todos os dados?".
+            - Chame a ferramenta 'deleteClient' ou 'deleteGroup' APENAS APÓS a confirmação explícita do usuário.
           
           FLUXO DE CONSULTA (Vencimentos):
           - Gatilhos: "quem vence hoje", "quem vence amanhã", "vencidos", "atrasados".
@@ -354,12 +406,34 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ db, user, onAddClient, onAddT
           FLUXO DE SÓCIO:
           - Lista: 1. Nome, 2. Email, 3. Fone, 4. Taxa de Juros, 5. Senha.
 
-          FLUXO DE CLIENTE:
-          - Lista: 1. Nome, 2. Fone, 3. Sócio, 4. Capital, 5. Vencimento, 6. Data de Início (opcional).
-          - DATA DE INÍCIO: Se o usuário disser que o empréstimo começou no passado (ex: "começou em janeiro"), use a data correspondente em 'startDate'. Isso é fundamental para que os juros atrasados sejam calculados corretamente.
+          FLUXO DE CLIENTE (SIMPLIFICADO):
+          - Solicite apenas: 1. Nome, 2. Telefone, 3. Sócio, 4. Capital Inicial, 5. Data do Empréstimo, 6. Data do Vencimento.
+          - REGRAS DE DATAS: 
+            - Aceite datas antigas. Não calcule datas automaticamente nem sugira "30 dias". Apenas registre o que o usuário informar.
+            - Você DEVE SEMPRE coletar a "Data do Empréstimo" e a "Data do Primeiro Vencimento".
+            - Valide o formato (dd/mm/aa ou dd/mm/aaaa) e confirme as duas datas com o usuário antes de salvar.
+            - Converta para YYYY-MM-DD ao chamar a ferramenta.
+            - Se o usuário informar apenas dia/mês (ex: "15/03") para um cliente que já existe, use AUTOMATICAMENTE o ano que já está salvo no campo 'data_vencimento_atual' do contexto.
           - VALIDAÇÃO DE SÓCIO: Antes de cadastrar um cliente, verifique se o 'Sócio' fornecido existe em 'socios_disponiveis'. 
             - Se o sócio NÃO existir ou o nome for ambíguo, NÃO chame a ferramenta. Em vez disso, diga: "Não encontrei o sócio [Nome]. Por favor, escolha um dos sócios cadastrados: [Lista de Sócios]".
             - Se houver apenas um sócio, você pode sugerir o uso dele.
+
+          FLUXO DE EDIÇÃO (Gatilho: "muda", "altera", "coloca"):
+          - Você pode alterar: Telefone, Capital, Sócio, Data de Vencimento (para Clientes) e Nome, Email, Telefone, Taxa (para Sócios).
+          - MODIFICAÇÃO ESPECÍFICA: Altere APENAS o campo que o usuário pediu. Se ele disse "muda o fone", não mexa em mais nada.
+          - EDIÇÃO DE DATA INTELIGENTE:
+            - Se o usuário disser "muda o vencimento do João para 15/03", veja o ano em 'data_vencimento_atual' (ex: 2026) e use-o (ficando 15/03/2026).
+            - Converta a data final para timestamp (milissegundos) para o campo 'firstDueDate'.
+          - Sempre confirme os novos dados com o usuário antes de chamar 'updateClient' ou 'updateSocio'.
+
+          FLUXO DE NOVO EMPRÉSTIMO (Gatilho: "novo empréstimo", "quer mais dinheiro", "pegou mais"):
+          - Quando um cliente já cadastrado pedir mais dinheiro, você DEVE perguntar:
+            "Deseja somar este valor ao empréstimo atual (Amortização/Investimento) ou criar um novo registro de cliente separado para este valor?"
+          - Se ele quiser SOMAR: Use 'registerTransaction' com tipo 'INVESTMENT' para o cliente existente.
+          - Se ele quiser NOVO: Siga o FLUXO DE CLIENTE (SIMPLIFICADO) para criar um novo registro.
+
+          FLUXO DE CONSULTA:
+          - Se o usuário pedir um dado específico (ex: "fone do João", "capital da Maria", "email do sócio X"), responda APENAS com o dado solicitado de forma direta e nada mais.
 
           PADRONIZAÇÃO DE NOMES:
           - Sempre formate nomes de pessoas e sócios com a primeira letra de cada palavra em maiúscula (Ex: "joão silva" -> "João Silva").
@@ -370,7 +444,7 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ db, user, onAddClient, onAddT
           - Use a ferramenta 'registerTransaction' APENAS para Investimentos ou Retiradas puras.
           - Use a ferramenta 'deleteClient' ou 'deleteGroup' se o usuário ADMIN pedir para excluir.
           - Identifique o Cliente pelo nome fornecido no contexto.`,
-          tools: [{ functionDeclarations: [registerSocioTool, registerClientTool, registerTransactionTool, registerPaymentTool, requestPaymentTool, deleteClientTool, deleteGroupTool] }]
+          tools: [{ functionDeclarations: [registerSocioTool, registerClientTool, registerTransactionTool, registerPaymentTool, requestPaymentTool, deleteClientTool, deleteGroupTool, updateClientTool, updateSocioTool] }]
         }
       });
 
@@ -427,14 +501,30 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ db, user, onAddClient, onAddT
             if (user.role === 'ADMIN') {
               const group = db.groups.find(g => g.id === args.groupId);
               if (group) {
-                await (onDeleteGroup as any)(args.groupId);
-                setMessages(prev => [...prev, { role: 'model', text: `🗑️ Sócio **${group.name}** e todos os seus dados foram excluídos.` }]);
+                const success = await (onDeleteGroup as any)(args.groupId);
+                if (success) {
+                  setMessages(prev => [...prev, { role: 'model', text: `🗑️ Sócio **${group.name}** e todos os seus dados foram excluídos.` }]);
+                } else {
+                  setMessages(prev => [...prev, { role: 'model', text: `⚠️ A exclusão do sócio **${group.name}** foi cancelada ou falhou (verifique se há clientes vinculados ou se é um admin protegido).` }]);
+                }
               } else {
                 setMessages(prev => [...prev, { role: 'model', text: `⚠️ Sócio não encontrado para exclusão.` }]);
               }
             } else {
               setMessages(prev => [...prev, { role: 'model', text: `❌ Você não tem permissão para excluir sócios.` }]);
             }
+          }
+          if (call.name === "updateClient") {
+            const args = call.args as any;
+            onUpdateClient(args.clientId, args.updates);
+            const client = db.clients.find(c => c.id === args.clientId);
+            setMessages(prev => [...prev, { role: 'model', text: `✅ Dados do cliente **${client?.name}** atualizados com sucesso!` }]);
+          }
+          if (call.name === "updateSocio") {
+            const args = call.args as any;
+            onUpdateSocio(args.groupId, args.updates);
+            const group = db.groups.find(g => g.id === args.groupId);
+            setMessages(prev => [...prev, { role: 'model', text: `✅ Dados do sócio **${group?.name}** atualizados com sucesso!` }]);
           }
         }
       } else {

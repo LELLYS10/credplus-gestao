@@ -31,6 +31,7 @@ export interface Client {
   status: 'ACTIVE' | 'INACTIVE';
   notes: string;
   createdAt: number;
+  firstDueDate?: number;
 }
 
 export interface Competence {
