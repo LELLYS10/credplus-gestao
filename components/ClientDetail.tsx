@@ -108,7 +108,8 @@ const ClientDetail: React.FC<ClientDetailProps> = ({ client, competences, transa
       month: parseInt(editCompData.month),
       year: parseInt(editCompData.year),
       originalValue: parseFloat(editCompData.originalValue),
-      paidAmount: parseFloat(editCompData.paidAmount)
+      paidAmount: parseFloat(editCompData.paidAmount),
+      dueDate: new Date(editCompData.dueDate).getTime() + 12 * 60 * 60 * 1000
     });
     setShowEditCompModal(false);
   };
@@ -181,10 +182,15 @@ const ClientDetail: React.FC<ClientDetailProps> = ({ client, competences, transa
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-50">
-                      {sortedComps.map(comp => (
-                        <tr key={comp.id} className="hover:bg-slate-50 transition-colors">
-                          <td className="py-5 px-6 font-black text-slate-800 text-sm">{getEffectiveDueDay(client.dueDay, comp.month, comp.year)}/{String(comp.month + 1).padStart(2, '0')}/{comp.year}</td>
-                          <td className="py-5 px-6 text-slate-400 font-bold text-sm">{formatCurrency(comp.capitalAtTime || 0)}</td>
+                      {sortedComps.map(comp => {
+                        const displayDate = comp.dueDate 
+                          ? new Date(comp.dueDate).toLocaleDateString('pt-BR')
+                          : `${getEffectiveDueDay(client.dueDay, comp.month, comp.year)}/${String(comp.month + 1).padStart(2, '0')}/${comp.year}`;
+                        
+                        return (
+                          <tr key={comp.id} className="hover:bg-slate-50 transition-colors">
+                            <td className="py-5 px-6 font-black text-slate-800 text-sm">{displayDate}</td>
+                            <td className="py-5 px-6 text-slate-400 font-bold text-sm">{formatCurrency(comp.capitalAtTime || 0)}</td>
                           <td className="py-5 px-6 text-slate-500 font-bold text-sm">{formatCurrency(comp.originalValue)}</td>
                           <td className="py-5 px-6 text-emerald-600 font-black text-sm">{formatCurrency(comp.paidAmount)}</td>
                           <td className="py-5 px-6 text-right">
@@ -196,7 +202,13 @@ const ClientDetail: React.FC<ClientDetailProps> = ({ client, competences, transa
                             <td className="py-5 px-6 text-right">
                               <button 
                                 onClick={() => {
-                                  setEditCompData({ ...comp, month: comp.month.toString(), year: comp.year.toString() });
+                                  const defaultDate = new Date(comp.year, comp.month, getEffectiveDueDay(client.dueDay, comp.month, comp.year)).toISOString().split('T')[0];
+                                  setEditCompData({ 
+                                    ...comp, 
+                                    month: comp.month.toString(), 
+                                    year: comp.year.toString(),
+                                    dueDate: comp.dueDate ? new Date(comp.dueDate).toISOString().split('T')[0] : defaultDate
+                                  });
                                   setShowEditCompModal(true);
                                 }}
                                 className="p-2 text-slate-400 hover:text-emerald-600 transition-colors"
@@ -206,33 +218,57 @@ const ClientDetail: React.FC<ClientDetailProps> = ({ client, competences, transa
                             </td>
                           )}
                         </tr>
-                      ))}
-                    </tbody>
+                      );
+                    })}
+                  </tbody>
                   </table>
                 </div>
 
                 {/* Mobile Cards */}
                 <div className="md:hidden divide-y divide-slate-50">
-                  {sortedComps.map(comp => (
-                    <div key={comp.id} className="p-4 space-y-3">
-                      <div className="flex justify-between items-center">
-                        <span className="font-black text-slate-800 text-sm">{getEffectiveDueDay(client.dueDay, comp.month, comp.year)}/{String(comp.month + 1).padStart(2, '0')}/{comp.year}</span>
-                        {(comp.originalValue - comp.paidAmount) < 0.01 
-                          ? <span className="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest">LIQUIDADO</span> 
-                          : <span className="bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest">PENDENTE</span>}
-                      </div>
-                      <div className="grid grid-cols-2 gap-2 bg-slate-50 p-3 rounded-xl">
-                        <div>
-                          <p className="text-[8px] text-slate-400 uppercase font-black">Valor Juros</p>
-                          <p className="text-xs font-black text-slate-600">{formatCurrency(comp.originalValue)}</p>
+                  {sortedComps.map(comp => {
+                    const displayDate = comp.dueDate 
+                      ? new Date(comp.dueDate).toLocaleDateString('pt-BR')
+                      : `${getEffectiveDueDay(client.dueDay, comp.month, comp.year)}/${String(comp.month + 1).padStart(2, '0')}/${comp.year}`;
+                    
+                    return (
+                      <div key={comp.id} className="p-4 space-y-3">
+                        <div className="flex justify-between items-center">
+                          <span className="font-black text-slate-800 text-sm">{displayDate}</span>
+                          {(comp.originalValue - comp.paidAmount) < 0.01 
+                            ? <span className="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest">LIQUIDADO</span> 
+                            : <span className="bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest">PENDENTE</span>}
                         </div>
-                        <div className="text-right">
-                          <p className="text-[8px] text-slate-400 uppercase font-black">Recebido</p>
-                          <p className="text-xs font-black text-emerald-600">{formatCurrency(comp.paidAmount)}</p>
+                        <div className="grid grid-cols-2 gap-2 bg-slate-50 p-3 rounded-xl">
+                          <div>
+                            <p className="text-[8px] text-slate-400 uppercase font-black">Valor Juros</p>
+                            <p className="text-xs font-black text-slate-600">{formatCurrency(comp.originalValue)}</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-[8px] text-slate-400 uppercase font-black">Recebido</p>
+                            <p className="text-xs font-black text-emerald-600">{formatCurrency(comp.paidAmount)}</p>
+                          </div>
                         </div>
+                        {isAdmin && (
+                          <button 
+                            onClick={() => {
+                              const defaultDate = new Date(comp.year, comp.month, getEffectiveDueDay(client.dueDay, comp.month, comp.year)).toISOString().split('T')[0];
+                              setEditCompData({ 
+                                ...comp, 
+                                month: comp.month.toString(), 
+                                year: comp.year.toString(),
+                                dueDate: comp.dueDate ? new Date(comp.dueDate).toISOString().split('T')[0] : defaultDate
+                              });
+                              setShowEditCompModal(true);
+                            }}
+                            className="w-full py-2 bg-slate-50 text-slate-400 font-black uppercase text-[9px] tracking-widest rounded-lg border border-slate-100 flex items-center justify-center gap-2"
+                          >
+                            <Edit3 size={12} /> Editar Mensalidade
+                          </button>
+                        )}
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             </div>
@@ -400,6 +436,7 @@ const ClientDetail: React.FC<ClientDetailProps> = ({ client, competences, transa
                   <div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Mês (0-11)</label><input type="number" min="0" max="11" required className="w-full p-4 bg-slate-50 rounded-2xl border font-bold mt-1" value={editCompData.month} onChange={e=>setEditCompData({...editCompData, month: e.target.value})} /></div>
                   <div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Ano</label><input type="number" required className="w-full p-4 bg-slate-50 rounded-2xl border font-bold mt-1" value={editCompData.year} onChange={e=>setEditCompData({...editCompData, year: e.target.value})} /></div>
                 </div>
+                <div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Data de Vencimento</label><input type="date" required className="w-full p-4 bg-slate-50 rounded-2xl border font-bold mt-1" value={editCompData.dueDate} onChange={e=>setEditCompData({...editCompData, dueDate: e.target.value})} /></div>
                 <div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Valor Juros</label><input type="number" step="0.01" required className="w-full p-4 bg-slate-50 rounded-2xl border font-bold mt-1" value={editCompData.originalValue} onChange={e=>setEditCompData({...editCompData, originalValue: e.target.value})} /></div>
                 <div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Valor Recebido</label><input type="number" step="0.01" required className="w-full p-4 bg-slate-50 rounded-2xl border font-bold mt-1" value={editCompData.paidAmount} onChange={e=>setEditCompData({...editCompData, paidAmount: e.target.value})} /></div>
                 <div className="flex gap-4 pt-4"><button type="button" onClick={()=>setShowEditCompModal(false)} className="flex-1 p-4 border rounded-2xl font-black text-slate-400 uppercase text-xs tracking-widest">Cancelar</button><button type="submit" className="flex-1 p-4 bg-emerald-600 text-white rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl border-b-4 border-emerald-800">Salvar</button></div>

@@ -42,6 +42,7 @@ export interface Competence {
   paidAmount: number;
   capitalAtTime?: number;
   lastUpdated: number;
+  dueDate?: number;
 }
 
 export enum TransactionType {
