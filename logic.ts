@@ -30,10 +30,10 @@ export const generatePendingCompetences = (db: any) => {
         let m = start.getMonth();
         let y = start.getFullYear();
         
-        // Se o empréstimo começou DEPOIS do dia de vencimento deste mês,
+        // Se o empréstimo começou NO dia ou DEPOIS do dia de vencimento deste mês,
         // a primeira competência deve ser a do mês seguinte.
         const dueDayInStartMonth = getEffectiveDueDay(client.dueDay, m, y);
-        if (start.getDate() > dueDayInStartMonth) {
+        if (start.getDate() >= dueDayInStartMonth) {
           m++;
           if (m > 11) {
             m = 0;
@@ -82,15 +82,12 @@ export const generatePendingCompetences = (db: any) => {
       }
 
       // 2. Generate next ones
-      // We generate until we have at least one UNPAID competence, 
-      // or until we reach the current month + 1 (to allow "Due Tomorrow" to work at month end)
+      // We only generate the next competence if the current one is fully paid.
+      // This prevents multiple unpaid competences from cluttering the view.
       while (client.currentCapital > 0) {
         const isPaid = latest.paidAmount >= latest.originalValue - 0.01;
-        const isPast = (latest.year < currentYear || (latest.year === currentYear && latest.month < currentMonth));
         
-        // If it's unpaid AND in the future (beyond current month), we stop.
-        // We only want to generate the future one if the current/past ones are paid.
-        if (!isPaid && (latest.year > currentYear || (latest.year === currentYear && latest.month >= currentMonth))) {
+        if (!isPaid) {
           break;
         }
 
