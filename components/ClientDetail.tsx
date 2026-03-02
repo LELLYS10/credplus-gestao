@@ -12,20 +12,24 @@ interface ClientDetailProps {
   groups: Group[];
   user: User;
   onBack: () => void;
-  onRequestPayment: (interest: number, amortization: number, discount: number, obs: string) => void;
+  onRequestPayment: (interest: number, amortization: number, discount: number, obs: string, date: number) => void;
   onUpdateClient: (id: string, data: Partial<Client>) => void;
+  onUpdateCompetence: (id: string, data: Partial<Competence>) => void;
+  onUpdateTransaction: (id: string, data: Partial<Transaction>) => void;
   onDeleteClient: (id: string) => void;
   onAddTransaction: (trx: Transaction) => void;
   pendingRequests?: PaymentRequest[];
 }
 
-const ClientDetail: React.FC<ClientDetailProps> = ({ client, competences, transactions, group, groups, user, onBack, onRequestPayment, onUpdateClient, onDeleteClient, onAddTransaction, pendingRequests = [] }) => {
+const ClientDetail: React.FC<ClientDetailProps> = ({ client, competences, transactions, group, groups, user, onBack, onRequestPayment, onUpdateClient, onUpdateCompetence, onUpdateTransaction, onDeleteClient, onAddTransaction, pendingRequests = [] }) => {
   const [activeTab, setActiveTab] = React.useState<'interest' | 'capital'>('interest');
   const [showRequestModal, setShowRequestModal] = React.useState(false);
   const [showEditModal, setShowEditModal] = React.useState(false);
   const [showAdjModal, setShowAdjModal] = React.useState(false);
+  const [showEditTrxModal, setShowEditTrxModal] = React.useState(false);
+  const [showEditCompModal, setShowEditCompModal] = React.useState(false);
   
-  const [formData, setFormData] = React.useState({ interest: 0, amortization: 0, discount: 0, observation: '' });
+  const [formData, setFormData] = React.useState({ interest: 0, amortization: 0, discount: 0, observation: '', date: new Date().toISOString().split('T')[0] });
   const [editData, setEditData] = React.useState({ 
     name: client.name, 
     phone: client.phone, 
@@ -33,7 +37,10 @@ const ClientDetail: React.FC<ClientDetailProps> = ({ client, competences, transa
     dueDay: client.dueDay,
     createdAt: new Date(client.createdAt).toISOString().split('T')[0]
   });
-  const [adjData, setAdjData] = React.useState({ type: TransactionType.INVESTMENT, amount: 0, description: '' });
+  const [adjData, setAdjData] = React.useState({ type: TransactionType.INVESTMENT, amount: 0, description: '', date: new Date().toISOString().split('T')[0] });
+  
+  const [editTrxData, setEditTrxData] = React.useState<any>(null);
+  const [editCompData, setEditCompData] = React.useState<any>(null);
 
   const isAdmin = user.role === UserRole.ADMIN;
   const sortedComps = React.useMemo(() => {
@@ -70,9 +77,40 @@ const ClientDetail: React.FC<ClientDetailProps> = ({ client, competences, transa
   const handleAdjSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!isAdmin) return;
-    onAddTransaction({ id: `trx-${Date.now()}`, clientId: client.id, type: adjData.type, amount: adjData.amount, description: adjData.description, createdAt: Date.now() });
+    onAddTransaction({ 
+      id: `trx-${Date.now()}`, 
+      clientId: client.id, 
+      type: adjData.type, 
+      amount: adjData.amount, 
+      description: adjData.description, 
+      createdAt: new Date(adjData.date).getTime() + 12 * 60 * 60 * 1000 
+    });
     setShowAdjModal(false);
-    setAdjData({ type: TransactionType.INVESTMENT, amount: 0, description: '' });
+    setAdjData({ type: TransactionType.INVESTMENT, amount: 0, description: '', date: new Date().toISOString().split('T')[0] });
+  };
+
+  const handleEditTrxSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!isAdmin || !editTrxData) return;
+    onUpdateTransaction(editTrxData.id, {
+      type: editTrxData.type,
+      amount: editTrxData.amount,
+      description: editTrxData.description,
+      createdAt: new Date(editTrxData.date).getTime() + 12 * 60 * 60 * 1000
+    });
+    setShowEditTrxModal(false);
+  };
+
+  const handleEditCompSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!isAdmin || !editCompData) return;
+    onUpdateCompetence(editCompData.id, {
+      month: parseInt(editCompData.month),
+      year: parseInt(editCompData.year),
+      originalValue: parseFloat(editCompData.originalValue),
+      paidAmount: parseFloat(editCompData.paidAmount)
+    });
+    setShowEditCompModal(false);
   };
 
   return (
@@ -139,6 +177,7 @@ const ClientDetail: React.FC<ClientDetailProps> = ({ client, competences, transa
                         <th className="text-left py-5 px-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Valor Juros</th>
                         <th className="text-left py-5 px-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Recebido</th>
                         <th className="text-right py-5 px-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Status</th>
+                        {isAdmin && <th className="text-right py-5 px-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Ações</th>}
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-50">
@@ -153,6 +192,19 @@ const ClientDetail: React.FC<ClientDetailProps> = ({ client, competences, transa
                               ? <span className="bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border border-emerald-200">LIQUIDADO</span> 
                               : <span className="bg-amber-50 text-amber-700 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border border-amber-200">PENDENTE</span>}
                           </td>
+                          {isAdmin && (
+                            <td className="py-5 px-6 text-right">
+                              <button 
+                                onClick={() => {
+                                  setEditCompData({ ...comp, month: comp.month.toString(), year: comp.year.toString() });
+                                  setShowEditCompModal(true);
+                                }}
+                                className="p-2 text-slate-400 hover:text-emerald-600 transition-colors"
+                              >
+                                <Edit3 size={16} />
+                              </button>
+                            </td>
+                          )}
                         </tr>
                       ))}
                     </tbody>
@@ -192,7 +244,7 @@ const ClientDetail: React.FC<ClientDetailProps> = ({ client, competences, transa
                   <div className="flex gap-3">
                     <button 
                       onClick={() => {
-                        setAdjData({ type: TransactionType.INVESTMENT, amount: 0, description: 'Novo Empréstimo' });
+                        setAdjData({ type: TransactionType.INVESTMENT, amount: 0, description: 'Novo Empréstimo', date: new Date().toISOString().split('T')[0] });
                         setShowAdjModal(true);
                       }} 
                       className="bg-emerald-600 text-white px-6 py-3 rounded-2xl font-black uppercase text-xs tracking-widest flex items-center justify-center gap-2 hover:bg-emerald-700 transition-all shadow-xl shadow-emerald-100 border-b-4 border-emerald-800"
@@ -201,7 +253,7 @@ const ClientDetail: React.FC<ClientDetailProps> = ({ client, competences, transa
                     </button>
                     <button 
                       onClick={() => {
-                        setAdjData({ type: TransactionType.INVESTMENT, amount: 0, description: '' });
+                        setAdjData({ type: TransactionType.INVESTMENT, amount: 0, description: '', date: new Date().toISOString().split('T')[0] });
                         setShowAdjModal(true);
                       }} 
                       className="bg-slate-800 text-white px-6 py-3 rounded-2xl font-black uppercase text-xs tracking-widest flex items-center justify-center gap-2 hover:bg-black transition-all shadow-xl shadow-slate-200 border-b-4 border-black"
@@ -221,11 +273,12 @@ const ClientDetail: React.FC<ClientDetailProps> = ({ client, competences, transa
                         <th className="text-left py-5 px-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Tipo</th>
                         <th className="text-left py-5 px-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Descrição</th>
                         <th className="text-right py-5 px-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Valor</th>
+                        {isAdmin && <th className="text-right py-5 px-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Ações</th>}
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-50">
                       {sortedTrxs.length === 0 ? (
-                        <tr><td colSpan={4} className="py-10 text-center text-slate-400 text-xs font-black uppercase">Sem movimentações.</td></tr>
+                        <tr><td colSpan={isAdmin ? 5 : 4} className="py-10 text-center text-slate-400 text-xs font-black uppercase">Sem movimentações.</td></tr>
                       ) : (
                         sortedTrxs.map(trx => (
                           <tr key={trx.id} className="hover:bg-slate-50 transition-colors">
@@ -240,6 +293,19 @@ const ClientDetail: React.FC<ClientDetailProps> = ({ client, competences, transa
                             <td className={`py-5 px-6 text-right font-black text-sm ${trx.type === TransactionType.INVESTMENT ? 'text-emerald-600' : 'text-red-500'}`}>
                               {trx.type === TransactionType.INVESTMENT ? '+' : '-'}{formatCurrency(trx.amount)}
                             </td>
+                            {isAdmin && (
+                              <td className="py-5 px-6 text-right">
+                                <button 
+                                  onClick={() => {
+                                    setEditTrxData({ ...trx, date: new Date(trx.createdAt).toISOString().split('T')[0] });
+                                    setShowEditTrxModal(true);
+                                  }}
+                                  className="p-2 text-slate-400 hover:text-emerald-600 transition-colors"
+                                >
+                                  <Edit3 size={16} />
+                                </button>
+                              </td>
+                            )}
                           </tr>
                         ))
                       )}
@@ -281,6 +347,7 @@ const ClientDetail: React.FC<ClientDetailProps> = ({ client, competences, transa
            <div className="bg-white p-10 rounded-[2.5rem] w-full max-w-md shadow-2xl animate-in zoom-in duration-300">
               <h3 className="text-2xl font-black text-slate-800 uppercase mb-6 flex items-center gap-2"><DollarSign /> Ajuste de Capital</h3>
               <form onSubmit={handleAdjSubmit} className="space-y-6">
+                <div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Data da Operação</label><input type="date" required className="w-full p-4 bg-slate-50 rounded-2xl border font-bold mt-1" value={adjData.date} onChange={e=>setAdjData({...adjData, date: e.target.value})} /></div>
                 <div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Operação</label><select className="w-full p-4 bg-slate-50 rounded-2xl border font-bold mt-1" value={adjData.type} onChange={e=>setAdjData({...adjData, type: e.target.value as TransactionType})}><option value={TransactionType.INVESTMENT}>Aporte (+) </option><option value={TransactionType.WITHDRAWAL}>Retirada (-) </option></select></div>
                 <div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Valor</label><input type="number" step="0.01" required className="w-full p-4 bg-slate-50 rounded-2xl border font-bold mt-1" value={adjData.amount} onChange={e=>setAdjData({...adjData, amount: parseFloat(e.target.value)})} /></div>
                 <div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Descrição</label><input placeholder="Ex: Novo investimento de R$ 5k." className="w-full p-4 bg-slate-50 rounded-2xl border font-bold mt-1" value={adjData.description} onChange={e=>setAdjData({...adjData, description: e.target.value})} /></div>
@@ -309,11 +376,44 @@ const ClientDetail: React.FC<ClientDetailProps> = ({ client, competences, transa
         </div>
       )}
 
+      {isAdmin && showEditTrxModal && editTrxData && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-md">
+           <div className="bg-white p-10 rounded-[2.5rem] w-full max-w-md shadow-2xl animate-in zoom-in duration-300">
+              <h3 className="text-2xl font-black text-slate-800 uppercase mb-6 flex items-center gap-2"><Edit3 /> Editar Movimentação</h3>
+              <form onSubmit={handleEditTrxSubmit} className="space-y-6">
+                <div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Data</label><input type="date" required className="w-full p-4 bg-slate-50 rounded-2xl border font-bold mt-1" value={editTrxData.date} onChange={e=>setEditTrxData({...editTrxData, date: e.target.value})} /></div>
+                <div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Operação</label><select className="w-full p-4 bg-slate-50 rounded-2xl border font-bold mt-1" value={editTrxData.type} onChange={e=>setEditTrxData({...editTrxData, type: e.target.value as TransactionType})}><option value={TransactionType.INVESTMENT}>Aporte (+) </option><option value={TransactionType.WITHDRAWAL}>Retirada (-) </option><option value={TransactionType.AMORTIZATION}>Amortização (-) </option></select></div>
+                <div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Valor</label><input type="number" step="0.01" required className="w-full p-4 bg-slate-50 rounded-2xl border font-bold mt-1" value={editTrxData.amount} onChange={e=>setEditTrxData({...editTrxData, amount: parseFloat(e.target.value)})} /></div>
+                <div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Descrição</label><input className="w-full p-4 bg-slate-50 rounded-2xl border font-bold mt-1" value={editTrxData.description} onChange={e=>setEditTrxData({...editTrxData, description: e.target.value})} /></div>
+                <div className="flex gap-4 pt-4"><button type="button" onClick={()=>setShowEditTrxModal(false)} className="flex-1 p-4 border rounded-2xl font-black text-slate-400 uppercase text-xs tracking-widest">Cancelar</button><button type="submit" className="flex-1 p-4 bg-emerald-600 text-white rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl border-b-4 border-emerald-800">Salvar</button></div>
+              </form>
+           </div>
+        </div>
+      )}
+
+      {isAdmin && showEditCompModal && editCompData && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-md">
+           <div className="bg-white p-10 rounded-[2.5rem] w-full max-w-md shadow-2xl animate-in zoom-in duration-300">
+              <h3 className="text-2xl font-black text-slate-800 uppercase mb-6 flex items-center gap-2"><Edit3 /> Editar Mensalidade</h3>
+              <form onSubmit={handleEditCompSubmit} className="space-y-6">
+                <div className="grid grid-cols-2 gap-4">
+                  <div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Mês (0-11)</label><input type="number" min="0" max="11" required className="w-full p-4 bg-slate-50 rounded-2xl border font-bold mt-1" value={editCompData.month} onChange={e=>setEditCompData({...editCompData, month: e.target.value})} /></div>
+                  <div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Ano</label><input type="number" required className="w-full p-4 bg-slate-50 rounded-2xl border font-bold mt-1" value={editCompData.year} onChange={e=>setEditCompData({...editCompData, year: e.target.value})} /></div>
+                </div>
+                <div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Valor Juros</label><input type="number" step="0.01" required className="w-full p-4 bg-slate-50 rounded-2xl border font-bold mt-1" value={editCompData.originalValue} onChange={e=>setEditCompData({...editCompData, originalValue: e.target.value})} /></div>
+                <div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Valor Recebido</label><input type="number" step="0.01" required className="w-full p-4 bg-slate-50 rounded-2xl border font-bold mt-1" value={editCompData.paidAmount} onChange={e=>setEditCompData({...editCompData, paidAmount: e.target.value})} /></div>
+                <div className="flex gap-4 pt-4"><button type="button" onClick={()=>setShowEditCompModal(false)} className="flex-1 p-4 border rounded-2xl font-black text-slate-400 uppercase text-xs tracking-widest">Cancelar</button><button type="submit" className="flex-1 p-4 bg-emerald-600 text-white rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl border-b-4 border-emerald-800">Salvar</button></div>
+              </form>
+           </div>
+        </div>
+      )}
+
       {showRequestModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-2 md:p-4 bg-emerald-900/40 backdrop-blur-md overflow-y-auto">
           <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-lg my-auto animate-in fade-in zoom-in duration-300 border-b-8 border-slate-300 flex flex-col max-h-[95vh]">
             <div className="p-8 bg-emerald-700 text-white flex items-center justify-between shrink-0"><div className="flex items-center gap-3"><DollarSign size={24}/><h3 className="text-2xl font-black tracking-tighter uppercase">Baixa no Recebimento</h3></div><button onClick={() => setShowRequestModal(false)}><X size={24} /></button></div>
-            <form onSubmit={(e) => { e.preventDefault(); onRequestPayment(formData.interest, formData.amortization, formData.discount, formData.observation); setShowRequestModal(false); }} className="p-10 space-y-6 overflow-y-auto">
+            <form onSubmit={(e) => { e.preventDefault(); onRequestPayment(formData.interest, formData.amortization, formData.discount, formData.observation, new Date(formData.date).getTime() + 12 * 60 * 60 * 1000); setShowRequestModal(false); }} className="p-10 space-y-6 overflow-y-auto">
+              <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Data do Pagamento</label><input type="date" required className="w-full p-4 bg-slate-50 border rounded-2xl font-black" value={formData.date} onChange={e=>setFormData({...formData, date: e.target.value})} /></div>
               <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Valor Juros</label><input type="number" step="0.01" className="w-full p-4 bg-slate-50 border rounded-2xl font-black" value={formData.interest} onChange={e=>setFormData({...formData, interest: parseFloat(e.target.value)||0})} /></div>
               <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Abatimento/Desconto de Juros</label><input type="number" step="0.01" className="w-full p-4 bg-slate-50 border rounded-2xl font-black text-amber-600" value={formData.discount} onChange={e=>setFormData({...formData, discount: parseFloat(e.target.value)||0})} /></div>
               <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Amortização de Capital</label><input type="number" step="0.01" className="w-full p-4 bg-slate-50 border rounded-2xl font-black text-emerald-600" value={formData.amortization} onChange={e=>setFormData({...formData, amortization: parseFloat(e.target.value)||0})} /></div>

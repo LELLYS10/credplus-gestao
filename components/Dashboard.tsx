@@ -37,34 +37,50 @@ const Dashboard: React.FC<DashboardProps> = ({ user, clients, competences, group
     return pendingRequests.filter(r => r.status === RequestStatus.PENDING && (user.role === UserRole.ADMIN || r.groupId === userGroupId));
   }, [pendingRequests, user, groups]);
 
-  // LÓGICA DE SALTO DE DATA: Encontra a competência pendente mais antiga para definir a data na agenda
+  // LÓGICA DE CLASSIFICAÇÃO AUTOMÁTICA: Distribui os clientes nos cards baseada em todas as competências pendentes
   const agenda = React.useMemo(() => {
     const overdue: (Client & { nextDate: Date })[] = [];
     const dueToday: (Client & { nextDate: Date })[] = [];
     const dueTomorrow: (Client & { nextDate: Date })[] = [];
 
     filteredClients.forEach(client => {
-      // Filtra apenas o que não está pago e ordena por data
+      // Filtra todas as competências pendentes do cliente
       const pendingComps = competences
         .filter(c => c.clientId === client.id && (c.originalValue - c.paidAmount) > 0.01)
         .sort((a, b) => (a.year !== b.year ? a.year - b.year : a.month - b.month));
       
-      if (pendingComps.length > 0) {
-        // Pega a competência mais antiga que ainda falta pagar
-        const oldest = pendingComps[0];
-        const dDay = getEffectiveDueDay(client.dueDay, oldest.month, oldest.year);
-        const dDate = new Date(oldest.year, oldest.month, dDay);
-        
+      // Verifica cada competência para ver em qual card o cliente se encaixa
+      // Um cliente pode aparecer em mais de um card se tiver múltiplas pendências (ex: uma vencida e uma hoje)
+      let addedToOverdue = false;
+      let addedToToday = false;
+      let addedToTomorrow = false;
+
+      pendingComps.forEach(comp => {
+        const dDay = getEffectiveDueDay(client.dueDay, comp.month, comp.year);
+        const dDate = new Date(comp.year, comp.month, dDay);
         const clientWithDate = { ...client, nextDate: dDate };
 
-        if (todayDate.getTime() > dDate.getTime()) {
-          overdue.push(clientWithDate);
-        } else if (todayDate.getTime() === dDate.getTime()) {
-          dueToday.push(clientWithDate);
-        } else if (tomorrowDate.getTime() === dDate.getTime()) {
-          dueTomorrow.push(clientWithDate);
+        const dTime = dDate.getTime();
+        const todayTime = todayDate.getTime();
+        const tomorrowTime = tomorrowDate.getTime();
+
+        if (todayTime > dTime) {
+          if (!addedToOverdue) {
+            overdue.push(clientWithDate);
+            addedToOverdue = true;
+          }
+        } else if (todayTime === dTime) {
+          if (!addedToToday) {
+            dueToday.push(clientWithDate);
+            addedToToday = true;
+          }
+        } else if (tomorrowTime === dTime) {
+          if (!addedToTomorrow) {
+            dueTomorrow.push(clientWithDate);
+            addedToTomorrow = true;
+          }
         }
-      }
+      });
     });
 
     return { overdue, dueToday, dueTomorrow };
@@ -86,10 +102,10 @@ const Dashboard: React.FC<DashboardProps> = ({ user, clients, competences, group
       .filter(comp => {
         const client = filteredClients.find(c => c.id === comp.clientId);
         if (!client) return false;
-        const dueDay = getEffectiveDueDay(client.dueDay, comp.month, comp.year);
-        const dueDate = new Date(comp.year, comp.month, dueDay);
+        const dDay = getEffectiveDueDay(client.dueDay, comp.month, comp.year);
+        const dDate = new Date(comp.year, comp.month, dDay);
         // Ajuste de precisão: garante que qualquer data anterior a hoje (00:00) seja considerada atrasada
-        return dueDate.getTime() < todayDate.getTime() && (comp.originalValue - comp.paidAmount) > 0.01;
+        return dDate.getTime() < todayDate.getTime() && (comp.originalValue - comp.paidAmount) > 0.01;
       })
       .reduce((acc, comp) => acc + (comp.originalValue - comp.paidAmount), 0);
 
@@ -214,7 +230,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, clients, competences, group
             title="Juros Atrasados" 
             value={stats.overdueInterest} 
             icon={AlertCircle} 
-            colorClass="bg-red-100 text-red-600" 
+            colorClass="bg-red-500 text-white shadow-lg shadow-red-200" 
             highlight={stats.overdueInterest > 0} 
             onClick={() => stats.overdueInterest > 0 && setShowOverdueModal(true)}
           />

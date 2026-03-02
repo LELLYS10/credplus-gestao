@@ -1,8 +1,9 @@
 
 import React from 'react';
-import { Group, Client, UserRole, User, Competence, Report } from '../types';
+import { Group, Client, UserRole, User, Competence, Report, Transaction } from '../types';
 import { formatCurrency, getMonthName, getToday, getEffectiveDueDay } from '../utils';
-import { Plus, UserPlus, Trash2, Settings2, FileText, Loader2, Users, ShieldCheck, Download } from 'lucide-react';
+import { Plus, UserPlus, Trash2, Settings2, FileText, Loader2, Users, ShieldCheck, Download, Database, Upload, AlertTriangle } from 'lucide-react';
+import { saveDB } from '../db';
 
 interface AdminPanelProps {
   groups: Group[];
@@ -16,10 +17,11 @@ interface AdminPanelProps {
   onAddClient: (data: any) => void;
   onDeleteClient: (id: string) => void;
   onAddReport: (report: Report) => void;
+  transactions: Transaction[];
 }
 
-const AdminPanel: React.FC<AdminPanelProps> = ({ groups, clients, users, competences, reports, user, onAddGroup, onDeleteGroup, onAddClient, onDeleteClient, onAddReport }) => {
-  const [activeSubTab, setActiveSubTab] = React.useState<'partners' | 'clients' | 'reports'>('partners');
+const AdminPanel: React.FC<AdminPanelProps> = ({ groups, clients, users, competences, reports, user, onAddGroup, onDeleteGroup, onAddClient, onDeleteClient, onAddReport, transactions }) => {
+  const [activeSubTab, setActiveSubTab] = React.useState<'partners' | 'clients' | 'reports' | 'system'>('partners');
   const [showGroupModal, setShowGroupModal] = React.useState(false);
   const [showClientModal, setShowClientModal] = React.useState(false);
   const [isGenerating, setIsGenerating] = React.useState(false);
@@ -94,6 +96,43 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ groups, clients, users, compete
     doc.save(`CREDPLUS-${report.name.replace(/\//g, '-')}.pdf`);
   };
 
+  const handleExportData = () => {
+    const data = {
+      groups,
+      clients,
+      users,
+      competences,
+      reports,
+      transactions,
+      settings: {}
+    };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `credplus-backup-${new Date().toISOString().split('T')[0]}.json`;
+    a.click();
+  };
+
+  const handleImportData = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      try {
+        const data = JSON.parse(event.target?.result as string);
+        if (confirm('ATENÇÃO: Isso irá substituir todos os dados atuais (Sócios, Clientes, Histórico) permanentemente. Deseja continuar?')) {
+          await saveDB(data);
+          window.location.reload();
+        }
+      } catch (err) {
+        alert('Erro ao importar arquivo. Verifique se o formato é válido.');
+      }
+    };
+    reader.readAsText(file);
+  };
+
   return (
     <div className="space-y-10">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -107,9 +146,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ groups, clients, users, compete
       </div>
 
       <div className="flex flex-wrap bg-slate-100 p-1.5 rounded-2xl border border-slate-200 self-start w-fit">
-        {['partners', 'clients', 'reports'].map((tab: any) => (
+        {['partners', 'clients', 'reports', 'system'].map((tab: any) => (
           <button key={tab} onClick={() => setActiveSubTab(tab)} className={`px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeSubTab === tab ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-400'}`}>
-            {tab === 'partners' ? 'Sócios' : tab === 'clients' ? 'Clientes' : 'Relatórios'}
+            {tab === 'partners' ? 'Sócios' : tab === 'clients' ? 'Clientes' : tab === 'reports' ? 'Relatórios' : 'Sistema'}
           </button>
         ))}
       </div>
@@ -265,6 +304,73 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ groups, clients, users, compete
                 </div>
               ))
             )}
+          </div>
+        </section>
+      )}
+
+      {activeSubTab === 'system' && (
+        <section className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <div className="bg-white rounded-[2.5rem] border border-slate-200 p-10 shadow-sm border-b-8 border-slate-300">
+            <div className="flex items-center gap-4 mb-8">
+              <div className="w-12 h-12 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center">
+                <Database size={24} />
+              </div>
+              <div>
+                <h3 className="text-xl font-black tracking-tighter uppercase">Gerenciamento de Dados</h3>
+                <p className="text-slate-400 text-xs font-bold uppercase tracking-widest">Backup e Restauração do Sistema</p>
+              </div>
+            </div>
+
+            <div className="grid md:grid-cols-2 gap-8">
+              <div className="p-8 bg-slate-50 rounded-[2rem] border border-slate-100 space-y-4">
+                <h4 className="font-black text-slate-800 uppercase text-xs tracking-widest flex items-center gap-2">
+                  <Download size={16} className="text-emerald-600" /> Exportar Backup
+                </h4>
+                <p className="text-slate-500 text-xs font-medium leading-relaxed">
+                  Baixe uma cópia completa de todos os dados (Sócios, Clientes, Mensalidades e Transações) em formato JSON. Recomendado antes de grandes alterações.
+                </p>
+                <button 
+                  onClick={handleExportData}
+                  className="w-full py-4 bg-emerald-600 text-white rounded-2xl font-black uppercase text-xs tracking-widest shadow-lg shadow-emerald-100 border-b-4 border-emerald-800 hover:bg-emerald-700 transition-all"
+                >
+                  Baixar Arquivo .JSON
+                </button>
+              </div>
+
+              <div className="p-8 bg-slate-50 rounded-[2rem] border border-slate-100 space-y-4">
+                <h4 className="font-black text-slate-800 uppercase text-xs tracking-widest flex items-center gap-2">
+                  <Upload size={16} className="text-amber-600" /> Importar Backup
+                </h4>
+                <p className="text-slate-500 text-xs font-medium leading-relaxed">
+                  Restaure os dados a partir de um arquivo de backup. <span className="text-red-500 font-bold">Atenção: Isso substituirá todos os dados atuais permanentemente.</span>
+                </p>
+                <label className="block">
+                  <input 
+                    type="file" 
+                    accept=".json" 
+                    onChange={handleImportData}
+                    className="hidden" 
+                    id="import-upload"
+                  />
+                  <div 
+                    onClick={() => document.getElementById('import-upload')?.click()}
+                    className="w-full py-4 bg-slate-800 text-white rounded-2xl font-black uppercase text-xs tracking-widest shadow-lg shadow-slate-200 border-b-4 border-black hover:bg-black transition-all text-center cursor-pointer"
+                  >
+                    Selecionar e Restaurar
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            <div className="mt-12 p-6 bg-amber-50 border border-amber-100 rounded-3xl flex items-start gap-4">
+              <AlertTriangle className="text-amber-600 shrink-0" size={24} />
+              <div>
+                <p className="text-amber-800 font-black uppercase text-[10px] tracking-widest mb-1">Aviso de Segurança</p>
+                <p className="text-amber-700 text-xs font-medium leading-relaxed">
+                  Se você não configurou o Supabase, seus dados estão salvos apenas neste navegador. Use a exportação acima para garantir que não perca informações durante atualizações do sistema ou se trocar de computador.
+                </p>
+              </div>
+            </div>
           </div>
         </section>
       )}

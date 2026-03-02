@@ -107,6 +107,7 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ db, user, onAddClient, onAddT
         groupId: { type: Type.STRING, description: "ID do grupo/sócio responsável" },
         initialCapital: { type: Type.NUMBER, description: "Capital inicial investido" },
         dueDay: { type: Type.NUMBER, description: "Dia de vencimento mensal (1-31)" },
+        startDate: { type: Type.STRING, description: "Data de início do empréstimo (formato YYYY-MM-DD). Se não informado, use a data atual." },
         notes: { type: Type.STRING, description: "Observações adicionais (opcional)" }
       },
       required: ["name", "phone", "groupId", "initialCapital", "dueDay"]
@@ -354,7 +355,8 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ db, user, onAddClient, onAddT
           - Lista: 1. Nome, 2. Email, 3. Fone, 4. Taxa de Juros, 5. Senha.
 
           FLUXO DE CLIENTE:
-          - Lista: 1. Nome, 2. Fone, 3. Sócio, 4. Capital, 5. Vencimento.
+          - Lista: 1. Nome, 2. Fone, 3. Sócio, 4. Capital, 5. Vencimento, 6. Data de Início (opcional).
+          - DATA DE INÍCIO: Se o usuário disser que o empréstimo começou no passado (ex: "começou em janeiro"), use a data correspondente em 'startDate'. Isso é fundamental para que os juros atrasados sejam calculados corretamente.
           - VALIDAÇÃO DE SÓCIO: Antes de cadastrar um cliente, verifique se o 'Sócio' fornecido existe em 'socios_disponiveis'. 
             - Se o sócio NÃO existir ou o nome for ambíguo, NÃO chame a ferramenta. Em vez disso, diga: "Não encontrei o sócio [Nome]. Por favor, escolha um dos sócios cadastrados: [Lista de Sócios]".
             - Se houver apenas um sócio, você pode sugerir o uso dele.

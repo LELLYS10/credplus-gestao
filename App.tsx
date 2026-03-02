@@ -245,7 +245,7 @@ const App: React.FC = () => {
       case 'admin': 
         if (user.role !== UserRole.ADMIN) return <div className="p-10 text-center font-black uppercase text-red-500">Acesso Negado</div>;
         return <AdminPanel 
-          groups={db.groups} clients={db.clients} users={db.users} competences={db.competences} reports={db.reports} user={user} 
+          groups={db.groups} clients={db.clients} users={db.users} competences={db.competences} reports={db.reports} user={user} transactions={db.transactions}
           onAddGroup={d => {
             const newGroupId = `g-${Date.now()}`;
             const newGroup: Group = { id: newGroupId, name: toTitleCase(d.name), email: d.email, phone: d.phone, interestRate: d.interestRate };
@@ -296,15 +296,54 @@ const App: React.FC = () => {
         return <ClientDetail 
           client={client} group={db.groups.find((g: any) => g.id === client.groupId)} competences={db.competences} transactions={db.transactions} user={user} 
           onBack={() => setActiveTab('dashboard')} 
-          onRequestPayment={(i, a, d, obs) => {
-             const newReq: PaymentRequest = { id: `req-${Date.now()}`, clientId: client.id, groupId: client.groupId, interestValue: i, amortizationValue: a, discountValue: d, observation: obs, status: RequestStatus.PENDING, requesterId: user.id, createdAt: Date.now() };
+          onRequestPayment={(i, a, d, obs, date) => {
+             const newReq: PaymentRequest = { 
+               id: `req-${Date.now()}`, 
+               clientId: client.id, 
+               groupId: client.groupId, 
+               interestValue: i, 
+               amortizationValue: a, 
+               discountValue: d, 
+               observation: obs, 
+               status: RequestStatus.PENDING, 
+               requesterId: user.id, 
+               createdAt: date 
+             };
              setDb((prev: any) => ({ ...prev, requests: [...prev.requests, newReq] }));
           }} 
           onUpdateClient={(id, data) => {
             if (user.role !== UserRole.ADMIN) return;
             const updatedData = { ...data };
             if (updatedData.name) updatedData.name = toTitleCase(updatedData.name);
-            setDb((prev: any) => ({ ...prev, clients: prev.clients.map((c: any) => c.id === id ? { ...c, ...updatedData } : c) }));
+            setDb((prev: any) => {
+              const newState = { ...prev, clients: prev.clients.map((c: any) => c.id === id ? { ...c, ...updatedData } : c) };
+              return runCompetenceSync(newState);
+            });
+          }}
+          onUpdateCompetence={(id, data) => {
+            if (user.role !== UserRole.ADMIN) return;
+            setDb((prev: any) => {
+              const newState = { ...prev, competences: prev.competences.map((c: any) => c.id === id ? { ...c, ...data } : c) };
+              return runCompetenceSync(newState);
+            });
+          }}
+          onUpdateTransaction={(id, data) => {
+            if (user.role !== UserRole.ADMIN) return;
+            setDb((prev: any) => {
+              const updatedTransactions = prev.transactions.map((t: any) => t.id === id ? { ...t, ...data } : t);
+              // Recalculate capital if amount or type changed
+              const updatedClients = prev.clients.map((c: any) => {
+                const clientTrxs = updatedTransactions.filter((t: any) => t.clientId === c.id);
+                let newCap = c.initialCapital;
+                clientTrxs.forEach((t: any) => {
+                  if (t.type === 'INVESTMENT') newCap += t.amount;
+                  if (t.type === 'WITHDRAWAL' || t.type === 'AMORTIZATION') newCap -= t.amount;
+                });
+                return { ...c, currentCapital: Math.max(0, newCap) };
+              });
+              const newState = { ...prev, clients: updatedClients, transactions: updatedTransactions };
+              return runCompetenceSync(newState);
+            });
           }}
           onDeleteClient={id => {
             handleDeleteClient(id);
@@ -370,9 +409,10 @@ const App: React.FC = () => {
       <AIAssistant 
         db={db} 
         user={user} 
-        onAddClient={(data) => {
+        onAddClient={(data: any) => {
             const newClientId = `c-${Date.now()}`;
-            const newClient = { id: newClientId, ...data, status: 'ACTIVE' as const, createdAt: Date.now(), currentCapital: data.initialCapital };
+            const createdAt = data.startDate ? new Date(data.startDate).getTime() + 12 * 60 * 60 * 1000 : Date.now();
+            const newClient = { id: newClientId, ...data, status: 'ACTIVE' as const, createdAt, currentCapital: data.initialCapital };
             setDb((prev: any) => {
               const newState = { ...prev, clients: [...prev.clients, newClient] };
               return runCompetenceSync(newState);
@@ -389,7 +429,8 @@ const App: React.FC = () => {
                 }
                 return c;
               });
-              return { ...prev, clients: updatedClients, transactions: [...prev.transactions, { ...trx, id: `t-${Date.now()}`, createdAt: Date.now() }] };
+              const newState = { ...prev, clients: updatedClients, transactions: [...prev.transactions, { ...trx, id: `t-${Date.now()}`, createdAt: Date.now() }] };
+              return runCompetenceSync(newState);
             });
           }}
           onAddSocio={(data) => {
@@ -452,12 +493,13 @@ const App: React.FC = () => {
                 });
               }
   
-              return {
+              const newState = {
                 ...prev,
                 competences: updatedCompetences,
                 clients: updatedClients,
                 transactions: newTransactions
               };
+              return runCompetenceSync(newState);
             });
           }}
           onDeleteClient={handleDeleteClient}
