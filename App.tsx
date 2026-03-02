@@ -25,11 +25,17 @@ const App: React.FC = () => {
   const [authForm, setAuthForm] = useState({ email: '', password: '' });
 
   const runCompetenceSync = (currentDb: any) => {
-    const { newCompetences, changed } = generatePendingCompetences(currentDb);
-    if (changed) {
-      return { ...currentDb, competences: newCompetences };
+    try {
+      if (!currentDb || !currentDb.clients) return currentDb;
+      const { newCompetences, changed } = generatePendingCompetences(currentDb);
+      if (changed) {
+        return { ...currentDb, competences: newCompetences };
+      }
+      return currentDb;
+    } catch (err) {
+      console.error("Critical error in runCompetenceSync:", err);
+      return currentDb;
     }
-    return currentDb;
   };
 
   useEffect(() => {
@@ -247,19 +253,31 @@ const App: React.FC = () => {
         return <AdminPanel 
           groups={db.groups} clients={db.clients} users={db.users} competences={db.competences} reports={db.reports} user={user} transactions={db.transactions}
           onAddGroup={d => {
-            const newGroupId = `g-${Date.now()}`;
-            const newGroup: Group = { id: newGroupId, name: toTitleCase(d.name), email: d.email, phone: d.phone, interestRate: d.interestRate };
-            const newUser: User = { id: `u-${Date.now()}`, email: d.email, password: d.password, role: UserRole.VIEWER, groupId: newGroupId };
-            setDb((prev: any) => ({ ...prev, groups: [...prev.groups, newGroup], users: [...prev.users, newUser] }));
+            try {
+              const newGroupId = `g-${Date.now()}`;
+              const newGroup: Group = { id: newGroupId, name: toTitleCase(d.name), email: d.email, phone: d.phone, interestRate: d.interestRate };
+              const newUser: User = { id: `u-${Date.now()}`, email: d.email, password: d.password, role: UserRole.VIEWER, groupId: newGroupId };
+              setDb((prev: any) => ({ ...prev, groups: [...prev.groups, newGroup], users: [...prev.users, newUser] }));
+              alert("Sócio cadastrado com sucesso!");
+            } catch (err) {
+              console.error("Erro ao cadastrar sócio:", err);
+              alert("Erro ao cadastrar sócio.");
+            }
           }} 
           onDeleteGroup={handleDeleteGroup} 
           onAddClient={d => {
-            const newClientId = `c-${Date.now()}`;
-            const newClient = { id: newClientId, ...d, name: toTitleCase(d.name), status: 'ACTIVE' };
-            setDb((prev: any) => {
-              const newState = { ...prev, clients: [...prev.clients, newClient] };
-              return runCompetenceSync(newState);
-            });
+            try {
+              const newClientId = `c-${Date.now()}`;
+              const newClient = { id: newClientId, ...d, name: toTitleCase(d.name), status: 'ACTIVE' };
+              setDb((prev: any) => {
+                const newState = { ...prev, clients: [...prev.clients, newClient] };
+                return runCompetenceSync(newState);
+              });
+              alert("Cliente cadastrado com sucesso!");
+            } catch (err) {
+              console.error("Erro ao cadastrar cliente:", err);
+              alert("Erro ao cadastrar cliente. Verifique os dados.");
+            }
           }} 
           onDeleteClient={handleDeleteClient}
           onAddReport={r => setDb((prev: any) => {

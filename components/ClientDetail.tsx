@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Client, Competence, Group, User, UserRole, PaymentRequest, RequestStatus, Transaction, TransactionType } from '../types';
-import { formatCurrency, getMonthName, getEffectiveDueDay } from '../utils';
+import { formatCurrency, getMonthName, getEffectiveDueDay, getCompetenceStatus } from '../utils';
 import { ArrowLeft, Plus, History, Calendar, X, DollarSign, Send, Edit3, Trash2, ArrowUpRight, ArrowDownLeft, CheckCircle2, Settings2, Bot } from 'lucide-react';
 
 interface ClientDetailProps {
@@ -183,9 +183,10 @@ const ClientDetail: React.FC<ClientDetailProps> = ({ client, competences, transa
                     </thead>
                     <tbody className="divide-y divide-slate-50">
                       {sortedComps.map(comp => {
-                        const displayDate = comp.dueDate 
-                          ? new Date(comp.dueDate).toLocaleDateString('pt-BR')
-                          : `${getEffectiveDueDay(client.dueDay, comp.month, comp.year)}/${String(comp.month + 1).padStart(2, '0')}/${comp.year}`;
+                        const dueDay = getEffectiveDueDay(client.dueDay, comp.month, comp.year);
+                        const dueDateTimestamp = comp.dueDate || new Date(comp.year, comp.month, dueDay).getTime();
+                        const displayDate = new Date(dueDateTimestamp).toLocaleDateString('pt-BR');
+                        const status = getCompetenceStatus(dueDateTimestamp, comp.paidAmount, comp.originalValue);
                         
                         return (
                           <tr key={comp.id} className="hover:bg-slate-50 transition-colors">
@@ -194,9 +195,9 @@ const ClientDetail: React.FC<ClientDetailProps> = ({ client, competences, transa
                           <td className="py-5 px-6 text-slate-500 font-bold text-sm">{formatCurrency(comp.originalValue)}</td>
                           <td className="py-5 px-6 text-emerald-600 font-black text-sm">{formatCurrency(comp.paidAmount)}</td>
                           <td className="py-5 px-6 text-right">
-                            {(comp.originalValue - comp.paidAmount) < 0.01 
-                              ? <span className="bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border border-emerald-200">LIQUIDADO</span> 
-                              : <span className="bg-amber-50 text-amber-700 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border border-amber-200">PENDENTE</span>}
+                            <span className={`${status.color} px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border`}>
+                              {status.label}
+                            </span>
                           </td>
                           {isAdmin && (
                             <td className="py-5 px-6 text-right">
@@ -227,17 +228,18 @@ const ClientDetail: React.FC<ClientDetailProps> = ({ client, competences, transa
                 {/* Mobile Cards */}
                 <div className="md:hidden divide-y divide-slate-50">
                   {sortedComps.map(comp => {
-                    const displayDate = comp.dueDate 
-                      ? new Date(comp.dueDate).toLocaleDateString('pt-BR')
-                      : `${getEffectiveDueDay(client.dueDay, comp.month, comp.year)}/${String(comp.month + 1).padStart(2, '0')}/${comp.year}`;
+                    const dueDay = getEffectiveDueDay(client.dueDay, comp.month, comp.year);
+                    const dueDateTimestamp = comp.dueDate || new Date(comp.year, comp.month, dueDay).getTime();
+                    const displayDate = new Date(dueDateTimestamp).toLocaleDateString('pt-BR');
+                    const status = getCompetenceStatus(dueDateTimestamp, comp.paidAmount, comp.originalValue);
                     
                     return (
                       <div key={comp.id} className="p-4 space-y-3">
                         <div className="flex justify-between items-center">
                           <span className="font-black text-slate-800 text-sm">{displayDate}</span>
-                          {(comp.originalValue - comp.paidAmount) < 0.01 
-                            ? <span className="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest">LIQUIDADO</span> 
-                            : <span className="bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest">PENDENTE</span>}
+                          <span className={`${status.color} px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest border`}>
+                            {status.label}
+                          </span>
                         </div>
                         <div className="grid grid-cols-2 gap-2 bg-slate-50 p-3 rounded-xl">
                           <div>

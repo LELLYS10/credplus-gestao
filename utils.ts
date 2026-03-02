@@ -44,3 +44,24 @@ export const toTitleCase = (str: string): string => {
     .map(word => word.charAt(0).toUpperCase() + word.slice(1))
     .join(' ');
 };
+
+export const getCompetenceStatus = (dueDate: number, paidAmount: number, originalValue: number) => {
+  if (paidAmount >= originalValue - 0.01) {
+    return { label: 'LIQUIDADO', color: 'bg-emerald-100 text-emerald-700 border-emerald-200' };
+  }
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  
+  const due = new Date(dueDate);
+  due.setHours(0, 0, 0, 0);
+
+  const diffTime = due.getTime() - today.getTime();
+  const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+
+  if (diffDays < 0) return { label: 'ATRASADO', color: 'bg-red-100 text-red-700 border-red-200' };
+  if (diffDays === 0) return { label: 'VENCE HOJE', color: 'bg-amber-100 text-amber-700 border-amber-200' };
+  if (diffDays === 1) return { label: 'VENCE AMANHÃ', color: 'bg-blue-100 text-blue-700 border-blue-200' };
+  
+  return { label: 'MÊS À FRENTE', color: 'bg-slate-100 text-slate-700 border-slate-200' };
+};

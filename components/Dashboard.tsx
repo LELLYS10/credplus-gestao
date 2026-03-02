@@ -56,8 +56,11 @@ const Dashboard: React.FC<DashboardProps> = ({ user, clients, competences, group
       let addedToTomorrow = false;
 
       pendingComps.forEach(comp => {
-        const dDay = getEffectiveDueDay(client.dueDay, comp.month, comp.year);
-        const dDate = new Date(comp.year, comp.month, dDay);
+        const dDate = comp.dueDate 
+          ? new Date(comp.dueDate) 
+          : new Date(comp.year, comp.month, getEffectiveDueDay(client.dueDay, comp.month, comp.year));
+        
+        dDate.setHours(0, 0, 0, 0);
         const clientWithDate = { ...client, nextDate: dDate };
 
         const dTime = dDate.getTime();
@@ -102,8 +105,11 @@ const Dashboard: React.FC<DashboardProps> = ({ user, clients, competences, group
       .filter(comp => {
         const client = filteredClients.find(c => c.id === comp.clientId);
         if (!client) return false;
-        const dDay = getEffectiveDueDay(client.dueDay, comp.month, comp.year);
-        const dDate = new Date(comp.year, comp.month, dDay);
+        const dDate = comp.dueDate 
+          ? new Date(comp.dueDate) 
+          : new Date(comp.year, comp.month, getEffectiveDueDay(client.dueDay, comp.month, comp.year));
+        
+        dDate.setHours(0, 0, 0, 0);
         // Ajuste de precisão: garante que qualquer data anterior a hoje (00:00) seja considerada atrasada
         return dDate.getTime() < todayDate.getTime() && (comp.originalValue - comp.paidAmount) > 0.01;
       })
@@ -113,8 +119,12 @@ const Dashboard: React.FC<DashboardProps> = ({ user, clients, competences, group
       .filter(comp => {
         const client = filteredClients.find(c => c.id === comp.clientId);
         if (!client) return false;
-        const dueDay = getEffectiveDueDay(client.dueDay, comp.month, comp.year);
-        return comp.year === todayYear && comp.month === todayMonth && dueDay === todayDay && (comp.originalValue - comp.paidAmount) > 0.01;
+        const dDate = comp.dueDate 
+          ? new Date(comp.dueDate) 
+          : new Date(comp.year, comp.month, getEffectiveDueDay(client.dueDay, comp.month, comp.year));
+        
+        dDate.setHours(0, 0, 0, 0);
+        return dDate.getTime() === todayDate.getTime() && (comp.originalValue - comp.paidAmount) > 0.01;
       })
       .reduce((acc, comp) => acc + (comp.originalValue - comp.paidAmount), 0);
 
@@ -125,13 +135,16 @@ const Dashboard: React.FC<DashboardProps> = ({ user, clients, competences, group
       })
       .reduce((acc, comp) => acc + comp.paidAmount, 0);
 
-    const tomorrow = new Date(todayYear, todayMonth, todayDay + 1);
     const dueTomorrowInterest = competences
       .filter(comp => {
         const client = filteredClients.find(c => c.id === comp.clientId);
         if (!client) return false;
-        const dueDay = getEffectiveDueDay(client.dueDay, comp.month, comp.year);
-        return comp.year === tomorrow.getFullYear() && comp.month === tomorrow.getMonth() && dueDay === tomorrow.getDate() && (comp.originalValue - comp.paidAmount) > 0.01;
+        const dDate = comp.dueDate 
+          ? new Date(comp.dueDate) 
+          : new Date(comp.year, comp.month, getEffectiveDueDay(client.dueDay, comp.month, comp.year));
+        
+        dDate.setHours(0, 0, 0, 0);
+        return dDate.getTime() === tomorrowDate.getTime() && (comp.originalValue - comp.paidAmount) > 0.01;
       })
       .reduce((acc, comp) => acc + (comp.originalValue - comp.paidAmount), 0);
 

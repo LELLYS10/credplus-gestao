@@ -12,27 +12,33 @@ export const generatePendingCompetences = (db: any) => {
   const currentYear = now.getFullYear();
 
   clients.forEach((client: Client) => {
-    if (client.status !== 'ACTIVE') return;
+    if (!client || client.status !== 'ACTIVE') return;
 
     const group = groups.find((g: Group) => g.id === client.groupId);
     const rate = group ? group.interestRate : 0;
-    const expectedInterest = Math.max(0, client.currentCapital * (rate / 100));
+    const currentCap = client.currentCapital || 0;
+    const expectedInterest = Math.max(0, currentCap * (rate / 100));
 
     // Get all competences for this client, sorted by date
     let clientComps = newCompetences
       .filter(c => c.clientId === client.id)
-      .sort((a, b) => (a.year !== b.year ? a.year - b.year : a.month - b.month));
+      .sort((a, b) => {
+        if (a.year !== b.year) return a.year - b.year;
+        return a.month - b.month;
+      });
 
     if (clientComps.length === 0) {
       // Only create first competence if there is capital
-      if (client.currentCapital > 0) {
+      if (currentCap > 0) {
         const start = new Date(client.createdAt);
+        if (isNaN(start.getTime())) return; // Safety check
+
         let m = start.getMonth();
         let y = start.getFullYear();
         
         // Se o empréstimo começou NO dia ou DEPOIS do dia de vencimento deste mês,
         // a primeira competência deve ser a do mês seguinte.
-        const dueDayInStartMonth = getEffectiveDueDay(client.dueDay, m, y);
+        const dueDayInStartMonth = getEffectiveDueDay(client.dueDay || 1, m, y);
         if (start.getDate() >= dueDayInStartMonth) {
           m++;
           if (m > 11) {
@@ -50,7 +56,7 @@ export const generatePendingCompetences = (db: any) => {
             year: y,
             originalValue: expectedInterest,
             paidAmount: 0,
-            capitalAtTime: client.currentCapital,
+            capitalAtTime: currentCap,
             lastUpdated: Date.now()
           });
           changed = true;
@@ -65,14 +71,14 @@ export const generatePendingCompetences = (db: any) => {
       
       // 1. Update the latest one if it's not paid
       if (latest.paidAmount === 0) {
-        const actualExpected = client.currentCapital <= 0 ? 0 : expectedInterest;
-        if (Math.abs(latest.originalValue - actualExpected) > 0.01 || Math.abs((latest.capitalAtTime || 0) - client.currentCapital) > 0.01) {
+        const actualExpected = currentCap <= 0 ? 0 : expectedInterest;
+        if (Math.abs(latest.originalValue - actualExpected) > 0.01 || Math.abs((latest.capitalAtTime || 0) - currentCap) > 0.01) {
           const idx = newCompetences.findIndex(c => c.id === latest.id);
           if (idx !== -1) {
             newCompetences[idx] = { 
               ...latest, 
               originalValue: actualExpected, 
-              capitalAtTime: client.currentCapital, 
+              capitalAtTime: currentCap, 
               lastUpdated: Date.now() 
             };
             latest = newCompetences[idx];
@@ -83,8 +89,7 @@ export const generatePendingCompetences = (db: any) => {
 
       // 2. Generate next ones
       // We only generate the next competence if the current one is fully paid.
-      // This prevents multiple unpaid competences from cluttering the view.
-      while (client.currentCapital > 0) {
+      while (currentCap > 0) {
         const isPaid = latest.paidAmount >= latest.originalValue - 0.01;
         
         if (!isPaid) {
@@ -115,7 +120,7 @@ export const generatePendingCompetences = (db: any) => {
             year: nextYear,
             originalValue: expectedInterest,
             paidAmount: 0,
-            capitalAtTime: client.currentCapital,
+            capitalAtTime: currentCap,
             lastUpdated: Date.now()
           };
           newCompetences.push(nextComp);
@@ -124,7 +129,6 @@ export const generatePendingCompetences = (db: any) => {
         } else {
           latest = existing;
           // If the one we just found/generated is unpaid, we stop here.
-          // We only need one pending future competence.
           if (latest.paidAmount < latest.originalValue - 0.01) {
             break;
           }

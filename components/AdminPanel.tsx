@@ -29,6 +29,36 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ groups, clients, users, compete
   const [groupFormData, setGroupFormData] = React.useState({ name: '', email: '', phone: '', interestRate: 6, password: '' });
   const [clientFormData, setClientFormData] = React.useState({ name: '', phone: '', groupId: '', initialCapital: 0, dueDay: 1, startDate: new Date().toISOString().split('T')[0] });
 
+  const handleClientSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!clientFormData.groupId) {
+      alert("Por favor, selecione um sócio.");
+      return;
+    }
+    
+    try {
+      const createdAt = new Date(clientFormData.startDate).getTime() + 12 * 60 * 60 * 1000;
+      onAddClient({ 
+        ...clientFormData, 
+        currentCapital: clientFormData.initialCapital, 
+        createdAt 
+      });
+      setShowClientModal(false);
+      // Reset form
+      setClientFormData({ 
+        name: '', 
+        phone: '', 
+        groupId: '', 
+        initialCapital: 0, 
+        dueDay: 1, 
+        startDate: new Date().toISOString().split('T')[0] 
+      });
+    } catch (err) {
+      console.error("Erro ao processar formulário:", err);
+      alert("Erro ao processar dados do cliente.");
+    }
+  };
+
   const handleGenerateReport = async () => {
     if (!confirm('Deseja realizar o fechamento mensal agora? Isso irá gerar um novo relatório com os saldos atuais.')) return;
     setIsGenerating(true);
@@ -402,7 +432,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ groups, clients, users, compete
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-emerald-900/40 backdrop-blur-md p-4">
            <div className="bg-white p-10 rounded-[3rem] w-full max-w-md shadow-2xl animate-in zoom-in">
               <h3 className="text-2xl font-black text-slate-800 uppercase mb-6 flex items-center gap-2"><Users /> Novo Cliente</h3>
-              <form onSubmit={e=>{e.preventDefault(); onAddClient({ ...clientFormData, currentCapital: clientFormData.initialCapital, createdAt: new Date(clientFormData.startDate).getTime() + 12 * 60 * 60 * 1000 }); setShowClientModal(false);}} className="space-y-4">
+              <form onSubmit={handleClientSubmit} className="space-y-4">
                  <input required placeholder="Nome Completo" className="w-full p-4 bg-slate-50 rounded-2xl border font-bold" value={clientFormData.name} onChange={e=>setClientFormData({...clientFormData, name: e.target.value})} />
                  <input required placeholder="WhatsApp" className="w-full p-4 bg-slate-50 rounded-2xl border font-bold" value={clientFormData.phone} onChange={e=>setClientFormData({...clientFormData, phone: e.target.value})} />
                  <select required className="w-full p-4 bg-slate-50 rounded-2xl border font-bold" value={clientFormData.groupId} onChange={e=>setClientFormData({...clientFormData, groupId: e.target.value})}>

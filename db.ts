@@ -48,7 +48,13 @@ const initialState: DBState = {
 export const loadDB = async (): Promise<DBState> => {
   if (!supabase) {
     const data = localStorage.getItem(STORAGE_KEY);
-    return data ? JSON.parse(data) : initialState;
+    if (!data) return initialState;
+    try {
+      return JSON.parse(data);
+    } catch (e) {
+      console.error("Erro ao ler dados do localStorage:", e);
+      return initialState;
+    }
   }
 
   try {
@@ -93,7 +99,13 @@ export const loadDB = async (): Promise<DBState> => {
 };
 
 export const saveDB = async (state: DBState) => {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  } catch (e) {
+    console.error("Erro ao salvar no localStorage:", e);
+    alert("O armazenamento local está cheio ou desabilitado. Seus dados podem não ser salvos.");
+  }
+  
   if (!supabase) return;
 
   try {
