@@ -258,196 +258,112 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ db, user, onAddClient, onAddT
     setMessages(prev => [...prev, { role: 'user', text: userMessage }]);
     setIsLoading(true);
 
-    try {
-      // Tenta pegar a chave de ambos os lugares para garantir funcionamento no celular/Vercel
-      const apiKey = process.env.GEMINI_API_KEY || (import.meta.env.VITE_GEMINI_API_KEY as string);
-      
-      if (!apiKey) {
-        throw new Error("A chave de API não foi configurada. No Vercel, adicione a variável VITE_GEMINI_API_KEY.");
+    const maxRetries = 2;
+    let retryCount = 0;
+
+    const callAI = async (): Promise<any> => {
+      try {
+        const apiKey = process.env.GEMINI_API_KEY || (import.meta.env.VITE_GEMINI_API_KEY as string);
+        if (!apiKey) throw new Error("A chave de API não foi configurada.");
+
+        const ai = new GoogleGenAI({ apiKey });
+        
+        const now = new Date();
+        const todayDay = now.getDate();
+        const todayMonth = now.getMonth();
+        const todayYear = now.getFullYear();
+        const todayDate = new Date(todayYear, todayMonth, todayDay);
+        const tomorrowDate = new Date(todayYear, todayMonth, todayDay + 1);
+        const tomorrowDay = tomorrowDate.getDate();
+        const dateStr = now.toLocaleDateString('pt-BR');
+
+        const clientStatus: Record<string, { vencido: number; hoje: number; futuro: number }> = {};
+        const userGroupId = user.role === UserRole.VIEWER 
+          ? (user.groupId || db.groups.find(g => g.email === user.email)?.id)
+          : null;
+
+        db.competences.forEach(cp => {
+          if ((cp.originalValue - cp.paidAmount) > 0.01) {
+            const client = db.clients.find(c => c.id === cp.clientId);
+            if (!client || (userGroupId && client.groupId !== userGroupId)) return;
+            
+            const dueDay = getEffectiveDueDay(client.dueDay, cp.month, cp.year);
+            const dueDate = new Date(cp.year, cp.month, dueDay);
+            const pending = cp.originalValue - cp.paidAmount;
+            
+            if (!clientStatus[cp.clientId]) clientStatus[cp.clientId] = { vencido: 0, hoje: 0, futuro: 0 };
+            
+            if (dueDate < todayDate) clientStatus[cp.clientId].vencido += pending;
+            else if (dueDate.getTime() === todayDate.getTime()) clientStatus[cp.clientId].hoje += pending;
+            else clientStatus[cp.clientId].futuro += pending;
+          }
+        });
+
+        const statsContext = {
+          capital_total: db.clients.filter(c => !userGroupId || c.groupId === userGroupId).reduce((acc: number, c: any) => acc + c.currentCapital, 0),
+          juros_vencidos_total: Object.values(clientStatus).reduce((acc, s) => acc + s.vencido, 0),
+          juros_hoje_total: Object.values(clientStatus).reduce((acc, s) => acc + s.hoje, 0),
+          juros_futuro_total: Object.values(clientStatus).reduce((acc, s) => acc + s.futuro, 0)
+        };
+
+        const context = {
+          stats: statsContext,
+          total_clientes: db.clients.filter(c => !userGroupId || c.groupId === userGroupId).length,
+          socios_disponiveis: user.role === UserRole.ADMIN ? db.groups.map(g => ({ id: g.id, nome: g.name })) : [],
+          clientes: db.clients
+            .filter(c => !userGroupId || c.groupId === userGroupId)
+            .slice(0, 150)
+            .map(c => ({ 
+              id: c.id, nome: c.name, capital_atual: c.currentCapital, 
+              juros_vencidos: clientStatus[c.id]?.vencido || 0,
+              juros_hoje: clientStatus[c.id]?.hoje || 0,
+              juros_futuro: clientStatus[c.id]?.futuro || 0,
+              vencimento_dia: c.dueDay,
+              data_vencimento_atual: c.firstDueDate ? new Date(c.firstDueDate).toLocaleDateString('pt-BR') : null,
+              grupo: db.groups.find(g => g.id === c.groupId)?.name
+            }))
+        };
+
+        return await ai.models.generateContent({
+          model: "gemini-3-flash-preview",
+          contents: [
+            { role: 'model', parts: [{ text: "Olá! Sou o assistente CredPlus. Como posso ajudar?" }] },
+            ...messages.slice(-10).map(m => ({ role: m.role, parts: [{ text: m.text }] })),
+            { role: 'user', parts: [{ text: `Contexto: ${JSON.stringify(context)}. Entrada: ${userMessage}` }] }
+          ],
+          config: {
+            thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
+            systemInstruction: `Você é o assistente ultra-eficiente da CredPlus. 
+            USUÁRIO ATUAL: ${user.email} (Função: ${user.role}).
+            DATA ATUAL: ${dateStr} (Hoje é dia ${todayDay}).
+            ADMINISTRADORES PRINCIPAIS: 1. Lellis Flávio (credplusemp@gmail.com), 2. Michael Douglas (michaeldsandes@gmail.com).
+            SAUDAÇÃO: Identifique o usuário pelo e-mail e use o nome se for um dos ADMs acima.
+            REGRAS: 
+            - PRIVACIDADE: Só veja clientes do seu grupo.
+            - EXCLUSÃO: Só ADMIN pode excluir. Peça confirmação.
+            - PAGAMENTOS: ADMIN usa 'registerPayment', Sócio usa 'requestPayment'.
+            - CONSULTA: Liste vencidos, hoje ou amanhã conforme solicitado.
+            - CADASTRO: Colete dados necessários para Sócios e Clientes.
+            - EDIÇÃO: Altere campos específicos conforme solicitado.
+            - Seja CURTO e DIRETO.` ,
+            tools: [{ functionDeclarations: [registerSocioTool, registerClientTool, registerTransactionTool, registerPaymentTool, requestPaymentTool, deleteClientTool, deleteGroupTool, updateClientTool, updateSocioTool] }]
+          }
+        });
+      } catch (error: any) {
+        const errorStr = typeof error === 'string' ? error : (error.message || JSON.stringify(error));
+        const is503 = errorStr.includes("503") || errorStr.includes("high demand") || errorStr.includes("UNAVAILABLE");
+        
+        if (is503 && retryCount < maxRetries) {
+          retryCount++;
+          await new Promise(resolve => setTimeout(resolve, retryCount * 2000));
+          return callAI();
+        }
+        throw error;
       }
+    };
 
-      const ai = new GoogleGenAI({ apiKey });
-      
-      // Otimização de performance: Pré-calcula juros pendentes para evitar loops aninhados pesados
-      const pendingByClient = db.competences.reduce((acc: Record<string, number>, cp) => {
-        if (cp.paidAmount < cp.originalValue) {
-          acc[cp.clientId] = (acc[cp.clientId] || 0) + (cp.originalValue - cp.paidAmount);
-        }
-        return acc;
-      }, {});
-
-      const now = new Date();
-      const todayDay = now.getDate();
-      const todayMonth = now.getMonth();
-      const todayYear = now.getFullYear();
-      const todayDate = new Date(todayYear, todayMonth, todayDay);
-      const tomorrowDate = new Date(todayYear, todayMonth, todayDay + 1);
-      const tomorrowDay = tomorrowDate.getDate();
-      const dateStr = now.toLocaleDateString('pt-BR');
-
-      // Otimização de performance: Separa juros por status (vencido, hoje, futuro)
-      const clientStatus: Record<string, { vencido: number; hoje: number; futuro: number }> = {};
-      
-      // FILTRO PRIVACIDADE: Identifica o grupo do usuário se for sócio
-      const userGroupId = user.role === UserRole.VIEWER 
-        ? (user.groupId || db.groups.find(g => g.email === user.email)?.id)
-        : null;
-
-      db.competences.forEach(cp => {
-        // Usa threshold de 0.01 para evitar problemas de precisão
-        if ((cp.originalValue - cp.paidAmount) > 0.01) {
-          const client = db.clients.find(c => c.id === cp.clientId);
-          if (!client) return;
-          
-          // Se for sócio, ignora competências de clientes que não são dele
-          if (userGroupId && client.groupId !== userGroupId) return;
-          
-          const dueDay = getEffectiveDueDay(client.dueDay, cp.month, cp.year);
-          const dueDate = new Date(cp.year, cp.month, dueDay);
-          const pending = cp.originalValue - cp.paidAmount;
-          
-          if (!clientStatus[cp.clientId]) {
-            clientStatus[cp.clientId] = { vencido: 0, hoje: 0, futuro: 0 };
-          }
-          
-          if (dueDate < todayDate) {
-            clientStatus[cp.clientId].vencido += pending;
-          } else if (dueDate.getTime() === todayDate.getTime()) {
-            clientStatus[cp.clientId].hoje += pending;
-          } else {
-            clientStatus[cp.clientId].futuro += pending;
-          }
-        }
-      });
-
-      // Calcula totais para o contexto do agente
-      const statsContext = {
-        capital_total: db.clients
-          .filter(c => !userGroupId || c.groupId === userGroupId)
-          .reduce((acc: number, c: any) => acc + c.currentCapital, 0),
-        juros_vencidos_total: Object.values(clientStatus).reduce((acc, s) => acc + s.vencido, 0),
-        juros_hoje_total: Object.values(clientStatus).reduce((acc, s) => acc + s.hoje, 0),
-        juros_futuro_total: Object.values(clientStatus).reduce((acc, s) => acc + s.futuro, 0)
-      };
-
-      // Otimização de contexto para Mobile: Limita dados se houver muitos clientes
-      const context = {
-        stats: statsContext,
-        total_clientes: db.clients.filter(c => !userGroupId || c.groupId === userGroupId).length,
-        socios_disponiveis: user.role === UserRole.ADMIN ? db.groups.map(g => ({ id: g.id, nome: g.name })) : [],
-        clientes: db.clients
-          .filter(c => !userGroupId || c.groupId === userGroupId)
-          .slice(0, 150)
-          .map(c => ({ 
-            id: c.id,
-            nome: c.name, 
-            capital_atual: c.currentCapital, 
-            juros_vencidos: clientStatus[c.id]?.vencido || 0,
-            juros_hoje: clientStatus[c.id]?.hoje || 0,
-            juros_futuro: clientStatus[c.id]?.futuro || 0,
-            vencimento_dia: c.dueDay,
-            data_vencimento_atual: c.firstDueDate ? new Date(c.firstDueDate).toLocaleDateString('pt-BR') : null,
-            grupo: db.groups.find(g => g.id === c.groupId)?.name
-          }))
-      };
-
-      const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: [
-          { role: 'model', parts: [{ text: "Olá! Sou o assistente CredPlus. Como posso ajudar?" }] },
-          ...messages.slice(-10).map(m => ({ role: m.role, parts: [{ text: m.text }] })), // Apenas as últimas 10 mensagens para economizar tokens
-          { role: 'user', parts: [{ text: `Contexto: ${JSON.stringify(context)}. Entrada: ${userMessage}` }] }
-        ],
-        config: {
-          thinkingConfig: { thinkingLevel: ThinkingLevel.LOW }, // Força resposta rápida
-          systemInstruction: `Você é o assistente ultra-eficiente da CredPlus. 
-          USUÁRIO ATUAL: ${user.email} (Função: ${user.role}).
-          DATA ATUAL: ${dateStr} (Hoje é dia ${todayDay}).
-          
-          ADMINISTRADORES PRINCIPAIS (INREMOVÍVEIS):
-          1. credplusemp@gmail.com -> Nome: Lellis Flávio (ADM 1)
-          2. michaeldsandes@gmail.com -> Nome: Michael Douglas (ADM 2)
-          
-          SAUDAÇÃO:
-          - Sempre identifique o usuário pelo e-mail e, se for um dos administradores acima, use o nome dele para cumprimentá-lo (ex: "Olá, Lellis Flávio!" ou "Olá, Michael Douglas!").
-          
-          REGRAS DE PERMISSÃO:
-          - PRIVACIDADE: Você só tem acesso aos dados do grupo/sócio do usuário atual. Se o usuário for um 'VIEWER' (Sócio), ele só verá seus próprios clientes.
-          - EXCLUSÃO: Apenas se a função for 'ADMIN'. Se o usuário pedir para excluir e for 'VIEWER', diga educadamente que não tem permissão para isso.
-          - PAGAMENTOS: 
-            - Se for 'ADMIN', use 'registerPayment' para dar baixa imediata.
-            - Se for 'VIEWER' (Sócio), use 'requestPayment' (Solicitar Pagamento) para que o administrador confirme depois. Explique isso ao usuário.
-          
-          REGRAS CRÍTICAS:
-          1. MEMÓRIA: Se o usuário já disse um dado, NUNCA peça novamente.
-          2. FORMATO DE LISTA: Responda APENAS com a lista do que falta.
-          3. EXCLUSÃO: 
-            - Quando o usuário pedir para excluir (ex: "excluir cliente João"), você DEVE perguntar: "Confirma excluir [Nome] e todos os dados?".
-            - Chame a ferramenta 'deleteClient' ou 'deleteGroup' APENAS APÓS a confirmação explícita do usuário.
-          
-          FLUXO DE CONSULTA (Vencimentos):
-          - Gatilhos: "quem vence hoje", "quem vence amanhã", "vencidos", "atrasados".
-          - REGRAS DE FILTRAGEM (MUITO IMPORTANTE):
-            1. **Vencidos/Atrasados**: Liste APENAS clientes onde 'juros_vencidos' > 0.
-            2. **Hoje**: Liste APENAS clientes onde 'juros_hoje' > 0.
-            3. **Amanhã/Futuro**: Se o usuário pedir amanhã, procure em 'clientes' aqueles que vencem no dia ${tomorrowDay} E tenham 'juros_futuro' > 0.
-          - Se não houver ninguém que obedeça à regra solicitada, responda: "Nenhum registro encontrado para esta categoria."
-          - Formato de resposta (um por linha):
-            "• [Nome] | Cap: R$ [Capital] | Juros: R$ [Juros] | Sócio: [Sócio]"
-
-          FLUXO DE PAGAMENTO/BAIXA (Gatilho: "pagamento", "dar baixa", "pagou"):
-          - Lista: 1. Valor dos Juros, 2. Amortizar Capital, 3. Descrição (opcional).
-          - Se o usuário disser "Pagamento de Valdomiro", veja no contexto quanto ele deve de juros e capital e confirme:
-            "Ok! Para Valdomiro (Dívida: R$ [capital], Juros: R$ [juros]), informe:
-            1. Valor dos Juros:
-            2. Amortizar Capital:
-            3. Descrição:"
-
-          FLUXO DE SÓCIO:
-          - Lista: 1. Nome, 2. Email, 3. Fone, 4. Taxa de Juros, 5. Senha.
-
-          FLUXO DE CLIENTE (SIMPLIFICADO):
-          - Solicite apenas: 1. Nome, 2. Telefone, 3. Sócio, 4. Capital Inicial, 5. Data do Empréstimo, 6. Data do Vencimento.
-          - REGRAS DE DATAS: 
-            - Aceite datas antigas. Não calcule datas automaticamente nem sugira "30 dias". Apenas registre o que o usuário informar.
-            - Você DEVE SEMPRE coletar a "Data do Empréstimo" e a "Data do Primeiro Vencimento".
-            - Valide o formato (dd/mm/aa ou dd/mm/aaaa) e confirme as duas datas com o usuário antes de salvar.
-            - Converta para YYYY-MM-DD ao chamar a ferramenta.
-            - Se o usuário informar apenas dia/mês (ex: "15/03") para um cliente que já existe, use AUTOMATICAMENTE o ano que já está salvo no campo 'data_vencimento_atual' do contexto.
-          - VALIDAÇÃO DE SÓCIO: Antes de cadastrar um cliente, verifique se o 'Sócio' fornecido existe em 'socios_disponiveis'. 
-            - Se o sócio NÃO existir ou o nome for ambíguo, NÃO chame a ferramenta. Em vez disso, diga: "Não encontrei o sócio [Nome]. Por favor, escolha um dos sócios cadastrados: [Lista de Sócios]".
-            - Se houver apenas um sócio, você pode sugerir o uso dele.
-
-          FLUXO DE EDIÇÃO (Gatilho: "muda", "altera", "coloca"):
-          - Você pode alterar: Telefone, Capital, Sócio, Data de Vencimento (para Clientes) e Nome, Email, Telefone, Taxa (para Sócios).
-          - MODIFICAÇÃO ESPECÍFICA: Altere APENAS o campo que o usuário pediu. Se ele disse "muda o fone", não mexa em mais nada.
-          - EDIÇÃO DE DATA INTELIGENTE:
-            - Se o usuário disser "muda o vencimento do João para 15/03", veja o ano em 'data_vencimento_atual' (ex: 2026) e use-o (ficando 15/03/2026).
-            - Converta a data final para timestamp (milissegundos) para o campo 'firstDueDate'.
-          - Sempre confirme os novos dados com o usuário antes de chamar 'updateClient' ou 'updateSocio'.
-
-          FLUXO DE NOVO EMPRÉSTIMO (Gatilho: "novo empréstimo", "quer mais dinheiro", "pegou mais"):
-          - Quando um cliente já cadastrado pedir mais dinheiro, você DEVE perguntar:
-            "Deseja somar este valor ao empréstimo atual (Amortização/Investimento) ou criar um novo registro de cliente separado para este valor?"
-          - Se ele quiser SOMAR: Use 'registerTransaction' com tipo 'INVESTMENT' para o cliente existente.
-          - Se ele quiser NOVO: Siga o FLUXO DE CLIENTE (SIMPLIFICADO) para criar um novo registro.
-
-          FLUXO DE CONSULTA:
-          - Se o usuário pedir um dado específico (ex: "fone do João", "capital da Maria", "email do sócio X"), responda APENAS com o dado solicitado de forma direta e nada mais.
-
-          PADRONIZAÇÃO DE NOMES:
-          - Sempre formate nomes de pessoas e sócios com a primeira letra de cada palavra em maiúscula (Ex: "joão silva" -> "João Silva").
-
-          REGRAS GERAIS:
-          - Seja CURTO e DIRETO.
-          - Use a ferramenta 'registerPayment' para pagamentos de juros/capital.
-          - Use a ferramenta 'registerTransaction' APENAS para Investimentos ou Retiradas puras.
-          - Use a ferramenta 'deleteClient' ou 'deleteGroup' se o usuário ADMIN pedir para excluir.
-          - Identifique o Cliente pelo nome fornecido no contexto.`,
-          tools: [{ functionDeclarations: [registerSocioTool, registerClientTool, registerTransactionTool, registerPaymentTool, requestPaymentTool, deleteClientTool, deleteGroupTool, updateClientTool, updateSocioTool] }]
-        }
-      });
-
+    try {
+      const response = await callAI();
       const functionCalls = response.functionCalls;
       if (functionCalls && functionCalls.length > 0) {
         for (const call of functionCalls) {
@@ -455,17 +371,14 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ db, user, onAddClient, onAddT
             const args = call.args as any;
             onAddSocio({ ...args, name: toTitleCase(args.name) });
             setMessages(prev => [...prev, { role: 'model', text: `✅ Sócio **${toTitleCase(args.name)}** cadastrado com sucesso!` }]);
-          }
-          if (call.name === "registerClient") {
+          } else if (call.name === "registerClient") {
             const args = call.args as any;
             onAddClient({ ...args, name: toTitleCase(args.name) });
             setMessages(prev => [...prev, { role: 'model', text: `✅ Cliente **${toTitleCase(args.name)}** registrado com sucesso!` }]);
-          }
-          if (call.name === "registerTransaction") {
+          } else if (call.name === "registerTransaction") {
             onAddTransaction(call.args as any);
             setMessages(prev => [...prev, { role: 'model', text: `✅ Lançamento registrado com sucesso!` }]);
-          }
-          if (call.name === "registerPayment") {
+          } else if (call.name === "registerPayment") {
             const args = call.args as any;
             if (user.role === UserRole.ADMIN) {
               onAddPayment(args);
@@ -474,77 +387,55 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ db, user, onAddClient, onAddT
               setMessages(prev => [...prev, { role: 'model', text: `✅ Pagamento de **${client?.name}** processado!\n- Juros pagos: R$ ${args.interestAmount}\n- Amortização: R$ ${args.amortizationAmount}\n- **Novo Capital: R$ ${newCap}**` }]);
             } else {
               onRequestPayment(args.clientId, args.interestAmount, args.amortizationAmount, 0, args.description || 'Solicitado via Agente');
-              setMessages(prev => [...prev, { role: 'model', text: `⏳ Solicitação de pagamento enviada para o Administrador confirmar. Aguarde a aprovação.` }]);
+              setMessages(prev => [...prev, { role: 'model', text: `⏳ Solicitação de pagamento enviada para o Administrador confirmar.` }]);
             }
-          }
-          if (call.name === "requestPayment") {
+          } else if (call.name === "requestPayment") {
             const args = call.args as any;
             onRequestPayment(args.clientId, args.interestAmount, args.amortizationAmount, args.discountAmount || 0, args.observation || 'Solicitado via Agente');
-            setMessages(prev => [...prev, { role: 'model', text: `⏳ Solicitação de pagamento enviada para o Administrador confirmar. Aguarde a aprovação.` }]);
-          }
-          if (call.name === "deleteClient") {
+            setMessages(prev => [...prev, { role: 'model', text: `⏳ Solicitação de pagamento enviada para o Administrador confirmar.` }]);
+          } else if (call.name === "deleteClient") {
             const args = call.args as any;
             if (user.role === 'ADMIN') {
               const client = db.clients.find(c => c.id === args.clientId);
               if (client) {
                 await (onDeleteClient as any)(args.clientId);
-                setMessages(prev => [...prev, { role: 'model', text: `🗑️ Cliente **${client.name}** excluído permanentemente.` }]);
-              } else {
-                setMessages(prev => [...prev, { role: 'model', text: `⚠️ Cliente não encontrado para exclusão.` }]);
+                setMessages(prev => [...prev, { role: 'model', text: `🗑️ Cliente **${client.name}** excluído.` }]);
               }
-            } else {
-              setMessages(prev => [...prev, { role: 'model', text: `❌ Você não tem permissão para excluir clientes.` }]);
             }
-          }
-          if (call.name === "deleteGroup") {
+          } else if (call.name === "deleteGroup") {
             const args = call.args as any;
             if (user.role === 'ADMIN') {
               const group = db.groups.find(g => g.id === args.groupId);
               if (group) {
-                const success = await (onDeleteGroup as any)(args.groupId);
-                if (success) {
-                  setMessages(prev => [...prev, { role: 'model', text: `🗑️ Sócio **${group.name}** e todos os seus dados foram excluídos.` }]);
-                } else {
-                  setMessages(prev => [...prev, { role: 'model', text: `⚠️ A exclusão do sócio **${group.name}** foi cancelada ou falhou (verifique se há clientes vinculados ou se é um admin protegido).` }]);
-                }
-              } else {
-                setMessages(prev => [...prev, { role: 'model', text: `⚠️ Sócio não encontrado para exclusão.` }]);
+                await (onDeleteGroup as any)(args.groupId);
+                setMessages(prev => [...prev, { role: 'model', text: `🗑️ Sócio **${group.name}** excluído.` }]);
               }
-            } else {
-              setMessages(prev => [...prev, { role: 'model', text: `❌ Você não tem permissão para excluir sócios.` }]);
             }
-          }
-          if (call.name === "updateClient") {
+          } else if (call.name === "updateClient") {
             const args = call.args as any;
             onUpdateClient(args.clientId, args.updates);
-            const client = db.clients.find(c => c.id === args.clientId);
-            setMessages(prev => [...prev, { role: 'model', text: `✅ Dados do cliente **${client?.name}** atualizados com sucesso!` }]);
-          }
-          if (call.name === "updateSocio") {
+            setMessages(prev => [...prev, { role: 'model', text: `✅ Dados do cliente atualizados!` }]);
+          } else if (call.name === "updateSocio") {
             const args = call.args as any;
             onUpdateSocio(args.groupId, args.updates);
-            const group = db.groups.find(g => g.id === args.groupId);
-            setMessages(prev => [...prev, { role: 'model', text: `✅ Dados do sócio **${group?.name}** atualizados com sucesso!` }]);
+            setMessages(prev => [...prev, { role: 'model', text: `✅ Dados do sócio atualizados!` }]);
           }
         }
       } else {
         const aiResponse = response.text;
-        if (aiResponse) {
-          setMessages(prev => [...prev, { role: 'model', text: aiResponse }]);
-        } else {
-          setMessages(prev => [...prev, { role: 'model', text: "⚠️ O assistente não conseguiu gerar uma resposta. Isso pode ocorrer devido a filtros de segurança ou instabilidade na conexão." }]);
-        }
+        setMessages(prev => [...prev, { role: 'model', text: aiResponse || "⚠️ O assistente não conseguiu gerar uma resposta." }]);
       }
     } catch (error: any) {
       console.error("AI Error:", error);
-      let errorMsg = "Erro desconhecido";
+      const errorStr = typeof error === 'string' ? error : (error.message || JSON.stringify(error));
+      let errorMsg = "Erro ao processar sua solicitação.";
       
-      if (error.message?.includes("fetch")) {
+      if (errorStr.includes("503") || errorStr.includes("high demand") || errorStr.includes("UNAVAILABLE")) {
+        errorMsg = "O serviço de IA está com alta demanda no momento. Por favor, tente novamente em alguns segundos.";
+      } else if (errorStr.includes("fetch")) {
         errorMsg = "Falha de conexão. Verifique sua internet.";
-      } else if (error.message?.includes("API key")) {
-        errorMsg = "Chave de API inválida ou não configurada.";
-      } else {
-        errorMsg = error.message || "Erro ao processar sua solicitação.";
+      } else if (errorStr.includes("API key")) {
+        errorMsg = "Configuração de API pendente.";
       }
 
       setMessages(prev => [...prev, { role: 'model', text: `❌ **Falha no Agente:** ${errorMsg}` }]);
