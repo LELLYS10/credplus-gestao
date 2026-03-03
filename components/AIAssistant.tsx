@@ -306,6 +306,11 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ db, user, onAddClient, onAddT
           juros_futuro_total: Object.values(clientStatus).reduce((acc, s) => acc + s.futuro, 0)
         };
 
+        const groupMap = db.groups.reduce((acc: Record<string, string>, g) => {
+          acc[g.id] = g.name;
+          return acc;
+        }, {});
+
         const context = {
           stats: statsContext,
           total_clientes: db.clients.filter(c => !userGroupId || c.groupId === userGroupId).length,
@@ -320,11 +325,11 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ db, user, onAddClient, onAddT
               juros_futuro: clientStatus[c.id]?.futuro || 0,
               vencimento_dia: c.dueDay,
               data_vencimento_atual: c.firstDueDate ? new Date(c.firstDueDate).toLocaleDateString('pt-BR') : null,
-              grupo: db.groups.find(g => g.id === c.groupId)?.name
+              grupo: groupMap[c.groupId] || ''
             }))
         };
 
-        return await ai.models.generateContent({
+        return await ai.models.generateContentStream({
           model: "gemini-3-flash-preview",
           contents: [
             { role: 'model', parts: [{ text: "Olá! Sou o assistente CredPlus. Como posso ajudar?" }] },
@@ -363,9 +368,41 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ db, user, onAddClient, onAddT
     };
 
     try {
-      const response = await callAI();
-      const functionCalls = response.functionCalls;
-      if (functionCalls && functionCalls.length > 0) {
+      const result = await callAI();
+      
+      let fullText = '';
+      let functionCalls: any[] = [];
+      let isFirstChunk = true;
+
+      for await (const chunk of result) {
+        if (isFirstChunk) {
+          setMessages(prev => [...prev, { role: 'model', text: '' }]);
+          isFirstChunk = false;
+        }
+
+        if (chunk.text) {
+          fullText += chunk.text;
+          setMessages(prev => {
+            const newMessages = [...prev];
+            newMessages[newMessages.length - 1].text = fullText;
+            return newMessages;
+          });
+        }
+        
+        if (chunk.candidates?.[0]?.content?.parts) {
+          const calls = chunk.candidates[0].content.parts.filter((p: any) => p.functionCall);
+          if (calls.length > 0) {
+            functionCalls = [...functionCalls, ...calls.map((p: any) => p.functionCall)];
+          }
+        }
+      }
+
+      if (functionCalls.length > 0) {
+        // Se houve chamada de função, removemos a mensagem vazia (se houver) e processamos
+        if (fullText.trim() === '') {
+          setMessages(prev => prev.slice(0, -1));
+        }
+        
         for (const call of functionCalls) {
           if (call.name === "registerSocio") {
             const args = call.args as any;
@@ -422,8 +459,10 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ db, user, onAddClient, onAddT
           }
         }
       } else {
-        const aiResponse = response.text;
-        setMessages(prev => [...prev, { role: 'model', text: aiResponse || "⚠️ O assistente não conseguiu gerar uma resposta." }]);
+        // Se não houve chamada de função, o texto já foi atualizado via streaming
+        if (fullText.trim() === '') {
+          setMessages(prev => [...prev, { role: 'model', text: "⚠️ O assistente não conseguiu gerar uma resposta." }]);
+        }
       }
     } catch (error: any) {
       console.error("AI Error:", error);
