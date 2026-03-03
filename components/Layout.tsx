@@ -113,7 +113,7 @@ const Layout: React.FC<LayoutProps> = ({ user, onLogout, children, activeTab, se
       )}
 
       {/* Main Content */}
-      <main className="flex-1 lg:ml-0 px-4 pt-20 pb-10 lg:pt-8 lg:px-10 max-w-7xl mx-auto w-full">
+      <main className="flex-1 lg:ml-0 px-4 pt-20 pb-10 lg:pt-8 lg:px-10 max-w-[1440px] mx-auto w-full overflow-x-hidden">
         {children}
       </main>
     </div>

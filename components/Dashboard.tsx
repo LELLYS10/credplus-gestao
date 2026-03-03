@@ -13,9 +13,10 @@ interface DashboardProps {
   onViewClient: (clientId: string) => void;
   onSyncCloud?: () => Promise<void>;
   pendingRequests?: PaymentRequest[];
+  onViewRequests?: () => void;
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ user, clients, competences, groups, settings, onViewClient, onSyncCloud, pendingRequests = [] }) => {
+const Dashboard: React.FC<DashboardProps> = ({ user, clients, competences, groups, settings, onViewClient, onSyncCloud, pendingRequests = [], onViewRequests }) => {
   const [showOverdueModal, setShowOverdueModal] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const { day: todayDay, month: todayMonth, year: todayYear } = getToday();
@@ -156,7 +157,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, clients, competences, group
   const StatCard = ({ title, value, icon: Icon, colorClass, highlight, highlightColor = 'red', dark, onClick }: any) => (
     <div 
       onClick={onClick}
-      className={`p-4 md:p-5 rounded-2xl border transition-all duration-300 shadow-sm flex items-center gap-3 cursor-pointer group ${
+      className={`p-4 md:p-5 rounded-2xl border transition-all duration-300 shadow-sm flex items-center gap-3 cursor-pointer group w-full min-w-0 overflow-hidden ${
         dark 
         ? 'bg-slate-900 border-slate-800 shadow-xl shadow-slate-900/20' 
         : 'bg-white border-slate-100 hover:border-emerald-200 hover:shadow-lg hover:shadow-emerald-500/5'
@@ -169,9 +170,9 @@ const Dashboard: React.FC<DashboardProps> = ({ user, clients, competences, group
       <div className={`p-2.5 md:p-3 rounded-xl shrink-0 transition-transform group-hover:scale-110 ${colorClass}`}>
         <Icon size={18} className="md:w-5 md:h-5 lg:w-6 lg:h-6" />
       </div>
-      <div className="min-w-0 flex-1">
-        <p className={`text-[9px] md:text-[10px] lg:text-xs font-black uppercase tracking-widest mb-0.5 truncate ${dark ? 'text-slate-500' : 'text-slate-400'}`}>{title}</p>
-        <p className={`text-base md:text-lg lg:text-xl xl:text-2xl font-black tracking-tight truncate ${highlight ? (highlightColor === 'blue' ? 'text-blue-600' : 'text-red-600') : (dark ? 'text-white' : 'text-slate-900')}`}>
+      <div className="min-w-0 flex-1 flex flex-row items-center justify-between gap-2 flex-wrap overflow-hidden">
+        <p className={`text-[9px] md:text-[10px] lg:text-xs font-black uppercase tracking-widest leading-tight ${dark ? 'text-slate-500' : 'text-slate-400'}`}>{title}</p>
+        <p className={`text-sm sm:text-base md:text-lg lg:text-xl xl:text-2xl font-black tracking-tight whitespace-nowrap ${highlight ? (highlightColor === 'blue' ? 'text-blue-600' : 'text-red-600') : (dark ? 'text-white' : 'text-slate-900')}`}>
           {formatCurrency(value)}
         </p>
       </div>
@@ -186,15 +187,15 @@ const Dashboard: React.FC<DashboardProps> = ({ user, clients, competences, group
     return (
       <div 
         key={client.id} 
-        className="flex items-center justify-between p-4 bg-white rounded-2xl border border-slate-100 hover:border-emerald-200 hover:shadow-md transition-all cursor-pointer group" 
+        className="flex items-center justify-between p-4 bg-white rounded-2xl border border-slate-100 hover:border-emerald-200 hover:shadow-md transition-all cursor-pointer group w-full min-w-0 overflow-hidden" 
         onClick={() => onViewClient(client.id)}
       >
         <div className="min-w-0 flex-1 mr-2">
-          <h4 className="font-black text-slate-800 group-hover:text-emerald-700 transition-colors truncate text-sm">{client.name}</h4>
-          <p className="text-[9px] text-slate-400 font-black uppercase tracking-widest">{client.nextDate.toLocaleDateString('pt-BR')}</p>
+          <h4 className="font-black text-slate-800 group-hover:text-emerald-700 transition-colors text-sm leading-tight">{client.name}</h4>
+          <p className="text-[9px] text-slate-400 font-black uppercase tracking-widest mt-0.5">{client.nextDate.toLocaleDateString('pt-BR')}</p>
         </div>
         <div className="text-right shrink-0">
-          <p className={`font-black text-sm ${colorClass}`}>{formatCurrency(pendingValue)}</p>
+          <p className={`font-black text-sm whitespace-nowrap ${colorClass}`}>{formatCurrency(pendingValue)}</p>
           <div className="flex justify-end mt-0.5">
             <ChevronRight size={12} className="text-slate-300 group-hover:text-emerald-500 transition-colors" />
           </div>
@@ -239,7 +240,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, clients, competences, group
             </button>
           </div>
         )}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3 md:gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 md:gap-4">
           <StatCard title="Capital Emprestado" value={stats.totalCapital} icon={TrendingUp} colorClass="bg-emerald-500/20 text-emerald-400" dark />
           <StatCard 
             title="Juros Atrasados" 
@@ -300,12 +301,28 @@ const Dashboard: React.FC<DashboardProps> = ({ user, clients, competences, group
       )}
 
       {user.role === UserRole.ADMIN && activePendingRequests.length > 0 && (
-        <div className="bg-emerald-700 rounded-[2.5rem] p-8 text-white flex flex-col md:flex-row items-center justify-between gap-6 shadow-xl border-b-8 border-emerald-900">
+        <div 
+          onClick={onViewRequests}
+          className="bg-amber-400 rounded-[2.5rem] p-8 text-amber-950 flex flex-col md:flex-row items-center justify-between gap-6 shadow-2xl border-b-8 border-amber-600 cursor-pointer hover:scale-[1.01] transition-all animate-bounce-subtle"
+        >
           <div className="flex items-center gap-6">
-            <div className="w-16 h-16 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center border border-white/30"><DollarSign size={32} className="text-amber-400" /></div>
-            <div><h3 className="text-2xl font-black tracking-tighter uppercase">Conferência Pendente</h3><p className="text-emerald-100 mt-1 font-medium">Aguardando sua baixa.</p></div>
+            <div className="w-16 h-16 bg-white/40 backdrop-blur-md rounded-2xl flex items-center justify-center border border-white/50 shadow-inner">
+              <AlertTriangle size={32} className="text-amber-900" />
+            </div>
+            <div>
+              <h3 className="text-2xl font-black tracking-tighter uppercase leading-none">Atenção: Pagamentos Pendentes</h3>
+              <p className="text-amber-900/70 mt-1 font-bold uppercase text-[10px] tracking-widest">Existem sinalizações de sócios aguardando sua conferência</p>
+            </div>
           </div>
-          <div className="bg-amber-400 rounded-2xl px-8 py-4 border-b-4 border-amber-600 flex items-center gap-3"><span className="font-black text-3xl text-emerald-950">{activePendingRequests.length}</span><span className="text-[10px] uppercase font-black tracking-widest text-emerald-900 leading-tight">Solicitações</span></div>
+          <div className="flex items-center gap-4">
+            <div className="bg-white/50 rounded-2xl px-8 py-4 border-b-4 border-white/30 flex items-center gap-3">
+              <span className="font-black text-4xl text-amber-950">{activePendingRequests.length}</span>
+              <span className="text-[10px] uppercase font-black tracking-widest text-amber-900 leading-tight">Solicitações<br/>para Validar</span>
+            </div>
+            <div className="w-12 h-12 bg-amber-950 text-white rounded-full flex items-center justify-center shadow-lg">
+              <ArrowRight size={24} />
+            </div>
+          </div>
         </div>
       )}
 

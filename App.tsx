@@ -256,6 +256,7 @@ const App: React.FC = () => {
         settings={db.settings} 
         onViewClient={id => {setSelectedClientId(id); setActiveTab('client-detail');}} 
         pendingRequests={db.requests} 
+        onViewRequests={() => setActiveTab('requests')}
         onSyncCloud={async () => {
           await saveDB(db);
           const freshData = await loadDB();
@@ -270,10 +271,23 @@ const App: React.FC = () => {
           groups={db.groups} clients={db.clients} users={db.users} competences={db.competences} reports={db.reports} user={user} transactions={db.transactions}
           onAddGroup={d => {
             try {
+              // Verificar se o e-mail já existe
+              const emailExists = db.users.some((u: any) => u.email.toLowerCase() === d.email.toLowerCase());
+              if (emailExists) {
+                alert("Este e-mail já está cadastrado em outro usuário ou sócio.");
+                return;
+              }
+
               const newGroupId = `g-${Date.now()}`;
               const newGroup: Group = { id: newGroupId, name: toTitleCase(d.name), email: d.email, phone: d.phone, interestRate: d.interestRate };
               const newUser: User = { id: `u-${Date.now()}`, email: d.email, password: d.password, role: UserRole.VIEWER, groupId: newGroupId };
-              setDb((prev: any) => ({ ...prev, groups: [...prev.groups, newGroup], users: [...prev.users, newUser] }));
+              
+              setDb((prev: any) => ({ 
+                ...prev, 
+                groups: [...prev.groups, newGroup], 
+                users: [...prev.users, newUser] 
+              }));
+              
               alert("Sócio cadastrado com sucesso!");
             } catch (err) {
               console.error("Erro ao cadastrar sócio:", err);

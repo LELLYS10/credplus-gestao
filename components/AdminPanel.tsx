@@ -223,7 +223,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ groups, clients, users, compete
                   <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{g.email}</p>
                   <div className="flex items-center gap-1 bg-slate-50 px-2 py-0.5 rounded border border-slate-100">
                     <ShieldCheck size={10} className="text-emerald-500" />
-                    <span className="text-[9px] font-black text-slate-600 tracking-widest">SENHA: {users.find(u => u.groupId === g.id)?.password || '****'}</span>
+                    <span className="text-[9px] font-black text-slate-600 tracking-widest">
+                      SENHA: {users.find(u => u.groupId === g.id || u.email === g.email)?.password || '****'}
+                    </span>
                   </div>
                 </div>
                 <div className="pt-4 border-t border-slate-50 flex items-center justify-between mt-4">
