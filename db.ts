@@ -42,7 +42,10 @@ const initialState: DBState = {
   requests: [],
   reports: [],
   transactions: [],
-  settings: {}
+  settings: {},
+  thirdPartyClients: [],
+  thirdPartyLoans: [],
+  thirdPartyPayments: []
 };
 
 export const loadDB = async (): Promise<DBState> => {
@@ -65,7 +68,10 @@ export const loadDB = async (): Promise<DBState> => {
       { data: competences, error: cpErr },
       { data: requests, error: rErr },
       { data: reports, error: rpErr },
-      { data: transactions, error: tErr }
+      { data: transactions, error: tErr },
+      { data: tpClients },
+      { data: tpLoans },
+      { data: tpPayments }
     ] = await Promise.all([
       supabase.from('users').select('*'),
       supabase.from('groups').select('*'),
@@ -73,7 +79,10 @@ export const loadDB = async (): Promise<DBState> => {
       supabase.from('competences').select('*'),
       supabase.from('requests').select('*'),
       supabase.from('reports').select('*'),
-      supabase.from('transactions').select('*')
+      supabase.from('transactions').select('*'),
+      supabase.from('third_party_clients').select('*'),
+      supabase.from('third_party_loans').select('*'),
+      supabase.from('third_party_payments').select('*')
     ]);
 
     if (uErr) console.error("Erro na tabela users:", uErr);
@@ -89,7 +98,10 @@ export const loadDB = async (): Promise<DBState> => {
       requests: requests || [],
       reports: reports || [],
       transactions: transactions || [],
-      settings: {}
+      settings: {},
+      thirdPartyClients: tpClients || [],
+      thirdPartyLoans: tpLoans || [],
+      thirdPartyPayments: tpPayments || []
     };
   } catch (error) {
     console.error("Erro crítico ao carregar do Supabase:", error);
@@ -117,6 +129,9 @@ export const saveDB = async (state: DBState) => {
       state.requests.length > 0 ? supabase.from('requests').upsert(state.requests) : Promise.resolve(),
       state.reports.length > 0 ? supabase.from('reports').upsert(state.reports) : Promise.resolve(),
       state.transactions.length > 0 ? supabase.from('transactions').upsert(state.transactions) : Promise.resolve(),
+      (state.thirdPartyClients && state.thirdPartyClients.length > 0) ? supabase.from('third_party_clients').upsert(state.thirdPartyClients) : Promise.resolve(),
+      (state.thirdPartyLoans && state.thirdPartyLoans.length > 0) ? supabase.from('third_party_loans').upsert(state.thirdPartyLoans) : Promise.resolve(),
+      (state.thirdPartyPayments && state.thirdPartyPayments.length > 0) ? supabase.from('third_party_payments').upsert(state.thirdPartyPayments) : Promise.resolve(),
     ]);
   } catch (error) {
     console.error("Erro ao sincronizar:", error);

@@ -94,6 +94,38 @@ export interface AppSettings {
   [key: string]: any;
 }
 
+export interface ThirdPartyClient {
+  id: string;
+  userId: string;
+  nome: string;
+  telefone: string;
+  observacoes: string;
+  createdAt: number;
+}
+
+export interface ThirdPartyLoan {
+  id: string;
+  userId: string;
+  clientId: string;
+  valorPrincipal: number;
+  porcentagemJurosMensal: number;
+  dataEmprestimo: string;
+  diaPagamentoJuros: number;
+  status: 'ativo' | 'encerrado';
+  createdAt: number;
+}
+
+export interface ThirdPartyPayment {
+  id: string;
+  userId: string;
+  loanId: string;
+  dataPagamento: string;
+  valor: number;
+  tipo: 'juros' | 'amortizacao';
+  observacao: string;
+  createdAt: number;
+}
+
 export interface DBState {
   users: User[];
   groups: Group[];
@@ -103,4 +135,7 @@ export interface DBState {
   reports: Report[];
   transactions: Transaction[];
   settings: AppSettings;
+  thirdPartyClients?: ThirdPartyClient[];
+  thirdPartyLoans?: ThirdPartyLoan[];
+  thirdPartyPayments?: ThirdPartyPayment[];
 }

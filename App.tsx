@@ -9,6 +9,7 @@ import ClientDetail from './components/ClientDetail';
 import RequestsList from './components/RequestsList';
 import AdminPanel from './components/AdminPanel';
 import ClientsList from './components/ClientsList';
+import ThirdPartyModule from './components/ThirdPartyModule';
 import AIAssistant from './components/AIAssistant';
 import Logo from './components/Logo';
 import { ChevronRight, RefreshCw, X } from 'lucide-react';
@@ -74,7 +75,10 @@ const App: React.FC = () => {
         if (savedUser) {
           try {
             const parsedUser = JSON.parse(savedUser);
-            const validUser = dbWithAdmins.users.find((u: any) => u.email === parsedUser.email && u.password === parsedUser.password);
+            const validUser = dbWithAdmins.users.find((u: any) => 
+              u.email.toLowerCase() === parsedUser.email.toLowerCase() && 
+              u.password === parsedUser.password
+            );
             if (validUser) setUser(validUser);
           } catch (e) { localStorage.removeItem(SESSION_KEY); }
         }
@@ -264,6 +268,7 @@ const App: React.FC = () => {
         }}
       />;
       case 'clients': return <ClientsList user={user} clients={db.clients} groups={db.groups} onViewClient={id => {setSelectedClientId(id); setActiveTab('client-detail');}} />;
+      case 'third-party': return <ThirdPartyModule user={user} db={db} setDb={setDb} />;
       case 'requests': return <RequestsList user={user} requests={db.requests} clients={db.clients} groups={db.groups} onAction={handleProcessRequest} />;
       case 'admin': 
         if (user.role !== UserRole.ADMIN) return <div className="p-10 text-center font-black uppercase text-red-500">Acesso Negado</div>;
@@ -436,7 +441,10 @@ const App: React.FC = () => {
         <h1 className="text-2xl font-black text-center mb-8 uppercase tracking-tighter">CREDPLUS - GESTÃO FINANCEIRA</h1>
         <form onSubmit={e => {
           e.preventDefault();
-          const found = db.users.find((u: any) => u.email === authForm.email && u.password === authForm.password);
+          const found = db.users.find((u: any) => 
+            u.email.toLowerCase() === authForm.email.toLowerCase() && 
+            u.password === authForm.password
+          );
           if (found) { setUser(found); localStorage.setItem(SESSION_KEY, JSON.stringify(found)); }
           else { alert('Credenciais inválidas.'); }
         }} className="space-y-6">

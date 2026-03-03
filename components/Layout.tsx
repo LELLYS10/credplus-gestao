@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { User, UserRole } from '../types';
-import { LogOut, Home, Users, CheckSquare, Settings, Menu, X } from 'lucide-react';
+import { LogOut, Home, Users, CheckSquare, Settings, Menu, X, Briefcase } from 'lucide-react';
 import Logo from './Logo';
 
 interface LayoutProps {
@@ -22,6 +22,7 @@ const Layout: React.FC<LayoutProps> = ({ user, onLogout, children, activeTab, se
     { id: 'dashboard', label: 'Dashboard', icon: Home, roles: [UserRole.ADMIN, UserRole.VIEWER] },
     { id: 'clients', label: 'Clientes', icon: Users, roles: [UserRole.ADMIN, UserRole.VIEWER] },
     { id: 'requests', label: 'Solicitações', icon: CheckSquare, roles: [UserRole.ADMIN, UserRole.VIEWER], badge: pendingCount },
+    { id: 'third-party', label: 'Terceiros', icon: Briefcase, roles: [UserRole.ADMIN, UserRole.VIEWER] },
     { id: 'admin', label: 'Administração', icon: Settings, roles: [UserRole.ADMIN] },
   ].filter(item => item.roles.includes(user.role));
 
