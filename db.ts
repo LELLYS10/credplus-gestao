@@ -84,24 +84,30 @@ export const loadDB = async (): Promise<DBState> => {
     if (cErr) console.error("Erro na tabela clients:", cErr);
     if (tErr) console.error("Erro na tabela transactions:", tErr);
 
-    // Mesclar dados do Supabase com dados locais para preservar campos extras (como thirdPartyBlocked)
+    // Mesclar dados do Supabase com dados locais para preservar campos extras
     // que podem não existir nas colunas do Supabase ainda.
     const mergedUsers = (users || []).map(u => {
       const localUser = localState.users.find(lu => lu.id === u.id);
       
       // Tenta pegar o valor tanto em camelCase quanto snake_case (comum no Supabase)
-      const supabaseValue = u.thirdPartyBlocked !== undefined ? u.thirdPartyBlocked : u.third_party_blocked;
+      // O Supabase retorna o que está no banco. Se a coluna for third_party_blocked, virá nela.
+      const supabaseValue = u.third_party_blocked !== undefined ? u.third_party_blocked : u.thirdPartyBlocked;
       
-      if (!localUser) return { ...u, thirdPartyBlocked: supabaseValue };
-
-      return { 
-        ...localUser, 
+      const userWithMappedFields = {
+        ...(localUser || {}),
         ...u,
-        // Preserva o valor local se o do Supabase for nulo/indefinido (coluna pode não existir no DB)
+        // Prioridade: valor do Supabase (se não for nulo), senão valor local
         thirdPartyBlocked: (supabaseValue !== null && supabaseValue !== undefined) 
           ? supabaseValue 
-          : localUser.thirdPartyBlocked 
+          : (localUser ? localUser.thirdPartyBlocked : false)
       };
+
+      // Limpeza: remove campos snake_case para manter o objeto limpo no App
+      if ((userWithMappedFields as any).third_party_blocked !== undefined) {
+        delete (userWithMappedFields as any).third_party_blocked;
+      }
+
+      return userWithMappedFields;
     });
 
     // Adicionar usuários que existem localmente mas não no Supabase (ex: admins recém criados)
@@ -113,16 +119,16 @@ export const loadDB = async (): Promise<DBState> => {
 
     return {
       users: mergedUsers.length > 0 ? mergedUsers : initialState.users,
-      groups: groups || localState.groups,
-      clients: clients || localState.clients,
-      competences: competences || localState.competences,
-      requests: requests || localState.requests,
-      reports: reports || localState.reports,
-      transactions: transactions || localState.transactions,
+      groups: groups !== null ? groups : localState.groups,
+      clients: clients !== null ? clients : localState.clients,
+      competences: competences !== null ? competences : localState.competences,
+      requests: requests !== null ? requests : localState.requests,
+      reports: reports !== null ? reports : localState.reports,
+      transactions: transactions !== null ? transactions : localState.transactions,
       settings: localState.settings || {},
-      thirdPartyClients: tpClients || localState.thirdPartyClients || [],
-      thirdPartyLoans: tpLoans || localState.thirdPartyLoans || [],
-      thirdPartyPayments: tpPayments || localState.thirdPartyPayments || []
+      thirdPartyClients: tpClients !== null ? tpClients : (localState.thirdPartyClients || []),
+      thirdPartyLoans: tpLoans !== null ? tpLoans : (localState.thirdPartyLoans || []),
+      thirdPartyPayments: tpPayments !== null ? tpPayments : (localState.thirdPartyPayments || [])
     };
   } catch (error) {
     console.error("Erro crítico ao carregar do Supabase:", error);
@@ -135,32 +141,44 @@ export const saveDB = async (state: DBState) => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   } catch (e) {
     console.error("Erro ao salvar no localStorage:", e);
-    alert("O armazenamento local está cheio ou desabilitado. Seus dados podem não ser salvos.");
   }
   
   if (!supabase) return;
 
   try {
-    // Preparar dados para o Supabase, incluindo mapeamento para snake_case se necessário
-    const usersToSave = state.users.map(u => ({
-      ...u,
-      third_party_blocked: u.thirdPartyBlocked // Mapeia para snake_case para compatibilidade com DB
-    }));
+    // Preparar dados para o Supabase
+    // Removemos o campo camelCase 'thirdPartyBlocked' antes de enviar para evitar erro de "coluna não existe"
+    // e garantimos que o valor vá para 'third_party_blocked'
+    const usersToSave = state.users.map(u => {
+      const { thirdPartyBlocked, ...rest } = u;
+      return {
+        ...rest,
+        third_party_blocked: thirdPartyBlocked === undefined ? false : thirdPartyBlocked
+      };
+    });
 
-    await Promise.all([
-      usersToSave.length > 0 ? supabase.from('users').upsert(usersToSave) : Promise.resolve(),
-      state.groups.length > 0 ? supabase.from('groups').upsert(state.groups) : Promise.resolve(),
-      state.clients.length > 0 ? supabase.from('clients').upsert(state.clients) : Promise.resolve(),
-      state.competences.length > 0 ? supabase.from('competences').upsert(state.competences) : Promise.resolve(),
-      state.requests.length > 0 ? supabase.from('requests').upsert(state.requests) : Promise.resolve(),
-      state.reports.length > 0 ? supabase.from('reports').upsert(state.reports) : Promise.resolve(),
-      state.transactions.length > 0 ? supabase.from('transactions').upsert(state.transactions) : Promise.resolve(),
-      (state.thirdPartyClients && state.thirdPartyClients.length > 0) ? supabase.from('third_party_clients').upsert(state.thirdPartyClients) : Promise.resolve(),
-      (state.thirdPartyLoans && state.thirdPartyLoans.length > 0) ? supabase.from('third_party_loans').upsert(state.thirdPartyLoans) : Promise.resolve(),
-      (state.thirdPartyPayments && state.thirdPartyPayments.length > 0) ? supabase.from('third_party_payments').upsert(state.thirdPartyPayments) : Promise.resolve(),
+    const results = await Promise.all([
+      usersToSave.length > 0 ? supabase.from('users').upsert(usersToSave) : Promise.resolve({ error: null }),
+      state.groups.length > 0 ? supabase.from('groups').upsert(state.groups) : Promise.resolve({ error: null }),
+      state.clients.length > 0 ? supabase.from('clients').upsert(state.clients) : Promise.resolve({ error: null }),
+      state.competences.length > 0 ? supabase.from('competences').upsert(state.competences) : Promise.resolve({ error: null }),
+      state.requests.length > 0 ? supabase.from('requests').upsert(state.requests) : Promise.resolve({ error: null }),
+      state.reports.length > 0 ? supabase.from('reports').upsert(state.reports) : Promise.resolve({ error: null }),
+      state.transactions.length > 0 ? supabase.from('transactions').upsert(state.transactions) : Promise.resolve({ error: null }),
+      (state.thirdPartyClients && state.thirdPartyClients.length > 0) ? supabase.from('third_party_clients').upsert(state.thirdPartyClients) : Promise.resolve({ error: null }),
+      (state.thirdPartyLoans && state.thirdPartyLoans.length > 0) ? supabase.from('third_party_loans').upsert(state.thirdPartyLoans) : Promise.resolve({ error: null }),
+      (state.thirdPartyPayments && state.thirdPartyPayments.length > 0) ? supabase.from('third_party_payments').upsert(state.thirdPartyPayments) : Promise.resolve({ error: null }),
     ]);
+
+    // Verificar se houve erro em algum upsert
+    results.forEach((res, index) => {
+      if (res && (res as any).error) {
+        console.error(`Erro ao sincronizar tabela ${index}:`, (res as any).error);
+      }
+    });
+
   } catch (error) {
-    console.error("Erro ao sincronizar:", error);
+    console.error("Erro ao sincronizar com Supabase:", error);
   }
 };
 
