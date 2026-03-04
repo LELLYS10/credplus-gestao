@@ -108,6 +108,13 @@ const App: React.FC = () => {
 
   useEffect(() => { if (db) saveDB(db); }, [db]);
 
+  // Redirecionar ADMIN se ele tentar acessar a aba de Terceiros
+  useEffect(() => {
+    if (user?.role === UserRole.ADMIN && activeTab === 'third-party') {
+      setActiveTab('dashboard');
+    }
+  }, [user, activeTab]);
+
   const handleProcessRequest = (requestId: string, action: RequestStatus) => {
     if (user?.role !== UserRole.ADMIN || !db) return;
     setDb((prev: any) => {
@@ -268,7 +275,9 @@ const App: React.FC = () => {
         }}
       />;
       case 'clients': return <ClientsList user={user} clients={db.clients} groups={db.groups} onViewClient={id => {setSelectedClientId(id); setActiveTab('client-detail');}} />;
-      case 'third-party': return <ThirdPartyModule user={user} db={db} setDb={setDb} />;
+      case 'third-party': 
+        if (user.role !== UserRole.VIEWER) return <div className="p-10 text-center font-black uppercase text-red-500">Acesso Negado</div>;
+        return <ThirdPartyModule user={user} db={db} setDb={setDb} />;
       case 'requests': return <RequestsList user={user} requests={db.requests} clients={db.clients} groups={db.groups} onAction={handleProcessRequest} />;
       case 'admin': 
         if (user.role !== UserRole.ADMIN) return <div className="p-10 text-center font-black uppercase text-red-500">Acesso Negado</div>;
