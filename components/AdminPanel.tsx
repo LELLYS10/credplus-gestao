@@ -234,7 +234,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ groups, clients, users, compete
              <div 
                key={g.id} 
                onClick={() => handleEditGroup(g)}
-               className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm relative group overflow-hidden cursor-pointer hover:border-emerald-200 hover:shadow-md transition-all"
+               className="bg-white p-5 rounded-[2rem] border border-slate-200 shadow-sm relative group overflow-hidden cursor-pointer hover:border-emerald-200 hover:shadow-md transition-all"
              >
                 <button 
                   type="button"
@@ -244,27 +244,27 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ groups, clients, users, compete
                       onDeleteGroup(g.id);
                     }
                   }} 
-                  className="absolute top-4 right-4 z-50 bg-red-50 text-red-600 hover:bg-red-600 hover:text-white transition-all p-3 rounded-2xl border border-red-100 shadow-sm flex items-center justify-center"
+                  className="absolute top-3 right-3 z-50 bg-red-50 text-red-600 hover:bg-red-600 hover:text-white transition-all p-2.5 rounded-xl border border-red-100 shadow-sm flex items-center justify-center"
                   title="Excluir Sócio"
                 >
-                  <Trash2 size={20}/>
+                  <Trash2 size={18}/>
                 </button>
-                <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center font-black text-xl mb-4">
+                <div className="w-10 h-10 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center font-black text-lg mb-3">
                   {g.name.charAt(0).toUpperCase()}
                 </div>
-                <h4 className="text-lg font-black text-slate-800">{g.name}</h4>
-                <div className="flex items-center justify-between mt-1">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{g.email}</p>
-                  <div className="flex items-center gap-1 bg-slate-50 px-2 py-0.5 rounded border border-slate-100">
+                <h4 className="text-base font-black text-slate-800 truncate pr-8" title={g.name}>{g.name}</h4>
+                <div className="flex items-center justify-between mt-1 gap-2">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest truncate flex-1" title={g.email}>{g.email}</p>
+                  <div className="flex items-center gap-1 bg-slate-50 px-2 py-0.5 rounded border border-slate-100 shrink-0">
                     <ShieldCheck size={10} className="text-emerald-500" />
                     <span className="text-[9px] font-black text-slate-600 tracking-widest">
                       SENHA: {users.find(u => u.groupId === g.id || u.email === g.email)?.password || '****'}
                     </span>
                   </div>
                 </div>
-                <div className="pt-4 border-t border-slate-50 flex items-center justify-between mt-4">
-                  <span className="bg-emerald-50 text-emerald-700 px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest">{g.interestRate}% JUROS</span>
-                  <div className="flex items-center gap-2">
+                <div className="pt-4 border-t border-slate-50 flex flex-wrap items-center justify-between mt-4 gap-2">
+                  <span className="bg-emerald-50 text-emerald-700 px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest shrink-0">{g.interestRate}% JUROS</span>
+                  <div className="flex items-center gap-2 shrink-0">
                     {(() => {
                       const associatedUser = users.find(u => u.groupId === g.id);
                       if (!associatedUser) return null;
@@ -274,18 +274,18 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ groups, clients, users, compete
                             e.stopPropagation();
                             onToggleThirdPartyBlock(associatedUser.id);
                           }}
-                          className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all border ${
+                          className={`px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all border shrink-0 ${
                             associatedUser.thirdPartyBlocked 
                               ? 'bg-red-50 text-red-600 border-red-100' 
                               : 'bg-emerald-50 text-emerald-600 border-emerald-100'
                           }`}
                           title={associatedUser.thirdPartyBlocked ? "Desbloquear Painel Terceiros" : "Bloquear Painel Terceiros"}
                         >
-                          {associatedUser.thirdPartyBlocked ? 'Terceiros: Bloqueado' : 'Terceiros: Ativo'}
+                          {associatedUser.thirdPartyBlocked ? 'TERCEIROS: BLOQUEADO' : 'TERCEIROS: ATIVO'}
                         </button>
                       );
                     })()}
-                    <div className="w-6 h-6 rounded-full bg-slate-100 border-2 border-white flex items-center justify-center text-[8px] font-black">{clients.filter(c => c.groupId === g.id).length}</div>
+                    <div className="w-6 h-6 rounded-full bg-slate-100 border-2 border-white flex items-center justify-center text-[8px] font-black shrink-0">{clients.filter(c => c.groupId === g.id).length}</div>
                   </div>
                 </div>
              </div>
