@@ -12,6 +12,7 @@ export interface User {
   groupId?: string;
   status?: 'ACTIVE' | 'BLOCKED';
   thirdPartyBlocked?: boolean;
+  updatedAt?: number;
 }
 
 export interface Group {

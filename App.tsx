@@ -220,7 +220,7 @@ const App: React.FC = () => {
     setDb((prev: any) => ({
       ...prev,
       groups: prev.groups.map((g: any) => g.id === groupId ? { ...g, ...updates } : g),
-      users: prev.users.map((u: any) => u.groupId === groupId ? { ...u, ...updates } : u)
+      users: prev.users.map((u: any) => u.groupId === groupId ? { ...u, ...updates, updatedAt: Date.now() } : u)
     }));
   };
 
@@ -327,7 +327,7 @@ const App: React.FC = () => {
           onToggleThirdPartyBlock={(userId) => {
             setDb((prev: any) => ({
               ...prev,
-              users: prev.users.map((u: any) => u.id === userId ? { ...u, thirdPartyBlocked: !u.thirdPartyBlocked } : u)
+              users: prev.users.map((u: any) => u.id === userId ? { ...u, thirdPartyBlocked: !u.thirdPartyBlocked, updatedAt: Date.now() } : u)
             }));
           }}
           onAddGroup={d => {
