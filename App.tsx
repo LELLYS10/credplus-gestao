@@ -108,6 +108,22 @@ const App: React.FC = () => {
 
   useEffect(() => { if (db) saveDB(db); }, [db]);
 
+  // Sincronizar o estado do usuário logado com as mudanças no banco de dados
+  useEffect(() => {
+    if (user && db) {
+      const updatedUser = db.users.find((u: any) => u.id === user.id);
+      if (updatedUser) {
+        // Só atualiza se houver mudança real para evitar loops
+        if (updatedUser.thirdPartyBlocked !== user.thirdPartyBlocked || 
+            updatedUser.role !== user.role || 
+            updatedUser.status !== user.status) {
+          setUser(updatedUser);
+          localStorage.setItem(SESSION_KEY, JSON.stringify(updatedUser));
+        }
+      }
+    }
+  }, [db, user]);
+
   // Redirecionar ADMIN se ele tentar acessar a aba de Terceiros
   useEffect(() => {
     if (user?.role === UserRole.ADMIN && activeTab === 'third-party') {

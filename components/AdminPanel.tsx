@@ -430,6 +430,12 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ groups, clients, users, compete
                 <p className="text-amber-700 text-xs font-medium leading-relaxed">
                   Se você não configurou o Supabase, seus dados estão salvos apenas neste navegador. Use a exportação acima para garantir que não perca informações durante atualizações do sistema ou se trocar de computador.
                 </p>
+                <div className="mt-4 p-4 bg-white/50 rounded-2xl border border-amber-200">
+                  <p className="text-[9px] font-black text-amber-800 uppercase tracking-widest mb-1">Dica para Sincronização (Supabase)</p>
+                  <p className="text-[10px] text-amber-700 leading-tight">
+                    Para que o bloqueio de sócios funcione em computadores diferentes, certifique-se de adicionar a coluna <code className="bg-amber-100 px-1 rounded text-amber-900 font-bold">third_party_blocked</code> (tipo: boolean) na tabela <code className="bg-amber-100 px-1 rounded text-amber-900 font-bold">users</code> do seu Supabase.
+                  </p>
+                </div>
               </div>
             </div>
           </div>
