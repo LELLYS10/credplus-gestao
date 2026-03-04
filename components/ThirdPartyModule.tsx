@@ -12,6 +12,8 @@ interface ThirdPartyModuleProps {
 
 const ThirdPartyModule: React.FC<ThirdPartyModuleProps> = ({ user, db, setDb }) => {
   const [activeSubTab, setActiveSubTab] = useState<'dashboard' | 'clients' | 'loans' | 'payments'>('dashboard');
+  const [loanSearch, setLoanSearch] = useState('');
+  const [loanStatusFilter, setLoanStatusFilter] = useState<'all' | 'vencidos' | 'vence-hoje'>('all');
   
   const [showClientModal, setShowClientModal] = useState(false);
   const [clientForm, setClientForm] = useState({ nome: '', telefone: '', observacoes: '' });
@@ -22,8 +24,8 @@ const ThirdPartyModule: React.FC<ThirdPartyModuleProps> = ({ user, db, setDb }) 
     clientId: '', 
     valorPrincipal: 0, 
     porcentagemJurosMensal: 10, 
-    dataEmprestimo: new Date().toISOString().split('T')[0],
-    dataPagamentoJuros: new Date().toISOString().split('T')[0] 
+    dataEmprestimo: new Date().toLocaleDateString('en-CA'),
+    dataPagamentoJuros: new Date().toLocaleDateString('en-CA') 
   });
 
   const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -31,8 +33,9 @@ const ThirdPartyModule: React.FC<ThirdPartyModuleProps> = ({ user, db, setDb }) 
     loanId: '',
     valor: 0,
     tipo: 'juros' as 'juros' | 'amortizacao',
-    dataPagamento: new Date().toISOString().split('T')[0],
-    observacao: ''
+    dataPagamento: new Date().toLocaleDateString('en-CA'),
+    observacao: '',
+    avancarVencimento: true
   });
   
   // Filter data by current user
@@ -41,10 +44,10 @@ const ThirdPartyModule: React.FC<ThirdPartyModuleProps> = ({ user, db, setDb }) 
   const myPayments = (db.thirdPartyPayments || []).filter((p: ThirdPartyPayment) => p.userId === user.id);
 
   // Dashboard Stats
-  const todayStr = new Date().toISOString().split('T')[0];
-  const capitalEmAberto = myLoans.reduce((acc: number, l: any) => acc + (l.status === 'ativo' ? l.valorPrincipal : 0), 0);
-  const vencemHoje = myLoans.filter((l: any) => l.status === 'ativo' && l.dataPagamentoJuros === todayStr).length;
-  const vencidos = myLoans.filter((l: any) => l.status === 'ativo' && l.dataPagamentoJuros < todayStr).length;
+  const todayStr = new Date().toLocaleDateString('en-CA');
+  const capitalEmAberto = myLoans.reduce((acc: number, l: any) => acc + (l.valorPrincipal > 0 ? l.valorPrincipal : 0), 0);
+  const vencemHoje = myLoans.filter((l: any) => l.valorPrincipal > 0 && l.dataPagamentoJuros === todayStr).length;
+  const vencidos = myLoans.filter((l: any) => l.valorPrincipal > 0 && l.dataPagamentoJuros < todayStr).length;
 
   const handleAddClient = (e: React.FormEvent) => {
     e.preventDefault();
@@ -91,7 +94,7 @@ const ThirdPartyModule: React.FC<ThirdPartyModuleProps> = ({ user, db, setDb }) 
       porcentagemJurosMensal: loanForm.porcentagemJurosMensal,
       dataEmprestimo: loanForm.dataEmprestimo,
       dataPagamentoJuros: loanForm.dataPagamentoJuros,
-      status: 'ativo',
+      status: loanForm.valorPrincipal > 0 ? 'ativo' : 'encerrado',
       createdAt: editingLoanId ? (myLoans.find(l => l.id === editingLoanId)?.createdAt || Date.now()) : Date.now()
     };
 
@@ -109,8 +112,8 @@ const ThirdPartyModule: React.FC<ThirdPartyModuleProps> = ({ user, db, setDb }) 
       clientId: '', 
       valorPrincipal: 0, 
       porcentagemJurosMensal: 10, 
-      dataEmprestimo: new Date().toISOString().split('T')[0],
-      dataPagamentoJuros: new Date().toISOString().split('T')[0] 
+      dataEmprestimo: new Date().toLocaleDateString('en-CA'),
+      dataPagamentoJuros: new Date().toLocaleDateString('en-CA') 
     });
   };
 
@@ -146,14 +149,38 @@ const ThirdPartyModule: React.FC<ThirdPartyModuleProps> = ({ user, db, setDb }) 
 
     setDb((prev: any) => {
       let updatedLoans = [...(prev.thirdPartyLoans || [])];
-      if (newPayment.tipo === 'amortizacao') {
-        updatedLoans = updatedLoans.map((l: any) => {
-          if (l.id === newPayment.loanId) {
-            return { ...l, valorPrincipal: Math.max(0, l.valorPrincipal - newPayment.valor) };
+      
+      updatedLoans = updatedLoans.map((l: any) => {
+        if (l.id === newPayment.loanId) {
+          // Calculate new principal if it's an amortization
+          let newPrincipal = l.valorPrincipal;
+          if (newPayment.tipo === 'amortizacao') {
+            newPrincipal = Math.max(0, l.valorPrincipal - newPayment.valor);
           }
-          return l;
-        });
-      }
+
+          // Advance due date by exactly one month if it's a interest payment and option is checked
+          let nextDueDateStr = l.dataPagamentoJuros;
+          if (newPayment.tipo === 'juros' && paymentForm.avancarVencimento) {
+            const currentDueDate = new Date(l.dataPagamentoJuros + 'T12:00:00');
+            const nextDueDate = new Date(currentDueDate);
+            nextDueDate.setMonth(nextDueDate.getMonth() + 1);
+            
+            // If the day changed (e.g. Jan 31 -> Mar 3), cap it at the last day of the correct month
+            if (nextDueDate.getDate() !== currentDueDate.getDate()) {
+              nextDueDate.setDate(0);
+            }
+            nextDueDateStr = nextDueDate.toISOString().split('T')[0];
+          }
+
+          return { 
+            ...l, 
+            valorPrincipal: newPrincipal,
+            dataPagamentoJuros: nextDueDateStr,
+            status: newPrincipal === 0 ? 'encerrado' : 'ativo'
+          };
+        }
+        return l;
+      });
 
       return {
         ...prev,
@@ -167,8 +194,9 @@ const ThirdPartyModule: React.FC<ThirdPartyModuleProps> = ({ user, db, setDb }) 
       loanId: '',
       valor: 0,
       tipo: 'juros',
-      dataPagamento: new Date().toISOString().split('T')[0],
-      observacao: ''
+      dataPagamento: new Date().toLocaleDateString('en-CA'),
+      observacao: '',
+      avancarVencimento: true
     });
   };
 
@@ -235,11 +263,17 @@ const ThirdPartyModule: React.FC<ThirdPartyModuleProps> = ({ user, db, setDb }) 
                   {formatCurrency(capitalEmAberto)}
                 </h3>
               </div>
-              <div className="bg-white p-8 rounded-[2rem] border-2 border-blue-100 shadow-sm">
-                <p className="text-[10px] font-black text-blue-400 uppercase tracking-[0.2em] mb-2">Vencem Hoje</p>
+              <div 
+                onClick={() => { setActiveSubTab('loans'); setLoanStatusFilter('vence-hoje'); }}
+                className="bg-white p-8 rounded-[2rem] border-2 border-blue-100 shadow-sm cursor-pointer hover:border-blue-300 transition-all active:scale-95"
+              >
+                <p className="text-[10px] font-black text-blue-400 uppercase tracking-[0.2em] mb-2">VENCE HOJE</p>
                 <h3 className="text-3xl font-black tracking-tighter text-blue-800">{vencemHoje}</h3>
               </div>
-              <div className="bg-white p-8 rounded-[2rem] border-2 border-red-100 shadow-sm">
+              <div 
+                onClick={() => { setActiveSubTab('loans'); setLoanStatusFilter('vencidos'); }}
+                className="bg-white p-8 rounded-[2rem] border-2 border-red-100 shadow-sm cursor-pointer hover:border-red-300 transition-all active:scale-95"
+              >
                 <p className="text-[10px] font-black text-red-400 uppercase tracking-[0.2em] mb-2">Vencidos</p>
                 <h3 className="text-3xl font-black tracking-tighter text-red-600">{vencidos}</h3>
               </div>
@@ -303,7 +337,14 @@ const ThirdPartyModule: React.FC<ThirdPartyModuleProps> = ({ user, db, setDb }) 
                         <span className="text-[9px] font-black text-blue-300 uppercase tracking-widest">Empréstimos</span>
                         <span className="text-sm font-black text-blue-600">{myLoans.filter(l => l.clientId === client.id).length} ativos</span>
                       </div>
-                      <button className="p-2 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-600 hover:text-white transition-all">
+                      <button 
+                        onClick={() => {
+                          setLoanSearch(client.nome);
+                          setLoanStatusFilter('all');
+                          setActiveSubTab('loans');
+                        }}
+                        className="p-2 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-600 hover:text-white transition-all"
+                      >
                         <ChevronRight size={18} />
                       </button>
                     </div>
@@ -378,10 +419,22 @@ const ThirdPartyModule: React.FC<ThirdPartyModuleProps> = ({ user, db, setDb }) 
 
         {activeSubTab === 'loans' && (
           <div className="space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-2">
-              <div>
-                <h3 className="text-lg font-black text-blue-800 uppercase tracking-tighter">Empréstimos Ativos</h3>
-                <p className="text-[10px] font-bold text-blue-400 uppercase tracking-widest">Gerencie seus contratos ativos</p>
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-2">
+              <div className="flex flex-col md:flex-row md:items-center gap-4 flex-1">
+                <div>
+                  <h3 className="text-lg font-black text-blue-800 uppercase tracking-tighter">Empréstimos Ativos</h3>
+                  <p className="text-[10px] font-bold text-blue-400 uppercase tracking-widest">Gerencie seus contratos ativos</p>
+                </div>
+                <div className="relative flex-1 max-w-md">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-blue-300" size={16} />
+                  <input 
+                    type="text"
+                    placeholder="Buscar por cliente..."
+                    className="w-full pl-10 pr-4 py-2.5 bg-blue-50/50 border-2 border-transparent focus:border-blue-100 rounded-xl text-xs font-bold text-blue-900 outline-none transition-all"
+                    value={loanSearch}
+                    onChange={(e) => setLoanSearch(e.target.value)}
+                  />
+                </div>
               </div>
               <button 
                 onClick={() => setShowLoanModal(true)}
@@ -391,6 +444,28 @@ const ThirdPartyModule: React.FC<ThirdPartyModuleProps> = ({ user, db, setDb }) 
               </button>
             </div>
 
+            {loanStatusFilter !== 'all' && (
+              <div className="flex items-center justify-between bg-blue-50 p-4 rounded-2xl border border-blue-100 animate-in slide-in-from-top-2 duration-300">
+                <div className="flex items-center gap-3">
+                  <div className={`p-2 rounded-lg ${loanStatusFilter === 'vencidos' ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-600'}`}>
+                    <AlertCircle size={18} />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest">Filtrando por</p>
+                    <p className={`text-sm font-black uppercase tracking-tighter ${loanStatusFilter === 'vencidos' ? 'text-red-600' : 'text-blue-800'}`}>
+                      {loanStatusFilter === 'vencidos' ? 'Empréstimos Vencidos' : 'Vencimentos de Hoje'}
+                    </p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setLoanStatusFilter('all')}
+                  className="px-4 py-2 bg-white text-blue-600 rounded-xl text-[10px] font-black uppercase tracking-widest border border-blue-200 hover:bg-blue-50 transition-all shadow-sm"
+                >
+                  Limpar Filtro
+                </button>
+              </div>
+            )}
+
             {myLoans.length === 0 ? (
               <div className="py-16 text-center bg-white rounded-[2rem] border-2 border-dashed border-blue-100">
                 <FileText size={40} className="mx-auto text-blue-100 mb-3" />
@@ -398,51 +473,86 @@ const ThirdPartyModule: React.FC<ThirdPartyModuleProps> = ({ user, db, setDb }) 
               </div>
             ) : (
               <div className="grid gap-3">
-                {myLoans.map(loan => {
-                  const client = myClients.find(c => c.id === loan.clientId);
-                  return (
-                    <div key={loan.id} className="bg-white p-3 md:p-4 rounded-[1.25rem] border border-blue-50 shadow-sm flex flex-col md:flex-row md:items-center gap-4 transition-all hover:shadow-md hover:border-blue-200 group">
-                      {/* Avatar e Nome */}
-                      <div className="flex items-center gap-3 md:w-1/4">
-                        <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center shrink-0 group-hover:bg-blue-600 group-hover:text-white transition-colors">
-                          <DollarSign size={18} />
+                {myLoans
+                  .filter(loan => {
+                    const client = myClients.find(c => c.id === loan.clientId);
+                    const matchesSearch = client?.nome.toLowerCase().includes(loanSearch.toLowerCase());
+                    
+                    if (loanStatusFilter === 'vencidos') {
+                      return matchesSearch && loan.valorPrincipal > 0 && loan.dataPagamentoJuros < todayStr;
+                    }
+                    if (loanStatusFilter === 'vence-hoje') {
+                      return matchesSearch && loan.valorPrincipal > 0 && loan.dataPagamentoJuros === todayStr;
+                    }
+                    
+                    return matchesSearch;
+                  })
+                  .map(loan => {
+                    const client = myClients.find(c => c.id === loan.clientId);
+                    const isInactive = loan.valorPrincipal === 0;
+                    const loanPayments = myPayments.filter(p => p.loanId === loan.id);
+                    const jurosCount = loanPayments.filter(p => p.tipo === 'juros').length;
+                    const totalJuros = loanPayments.filter(p => p.tipo === 'juros').reduce((acc, p) => acc + p.valor, 0);
+
+                    return (
+                      <div key={loan.id} className={`p-3 md:p-4 rounded-[1.25rem] border shadow-sm flex flex-col md:flex-row md:items-center gap-4 transition-all group ${isInactive ? 'bg-slate-50 border-slate-200 opacity-60 grayscale' : 'bg-white border-blue-50 hover:shadow-md hover:border-blue-200'}`}>
+                        {/* Avatar e Nome */}
+                        <div className="flex items-center gap-3 md:w-1/4">
+                          <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-colors ${isInactive ? 'bg-slate-200 text-slate-500' : 'bg-blue-50 text-blue-600 group-hover:bg-blue-600 group-hover:text-white'}`}>
+                            <DollarSign size={18} />
+                          </div>
+                          <div className="min-w-0">
+                            <h4 className={`font-black truncate text-sm ${isInactive ? 'text-slate-500' : 'text-blue-900'}`}>{client?.nome || 'Cliente Excluído'}</h4>
+                            <p className={`text-[8px] font-black uppercase tracking-widest ${isInactive ? 'text-slate-400' : 'text-blue-300'}`}>Desde {new Date(loan.dataEmprestimo).toLocaleDateString('pt-BR')}</p>
+                            {jurosCount > 0 && (
+                              <div className="mt-1 flex items-center gap-1">
+                                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
+                                <span className="text-[8px] font-black text-emerald-600 uppercase tracking-tighter">
+                                  {jurosCount}x juros recebidos ({formatCurrency(totalJuros)})
+                                </span>
+                              </div>
+                            )}
+                          </div>
                         </div>
-                        <div className="min-w-0">
-                          <h4 className="font-black text-blue-900 truncate text-sm">{client?.nome || 'Cliente Excluído'}</h4>
-                          <p className="text-[8px] font-black text-blue-300 uppercase tracking-widest">Desde {new Date(loan.dataEmprestimo).toLocaleDateString('pt-BR')}</p>
-                        </div>
-                      </div>
 
                       {/* Dados Financeiros */}
-                      <div className="grid grid-cols-3 gap-2 flex-1 border-y md:border-y-0 md:border-x border-blue-50 py-3 md:py-0 md:px-4">
+                      <div className={`grid grid-cols-3 gap-2 flex-1 border-y md:border-y-0 md:border-x py-3 md:py-0 md:px-4 ${isInactive ? 'border-slate-200' : 'border-blue-50'}`}>
                         <div>
-                          <p className="text-[7px] font-black text-blue-300 uppercase tracking-widest mb-0.5">Principal</p>
-                          <p className="text-xs md:text-sm font-black text-blue-700">{formatCurrency(loan.valorPrincipal)}</p>
+                          <p className={`text-[7px] font-black uppercase tracking-widest mb-0.5 ${isInactive ? 'text-slate-400' : 'text-blue-300'}`}>Principal</p>
+                          <p className={`text-xs md:text-sm font-black ${isInactive ? 'text-slate-500' : 'text-blue-700'}`}>{formatCurrency(loan.valorPrincipal)}</p>
                         </div>
                         <div>
-                          <p className="text-[7px] font-black text-blue-300 uppercase tracking-widest mb-0.5">Juros</p>
-                          <p className="text-xs md:text-sm font-black text-amber-600">{loan.porcentagemJurosMensal}%</p>
+                          <p className={`text-[7px] font-black uppercase tracking-widest mb-0.5 ${isInactive ? 'text-slate-400' : 'text-blue-300'}`}>Juros</p>
+                          <p className={`text-xs md:text-sm font-black leading-tight ${isInactive ? 'text-slate-400' : 'text-amber-600'}`}>
+                            {loan.porcentagemJurosMensal}% 
+                            <br />
+                            <span className={`text-[10px] font-black ${isInactive ? 'text-slate-400' : 'text-emerald-600'}`}>
+                              ({formatCurrency(loan.valorPrincipal * (loan.porcentagemJurosMensal / 100))})
+                            </span>
+                          </p>
                         </div>
                         <div>
-                          <p className="text-[7px] font-black text-blue-300 uppercase tracking-widest mb-0.5">Vencimento</p>
-                          <p className="text-xs md:text-sm font-black text-blue-900">{new Date(loan.dataPagamentoJuros).toLocaleDateString('pt-BR')}</p>
+                          <p className={`text-[7px] font-black uppercase tracking-widest mb-0.5 ${isInactive ? 'text-slate-400' : 'text-blue-300'}`}>Vencimento</p>
+                          <p className={`text-xs md:text-sm font-black ${isInactive ? 'text-slate-500' : 'text-blue-900'}`}>{new Date(loan.dataPagamentoJuros).toLocaleDateString('pt-BR')}</p>
                         </div>
                       </div>
 
                       {/* Ações com Legendas */}
                       <div className="flex items-center justify-around md:justify-end gap-4 md:min-w-[180px]">
-                        <button 
-                          onClick={() => {
-                            setPaymentForm({ ...paymentForm, loanId: loan.id });
-                            setShowPaymentModal(true);
-                          }}
-                          className="flex flex-col items-center gap-1 group/btn"
-                        >
-                          <div className="p-2 bg-emerald-50 text-emerald-600 rounded-lg group-hover/btn:bg-emerald-600 group-hover/btn:text-white transition-all">
-                            <DollarSign size={16} />
-                          </div>
-                          <span className="text-[7px] font-black text-emerald-600 uppercase tracking-tighter">Pagar</span>
-                        </button>
+                        {!isInactive && (
+                          <button 
+                            onClick={() => {
+                              setPaymentForm({ ...paymentForm, loanId: loan.id });
+                              setShowPaymentModal(true);
+                            }}
+                            className="flex flex-col items-center gap-1 group/btn"
+                          >
+                            <div className="p-2 bg-emerald-50 text-emerald-600 rounded-lg group-hover/btn:bg-emerald-600 group-hover/btn:text-white transition-all">
+                              <DollarSign size={16} />
+                            </div>
+                            <span className="text-[7px] font-black text-emerald-600 uppercase tracking-tighter">Pagar</span>
+                          </button>
+                        )}
                         
                         <button 
                           onClick={() => handleEditLoan(loan)}
@@ -735,6 +845,21 @@ const ThirdPartyModule: React.FC<ThirdPartyModuleProps> = ({ user, db, setDb }) 
                   onChange={e => setPaymentForm({...paymentForm, observacao: e.target.value})} 
                 />
               </div>
+
+              {paymentForm.tipo === 'juros' && (
+                <div className="flex items-center gap-3 p-3 bg-amber-50/50 rounded-2xl border border-amber-100">
+                  <input 
+                    type="checkbox" 
+                    id="avancarVencimento"
+                    className="w-5 h-5 rounded-lg border-2 border-amber-200 text-amber-600 focus:ring-amber-500 transition-all cursor-pointer"
+                    checked={paymentForm.avancarVencimento}
+                    onChange={e => setPaymentForm({...paymentForm, avancarVencimento: e.target.checked})}
+                  />
+                  <label htmlFor="avancarVencimento" className="text-[10px] font-black text-amber-700 uppercase tracking-widest cursor-pointer select-none">
+                    Avançar vencimento para o próximo mês
+                  </label>
+                </div>
+              )}
 
               <div className="flex gap-4 pt-4">
                 <button 
