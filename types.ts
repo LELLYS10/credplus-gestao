@@ -10,6 +10,8 @@ export interface User {
   password: string;
   role: UserRole;
   groupId?: string;
+  status?: 'ACTIVE' | 'BLOCKED';
+  thirdPartyBlocked?: boolean;
 }
 
 export interface Group {

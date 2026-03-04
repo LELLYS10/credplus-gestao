@@ -18,9 +18,10 @@ interface AdminPanelProps {
   onDeleteClient: (id: string) => void;
   onAddReport: (report: Report) => void;
   transactions: Transaction[];
+  onToggleThirdPartyBlock: (userId: string) => void;
 }
 
-const AdminPanel: React.FC<AdminPanelProps> = ({ groups, clients, users, competences, reports, user, onAddGroup, onDeleteGroup, onAddClient, onDeleteClient, onAddReport, transactions }) => {
+const AdminPanel: React.FC<AdminPanelProps> = ({ groups, clients, users, competences, reports, user, onAddGroup, onDeleteGroup, onAddClient, onDeleteClient, onAddReport, transactions, onToggleThirdPartyBlock }) => {
   const [activeSubTab, setActiveSubTab] = React.useState<'partners' | 'clients' | 'reports' | 'system'>('partners');
   const [showGroupModal, setShowGroupModal] = React.useState(false);
   const [showClientModal, setShowClientModal] = React.useState(false);
@@ -230,8 +231,25 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ groups, clients, users, compete
                 </div>
                 <div className="pt-4 border-t border-slate-50 flex items-center justify-between mt-4">
                   <span className="bg-emerald-50 text-emerald-700 px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest">{g.interestRate}% JUROS</span>
-                  <div className="flex -space-x-2">
-                     <div className="w-6 h-6 rounded-full bg-slate-100 border-2 border-white flex items-center justify-center text-[8px] font-black">{clients.filter(c => c.groupId === g.id).length}</div>
+                  <div className="flex items-center gap-2">
+                    {(() => {
+                      const associatedUser = users.find(u => u.groupId === g.id);
+                      if (!associatedUser) return null;
+                      return (
+                        <button 
+                          onClick={() => onToggleThirdPartyBlock(associatedUser.id)}
+                          className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all border ${
+                            associatedUser.thirdPartyBlocked 
+                              ? 'bg-red-50 text-red-600 border-red-100' 
+                              : 'bg-emerald-50 text-emerald-600 border-emerald-100'
+                          }`}
+                          title={associatedUser.thirdPartyBlocked ? "Desbloquear Painel Terceiros" : "Bloquear Painel Terceiros"}
+                        >
+                          {associatedUser.thirdPartyBlocked ? 'Terceiros: Bloqueado' : 'Terceiros: Ativo'}
+                        </button>
+                      );
+                    })()}
+                    <div className="w-6 h-6 rounded-full bg-slate-100 border-2 border-white flex items-center justify-center text-[8px] font-black">{clients.filter(c => c.groupId === g.id).length}</div>
                   </div>
                 </div>
              </div>

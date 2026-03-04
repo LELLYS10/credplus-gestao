@@ -12,7 +12,7 @@ import ClientsList from './components/ClientsList';
 import ThirdPartyModule from './components/ThirdPartyModule';
 import AIAssistant from './components/AIAssistant';
 import Logo from './components/Logo';
-import { ChevronRight, RefreshCw, X } from 'lucide-react';
+import { ChevronRight, RefreshCw, X, ShieldCheck } from 'lucide-react';
 import { toTitleCase } from './utils';
 
 const SESSION_KEY = 'credplus_session_v1';
@@ -46,7 +46,7 @@ const App: React.FC = () => {
         const updatedData = runCompetenceSync(data);
         const savedUser = localStorage.getItem(SESSION_KEY);
         
-        // Garantir que os dois administradores principais existam
+        // Garantir que os administradores principais existam
         const mainAdmins = [
           { id: '1', email: 'credplusemp@gmail.com', password: '5721', role: UserRole.ADMIN },
           { id: '2', email: 'michaeldsandes@gmail.com', password: '0718', role: UserRole.ADMIN }
@@ -277,12 +277,39 @@ const App: React.FC = () => {
       case 'clients': return <ClientsList user={user} clients={db.clients} groups={db.groups} onViewClient={id => {setSelectedClientId(id); setActiveTab('client-detail');}} />;
       case 'third-party': 
         if (user.role !== UserRole.VIEWER) return <div className="p-10 text-center font-black uppercase text-red-500">Acesso Negado</div>;
+        
+        if (user.thirdPartyBlocked) {
+          return (
+            <div className="flex flex-col items-center justify-center py-20 px-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <div className="w-24 h-24 bg-red-100 text-red-600 rounded-[2rem] flex items-center justify-center mb-8 shadow-xl shadow-red-100 border-b-4 border-red-200">
+                <ShieldCheck size={48} />
+              </div>
+              <h2 className="text-3xl font-black tracking-tighter text-slate-800 mb-4 uppercase">ACESSO BLOQUEADO</h2>
+              <p className="text-slate-500 font-bold text-center max-w-md leading-relaxed mb-10 uppercase text-xs tracking-widest">
+                Seu painel de terceiros está temporariamente bloqueado. Fale com o administrador para liberação.
+              </p>
+              <button 
+                onClick={() => setActiveTab('dashboard')}
+                className="px-10 py-4 bg-slate-900 text-white rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl shadow-slate-200 border-b-4 border-black hover:bg-black transition-all"
+              >
+                Voltar para o Painel Principal
+              </button>
+            </div>
+          );
+        }
+        
         return <ThirdPartyModule user={user} db={db} setDb={setDb} />;
       case 'requests': return <RequestsList user={user} requests={db.requests} clients={db.clients} groups={db.groups} onAction={handleProcessRequest} />;
       case 'admin': 
         if (user.role !== UserRole.ADMIN) return <div className="p-10 text-center font-black uppercase text-red-500">Acesso Negado</div>;
         return <AdminPanel 
           groups={db.groups} clients={db.clients} users={db.users} competences={db.competences} reports={db.reports} user={user} transactions={db.transactions}
+          onToggleThirdPartyBlock={(userId) => {
+            setDb((prev: any) => ({
+              ...prev,
+              users: prev.users.map((u: any) => u.id === userId ? { ...u, thirdPartyBlocked: !u.thirdPartyBlocked } : u)
+            }));
+          }}
           onAddGroup={d => {
             try {
               // Verificar se o e-mail já existe
@@ -454,7 +481,14 @@ const App: React.FC = () => {
             u.email.toLowerCase() === authForm.email.toLowerCase() && 
             u.password === authForm.password
           );
-          if (found) { setUser(found); localStorage.setItem(SESSION_KEY, JSON.stringify(found)); }
+          if (found) { 
+            if (found.status === 'BLOCKED') {
+              alert('Seu acesso foi bloqueado pelo proprietário.');
+              return;
+            }
+            setUser(found); 
+            localStorage.setItem(SESSION_KEY, JSON.stringify(found)); 
+          }
           else { alert('Credenciais inválidas.'); }
         }} className="space-y-6">
           <input type="email" required className="w-full p-4 bg-slate-50 border rounded-2xl" placeholder="E-mail" value={authForm.email} onChange={e => setAuthForm({ ...authForm, email: e.target.value })} />

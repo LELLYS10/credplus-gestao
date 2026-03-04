@@ -45,9 +45,9 @@ const ThirdPartyModule: React.FC<ThirdPartyModuleProps> = ({ user, db, setDb }) 
 
   // Dashboard Stats
   const todayStr = new Date().toLocaleDateString('en-CA');
-  const capitalEmAberto = myLoans.reduce((acc: number, l: any) => acc + (l.valorPrincipal > 0 ? l.valorPrincipal : 0), 0);
-  const vencemHoje = myLoans.filter((l: any) => l.valorPrincipal > 0 && l.dataPagamentoJuros === todayStr).length;
-  const vencidos = myLoans.filter((l: any) => l.valorPrincipal > 0 && l.dataPagamentoJuros < todayStr).length;
+  const capitalEmAberto = myLoans.filter((l: any) => l.status === 'ativo').reduce((acc: number, l: any) => acc + (l.valorPrincipal > 0 ? l.valorPrincipal : 0), 0);
+  const vencemHoje = myLoans.filter((l: any) => l.status === 'ativo' && l.dataPagamentoJuros === todayStr).length;
+  const vencidos = myLoans.filter((l: any) => l.status === 'ativo' && l.dataPagamentoJuros < todayStr).length;
 
   const handleAddClient = (e: React.FormEvent) => {
     e.preventDefault();
@@ -479,10 +479,10 @@ const ThirdPartyModule: React.FC<ThirdPartyModuleProps> = ({ user, db, setDb }) 
                     const matchesSearch = client?.nome.toLowerCase().includes(loanSearch.toLowerCase());
                     
                     if (loanStatusFilter === 'vencidos') {
-                      return matchesSearch && loan.valorPrincipal > 0 && loan.dataPagamentoJuros < todayStr;
+                      return matchesSearch && loan.status === 'ativo' && loan.dataPagamentoJuros < todayStr;
                     }
                     if (loanStatusFilter === 'vence-hoje') {
-                      return matchesSearch && loan.valorPrincipal > 0 && loan.dataPagamentoJuros === todayStr;
+                      return matchesSearch && loan.status === 'ativo' && loan.dataPagamentoJuros === todayStr;
                     }
                     
                     return matchesSearch;

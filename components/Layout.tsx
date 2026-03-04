@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { User, UserRole } from '../types';
-import { LogOut, Home, Users, CheckSquare, Settings, Menu, X, Briefcase } from 'lucide-react';
+import { LogOut, Home, Users, CheckSquare, Settings, Menu, X, Briefcase, ShieldCheck } from 'lucide-react';
 import Logo from './Logo';
 
 interface LayoutProps {
@@ -69,7 +69,9 @@ const Layout: React.FC<LayoutProps> = ({ user, onLogout, children, activeTab, se
             {user.email.charAt(0).toUpperCase()}
           </div>
           <div className="overflow-hidden">
-            <p className="text-[10px] text-emerald-500 uppercase font-black tracking-widest">Sócio Ativo</p>
+            <p className="text-[10px] text-emerald-500 uppercase font-black tracking-widest">
+              {user.role === UserRole.ADMIN ? 'Administrador' : 'Sócio Ativo'}
+            </p>
             <p className="text-xs font-bold truncate text-emerald-100">{user.email}</p>
           </div>
         </div>
