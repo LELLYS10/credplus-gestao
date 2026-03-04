@@ -157,7 +157,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, clients, competences, group
   const StatCard = ({ title, value, icon: Icon, colorClass, highlight, highlightColor = 'red', dark, onClick }: any) => (
     <div 
       onClick={onClick}
-      className={`p-4 md:p-5 lg:p-2.5 xl:p-4 rounded-2xl border transition-all duration-300 shadow-sm flex items-center gap-3 lg:gap-2 cursor-pointer group w-full min-w-0 overflow-hidden ${
+      className={`p-4 md:p-5 lg:p-3.5 xl:p-4 rounded-2xl border transition-all duration-300 shadow-sm flex items-center gap-3 lg:gap-3 cursor-pointer group w-full min-w-0 overflow-hidden ${
         dark 
         ? 'bg-slate-900 border-slate-800 shadow-xl shadow-slate-900/20' 
         : 'bg-white border-slate-100 hover:border-emerald-200 hover:shadow-lg hover:shadow-emerald-500/5'
@@ -168,11 +168,11 @@ const Dashboard: React.FC<DashboardProps> = ({ user, clients, competences, group
       }`}
     >
       <div className={`p-2.5 md:p-3 lg:p-1.5 xl:p-3 rounded-xl shrink-0 transition-transform group-hover:scale-110 ${colorClass}`}>
-        <Icon size={18} className="md:w-5 md:h-5 lg:w-4 lg:h-4 xl:w-6 xl:h-6" />
+        <Icon size={18} className="md:w-5 md:h-5 lg:w-5 lg:h-5 xl:w-6 xl:h-6" />
       </div>
-      <div className="min-w-0 flex-1 flex flex-col justify-center overflow-hidden">
-        <p className={`text-[9px] md:text-[10px] lg:text-[8px] xl:text-[10px] font-black uppercase tracking-widest leading-tight mb-0.5 truncate ${dark ? 'text-slate-500' : 'text-slate-400'}`}>{title}</p>
-        <p className={`text-sm sm:text-base md:text-lg lg:text-sm xl:text-xl font-black tracking-tight whitespace-nowrap overflow-hidden text-ellipsis ${highlight ? (highlightColor === 'blue' ? 'text-blue-600' : 'text-red-600') : (dark ? 'text-white' : 'text-slate-900')}`}>
+      <div className="min-w-0 flex-1 flex flex-col justify-center">
+        <p className={`text-[10px] md:text-[11px] lg:text-[9px] xl:text-[11px] font-black uppercase tracking-widest leading-tight mb-0.5 ${dark ? 'text-slate-500' : 'text-slate-400'}`}>{title}</p>
+        <p className={`text-sm sm:text-base md:text-lg lg:text-sm xl:text-xl font-black tracking-tight break-words ${highlight ? (highlightColor === 'blue' ? 'text-blue-600' : 'text-red-600') : (dark ? 'text-white' : 'text-slate-900')}`}>
           {formatCurrency(value)}
         </p>
       </div>
@@ -240,7 +240,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, clients, competences, group
             </button>
           </div>
         )}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 lg:gap-1.5 xl:gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 lg:gap-2 xl:gap-4">
           <StatCard title="Capital Emprestado" value={stats.totalCapital} icon={TrendingUp} colorClass="bg-emerald-500/20 text-emerald-400" dark />
           <StatCard 
             title="Juros Atrasados" 
