@@ -141,7 +141,7 @@ export const loadDB = async (): Promise<DBState> => {
     return {
       users: mergedUsers.length > 0 ? mergedUsers : localState.users,
       groups: groups !== null ? groups : localState.groups,
-      clients: clients !== null ? clients : localState.clients,
+      clients: clients !== null ? clients : [], // Prioritize Supabase, ignore local if Supabase is active
       competences: competences !== null ? competences : localState.competences,
       requests: requests !== null ? requests : localState.requests,
       reports: reports !== null ? reports : localState.reports,
@@ -236,5 +236,39 @@ export const deleteFromDB = async (table: string, id: string) => {
     await supabase.from(table).delete().eq('id', id);
   } catch (error) {
     console.error(`Erro ao deletar de ${table}:`, error);
+  }
+};
+
+export const insertClient = async (client: Partial<Client>) => {
+  if (!supabase) return null;
+  
+  try {
+    // O usuário solicitou campos específicos: id, name, phone, groupId
+    const payload = {
+      id: client.id,
+      name: client.name,
+      phone: client.phone,
+      groupId: client.groupId,
+      // Incluindo os outros campos para manter a integridade do app, 
+      // mas garantindo que os solicitados estejam presentes.
+      initialCapital: client.initialCapital || 0,
+      currentCapital: client.currentCapital || 0,
+      dueDay: client.dueDay || 1,
+      status: client.status || 'ACTIVE',
+      notes: client.notes || '',
+      createdAt: client.createdAt || Date.now(),
+      firstDueDate: client.firstDueDate || null
+    };
+
+    const { data, error } = await supabase
+      .from('clients')
+      .insert([payload])
+      .select();
+
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error("Erro ao inserir cliente no Supabase:", error);
+    throw error;
   }
 };

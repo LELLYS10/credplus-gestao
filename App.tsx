@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { User, UserRole, Group, Client, Competence, PaymentRequest, RequestStatus, Transaction } from './types';
-import { loadDB, saveDB, deleteFromDB } from './db';
+import { loadDB, saveDB, deleteFromDB, insertClient } from './db';
 import { generatePendingCompetences, applyFIFOPayment } from './logic';
 import Layout from './components/Layout';
 import Dashboard from './components/Dashboard';
@@ -357,9 +357,9 @@ const App: React.FC = () => {
           }} 
           onDeleteGroup={handleDeleteGroup} 
           onUpdateGroup={handleUpdateSocio}
-          onAddClient={d => {
+          onAddClient={async d => {
             try {
-              const newClientId = `c-${Date.now()}`;
+              const newClientId = crypto.randomUUID();
               const createdAt = new Date(d.startDate).getTime() + 12 * 60 * 60 * 1000;
               const firstDueDate = new Date(d.firstDueDate).getTime() + 12 * 60 * 60 * 1000;
               const newClient = { 
@@ -370,6 +370,9 @@ const App: React.FC = () => {
                 createdAt,
                 firstDueDate
               };
+
+              // Inserir no Supabase
+              await insertClient(newClient);
               setDb((prev: any) => {
                 const newState = { ...prev, clients: [...prev.clients, newClient] };
                 return runCompetenceSync(newState);
@@ -542,9 +545,9 @@ const App: React.FC = () => {
           user={user} 
           onUpdateClient={handleUpdateClient}
           onUpdateSocio={handleUpdateSocio}
-          onAddClient={(data: any) => {
+          onAddClient={async (data: any) => {
               try {
-                const newClientId = `c-${Date.now()}`;
+                const newClientId = crypto.randomUUID();
                 const createdAt = new Date(data.startDate).getTime() + 12 * 60 * 60 * 1000;
                 const firstDueDate = new Date(data.firstDueDate).getTime() + 12 * 60 * 60 * 1000;
                 const newClient = { 
@@ -555,6 +558,10 @@ const App: React.FC = () => {
                   firstDueDate,
                   currentCapital: data.initialCapital 
                 };
+
+                // Inserir no Supabase
+                await insertClient(newClient);
+
                 setDb((prev: any) => {
                   const newState = { ...prev, clients: [...prev.clients, newClient] };
                   return runCompetenceSync(newState);
