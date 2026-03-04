@@ -14,6 +14,7 @@ interface AdminPanelProps {
   user: User;
   onAddGroup: (data: any) => void;
   onDeleteGroup: (id: string) => void;
+  onUpdateGroup: (id: string, data: any) => void;
   onAddClient: (data: any) => void;
   onDeleteClient: (id: string) => void;
   onAddReport: (report: Report) => void;
@@ -21,13 +22,41 @@ interface AdminPanelProps {
   onToggleThirdPartyBlock: (userId: string) => void;
 }
 
-const AdminPanel: React.FC<AdminPanelProps> = ({ groups, clients, users, competences, reports, user, onAddGroup, onDeleteGroup, onAddClient, onDeleteClient, onAddReport, transactions, onToggleThirdPartyBlock }) => {
+const AdminPanel: React.FC<AdminPanelProps> = ({ groups, clients, users, competences, reports, user, onAddGroup, onDeleteGroup, onUpdateGroup, onAddClient, onDeleteClient, onAddReport, transactions, onToggleThirdPartyBlock }) => {
   const [activeSubTab, setActiveSubTab] = React.useState<'partners' | 'clients' | 'reports' | 'system'>('partners');
   const [showGroupModal, setShowGroupModal] = React.useState(false);
+  const [editingGroup, setEditingGroup] = React.useState<Group | null>(null);
   const [showClientModal, setShowClientModal] = React.useState(false);
   const [isGenerating, setIsGenerating] = React.useState(false);
   
   const [groupFormData, setGroupFormData] = React.useState({ name: '', email: '', phone: '', interestRate: 6, password: '' });
+  
+  const handleEditGroup = (g: Group) => {
+    const associatedUser = users.find(u => u.groupId === g.id || u.email === g.email);
+    setEditingGroup(g);
+    setGroupFormData({
+      name: g.name,
+      email: g.email,
+      phone: g.phone,
+      interestRate: g.interestRate,
+      password: associatedUser?.password || ''
+    });
+    setShowGroupModal(true);
+  };
+
+  const handleGroupSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (editingGroup) {
+      onUpdateGroup(editingGroup.id, groupFormData);
+      alert("Sócio atualizado com sucesso!");
+    } else {
+      onAddGroup(groupFormData);
+    }
+    setShowGroupModal(false);
+    setEditingGroup(null);
+    setGroupFormData({ name: '', email: '', phone: '', interestRate: 6, password: '' });
+  };
+
   const [clientFormData, setClientFormData] = React.useState({ 
     name: '', 
     phone: '', 
@@ -202,7 +231,11 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ groups, clients, users, compete
       {activeSubTab === 'partners' && (
         <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
            {groups.map(g => (
-             <div key={g.id} className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm relative group overflow-hidden">
+             <div 
+               key={g.id} 
+               onClick={() => handleEditGroup(g)}
+               className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm relative group overflow-hidden cursor-pointer hover:border-emerald-200 hover:shadow-md transition-all"
+             >
                 <button 
                   type="button"
                   onClick={(e) => { 
@@ -237,7 +270,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ groups, clients, users, compete
                       if (!associatedUser) return null;
                       return (
                         <button 
-                          onClick={() => onToggleThirdPartyBlock(associatedUser.id)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onToggleThirdPartyBlock(associatedUser.id);
+                          }}
                           className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all border ${
                             associatedUser.thirdPartyBlocked 
                               ? 'bg-red-50 text-red-600 border-red-100' 
@@ -254,7 +290,11 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ groups, clients, users, compete
                 </div>
              </div>
            ))}
-           <button onClick={()=>setShowGroupModal(true)} className="border-2 border-dashed border-slate-200 rounded-[2rem] flex flex-col items-center justify-center py-12 text-slate-300 hover:text-emerald-500 hover:border-emerald-200 hover:bg-emerald-50/30 transition-all group">
+           <button onClick={()=>{
+             setEditingGroup(null);
+             setGroupFormData({ name: '', email: '', phone: '', interestRate: 6, password: '' });
+             setShowGroupModal(true);
+           }} className="border-2 border-dashed border-slate-200 rounded-[2rem] flex flex-col items-center justify-center py-12 text-slate-300 hover:text-emerald-500 hover:border-emerald-200 hover:bg-emerald-50/30 transition-all group">
              <div className="w-16 h-16 rounded-full border-2 border-dashed border-slate-200 flex items-center justify-center group-hover:border-emerald-500 group-hover:scale-110 transition-all">
                 <Plus size={32} />
              </div>
@@ -442,22 +482,26 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ groups, clients, users, compete
         </section>
       )}
 
-      {/* MODAL NOVO SÓCIO - RESTAURADO */}
       {showGroupModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-emerald-900/40 backdrop-blur-md p-4">
            <div className="bg-white p-10 rounded-[3rem] w-full max-w-md shadow-2xl animate-in zoom-in">
-              <h3 className="text-2xl font-black text-slate-800 uppercase mb-6 flex items-center gap-2"><ShieldCheck size={28} className="text-emerald-600" /> Cadastro de Sócio</h3>
-              <form onSubmit={e=>{e.preventDefault(); onAddGroup(groupFormData); setShowGroupModal(false);}} className="space-y-4">
+              <h3 className="text-2xl font-black text-slate-800 uppercase mb-6 flex items-center gap-2">
+                <ShieldCheck size={28} className="text-emerald-600" /> 
+                {editingGroup ? 'Editar Sócio' : 'Cadastro de Sócio'}
+              </h3>
+              <form onSubmit={handleGroupSubmit} className="space-y-4">
                  <input required placeholder="Nome do Sócio" className="w-full p-4 bg-slate-50 rounded-2xl border font-bold" value={groupFormData.name} onChange={e=>setGroupFormData({...groupFormData, name: e.target.value})} />
                  <input required placeholder="E-mail de Acesso" className="w-full p-4 bg-slate-50 rounded-2xl border font-bold" value={groupFormData.email} onChange={e=>setGroupFormData({...groupFormData, email: e.target.value})} />
                  <input required placeholder="Telefone/WhatsApp" className="w-full p-4 bg-slate-50 rounded-2xl border font-bold" value={groupFormData.phone} onChange={e=>setGroupFormData({...groupFormData, phone: e.target.value})} />
                  <div className="grid grid-cols-2 gap-4">
                     <div><label className="text-[9px] font-black text-slate-400 uppercase ml-2 tracking-widest">Taxa de Juros (%)</label><input type="number" step="0.1" required className="w-full p-4 bg-slate-50 rounded-2xl border font-bold" value={isNaN(groupFormData.interestRate) ? '' : groupFormData.interestRate} onChange={e=>setGroupFormData({...groupFormData, interestRate: parseFloat(e.target.value)})} /></div>
-                    <div><label className="text-[9px] font-black text-slate-400 uppercase ml-2 tracking-widest">Senha Inicial</label><input type="password" required className="w-full p-4 bg-slate-50 rounded-2xl border font-bold" value={groupFormData.password} onChange={e=>setGroupFormData({...groupFormData, password: e.target.value})} /></div>
+                    <div><label className="text-[9px] font-black text-slate-400 uppercase ml-2 tracking-widest">Senha</label><input type="password" required className="w-full p-4 bg-slate-50 rounded-2xl border font-bold" value={groupFormData.password} onChange={e=>setGroupFormData({...groupFormData, password: e.target.value})} /></div>
                  </div>
                  <div className="flex gap-4 pt-4">
-                    <button type="button" onClick={()=>setShowGroupModal(false)} className="flex-1 p-4 border rounded-2xl font-black text-slate-400 uppercase text-xs">Cancelar</button>
-                    <button type="submit" className="flex-1 p-4 bg-emerald-600 text-white rounded-2xl font-black uppercase text-xs shadow-lg border-b-4 border-emerald-800">Salvar Sócio</button>
+                    <button type="button" onClick={()=>{setShowGroupModal(false); setEditingGroup(null);}} className="flex-1 p-4 border rounded-2xl font-black text-slate-400 uppercase text-xs">Cancelar</button>
+                    <button type="submit" className="flex-1 p-4 bg-emerald-600 text-white rounded-2xl font-black uppercase text-xs shadow-lg border-b-4 border-emerald-800">
+                      {editingGroup ? 'Salvar Alterações' : 'Salvar Sócio'}
+                    </button>
                  </div>
               </form>
            </div>

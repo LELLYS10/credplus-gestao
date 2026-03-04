@@ -356,6 +356,7 @@ const App: React.FC = () => {
             }
           }} 
           onDeleteGroup={handleDeleteGroup} 
+          onUpdateGroup={handleUpdateSocio}
           onAddClient={d => {
             try {
               const newClientId = `c-${Date.now()}`;
