@@ -233,7 +233,7 @@ const ThirdPartyModule: React.FC<ThirdPartyModuleProps> = ({ user, db, setDb }) 
       {/* Sub-navigation */}
       <div className="flex flex-wrap bg-blue-50/50 p-1.5 rounded-2xl border border-blue-100 self-start w-fit">
         {[
-          { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+          { id: 'dashboard', label: 'Painel Principal', icon: LayoutDashboard },
           { id: 'clients', label: 'Meus Clientes', icon: Users },
           { id: 'loans', label: 'Empréstimos', icon: FileText },
           { id: 'payments', label: 'Extrato', icon: DollarSign },

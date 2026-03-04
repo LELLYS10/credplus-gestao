@@ -19,7 +19,7 @@ const Layout: React.FC<LayoutProps> = ({ user, onLogout, children, activeTab, se
   if (!user) return <div className="p-10 text-center">Carregando sessão...</div>;
 
   const menuItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: Home, roles: [UserRole.ADMIN, UserRole.VIEWER] },
+    { id: 'dashboard', label: 'Painel Principal', icon: Home, roles: [UserRole.ADMIN, UserRole.VIEWER] },
     { id: 'clients', label: 'Clientes', icon: Users, roles: [UserRole.ADMIN, UserRole.VIEWER] },
     { id: 'requests', label: 'Solicitações', icon: CheckSquare, roles: [UserRole.ADMIN, UserRole.VIEWER], badge: pendingCount },
     { id: 'third-party', label: 'Terceiros', icon: Briefcase, roles: [UserRole.VIEWER] },
