@@ -53,6 +53,11 @@ const Layout: React.FC<LayoutProps> = ({ user, onLogout, children, activeTab, se
             <div className="flex items-center gap-3">
               <item.icon size={20} className={activeTab === item.id ? 'text-amber-400' : ''} />
               <span className="font-semibold">{item.label}</span>
+              {item.id === 'third-party' && user.thirdPartyBlocked && (
+                <span className="ml-2 px-1.5 py-0.5 bg-red-500/20 text-red-300 text-[8px] font-black uppercase rounded border border-red-500/30">
+                  Bloqueado
+                </span>
+              )}
             </div>
             {item.badge && item.badge > 0 && (
               <span className="bg-amber-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-md animate-pulse">

@@ -258,9 +258,13 @@ const App: React.FC = () => {
 
   const renderContent = () => {
     if (!db || !user) return null;
+    
+    // Busca os dados mais recentes do usuário logado diretamente do banco de dados
+    const liveUser = db.users.find((u: any) => u.id === user.id) || user;
+    
     switch (activeTab) {
       case 'dashboard': return <Dashboard 
-        user={user} 
+        user={liveUser} 
         clients={db.clients} 
         competences={db.competences} 
         groups={db.groups} 
@@ -274,11 +278,11 @@ const App: React.FC = () => {
           setDb(freshData);
         }}
       />;
-      case 'clients': return <ClientsList user={user} clients={db.clients} groups={db.groups} onViewClient={id => {setSelectedClientId(id); setActiveTab('client-detail');}} />;
+      case 'clients': return <ClientsList user={liveUser} clients={db.clients} groups={db.groups} onViewClient={id => {setSelectedClientId(id); setActiveTab('client-detail');}} />;
       case 'third-party': 
-        if (user.role !== UserRole.VIEWER) return <div className="p-10 text-center font-black uppercase text-red-500">Acesso Negado</div>;
+        if (liveUser.role !== UserRole.VIEWER) return <div className="p-10 text-center font-black uppercase text-red-500">Acesso Negado</div>;
         
-        if (user.thirdPartyBlocked) {
+        if (liveUser.thirdPartyBlocked) {
           return (
             <div className="flex flex-col items-center justify-center py-20 px-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
               <div className="w-24 h-24 bg-red-100 text-red-600 rounded-[2rem] flex items-center justify-center mb-8 shadow-xl shadow-red-100 border-b-4 border-red-200">
@@ -298,12 +302,12 @@ const App: React.FC = () => {
           );
         }
         
-        return <ThirdPartyModule user={user} db={db} setDb={setDb} />;
-      case 'requests': return <RequestsList user={user} requests={db.requests} clients={db.clients} groups={db.groups} onAction={handleProcessRequest} />;
+        return <ThirdPartyModule user={liveUser} db={db} setDb={setDb} />;
+      case 'requests': return <RequestsList user={liveUser} requests={db.requests} clients={db.clients} groups={db.groups} onAction={handleProcessRequest} />;
       case 'admin': 
-        if (user.role !== UserRole.ADMIN) return <div className="p-10 text-center font-black uppercase text-red-500">Acesso Negado</div>;
+        if (liveUser.role !== UserRole.ADMIN) return <div className="p-10 text-center font-black uppercase text-red-500">Acesso Negado</div>;
         return <AdminPanel 
-          groups={db.groups} clients={db.clients} users={db.users} competences={db.competences} reports={db.reports} user={user} transactions={db.transactions}
+          groups={db.groups} clients={db.clients} users={db.users} competences={db.competences} reports={db.reports} user={liveUser} transactions={db.transactions}
           onToggleThirdPartyBlock={(userId) => {
             setDb((prev: any) => ({
               ...prev,
@@ -502,13 +506,14 @@ const App: React.FC = () => {
   return (
     <>
       <Layout 
-        user={user} 
+        user={db.users.find((u: any) => u.id === user.id) || user} 
         onLogout={()=>{setUser(null); localStorage.removeItem(SESSION_KEY);}} 
         activeTab={activeTab} 
         setActiveTab={setActiveTab} 
         pendingCount={db.requests.filter((r:any)=>{
-          if (user.role === UserRole.ADMIN) return r.status === RequestStatus.PENDING;
-          const userGroupId = user.groupId || db.groups.find((g: any) => g.email === user.email)?.id;
+          const liveUser = db.users.find((u: any) => u.id === user.id) || user;
+          if (liveUser.role === UserRole.ADMIN) return r.status === RequestStatus.PENDING;
+          const userGroupId = liveUser.groupId || db.groups.find((g: any) => g.email === liveUser.email)?.id;
           return r.status === RequestStatus.PENDING && r.groupId === userGroupId;
         }).length}
       >
