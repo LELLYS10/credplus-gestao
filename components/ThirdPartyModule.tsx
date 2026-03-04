@@ -13,10 +13,94 @@ interface ThirdPartyModuleProps {
 const ThirdPartyModule: React.FC<ThirdPartyModuleProps> = ({ user, db, setDb }) => {
   const [activeSubTab, setActiveSubTab] = useState<'dashboard' | 'clients' | 'loans' | 'payments'>('dashboard');
   
+  const [showClientModal, setShowClientModal] = useState(false);
+  const [clientForm, setClientForm] = useState({ nome: '', telefone: '', observacoes: '' });
+  
+  const [showLoanModal, setShowLoanModal] = useState(false);
+  const [loanForm, setLoanForm] = useState({ 
+    clientId: '', 
+    valorPrincipal: 0, 
+    porcentagemJurosMensal: 10, 
+    dataEmprestimo: new Date().toISOString().split('T')[0],
+    diaPagamentoJuros: 1 
+  });
+  
   // Filter data by current user
   const myClients = (db.thirdPartyClients || []).filter((c: ThirdPartyClient) => c.userId === user.id);
   const myLoans = (db.thirdPartyLoans || []).filter((l: ThirdPartyLoan) => l.userId === user.id);
   const myPayments = (db.thirdPartyPayments || []).filter((p: ThirdPartyPayment) => p.userId === user.id);
+
+  const handleAddClient = (e: React.FormEvent) => {
+    e.preventDefault();
+    const newClient: ThirdPartyClient = {
+      id: `tpc-${Date.now()}`,
+      userId: user.id,
+      nome: clientForm.nome,
+      telefone: clientForm.telefone,
+      observacoes: clientForm.observacoes,
+      createdAt: Date.now()
+    };
+
+    setDb((prev: any) => ({
+      ...prev,
+      thirdPartyClients: [...(prev.thirdPartyClients || []), newClient]
+    }));
+
+    setShowClientModal(false);
+    setClientForm({ nome: '', telefone: '', observacoes: '' });
+  };
+
+  const handleDeleteClient = (id: string) => {
+    if (!confirm('Deseja realmente excluir este cliente? Todos os empréstimos vinculados também serão afetados.')) return;
+    
+    setDb((prev: any) => ({
+      ...prev,
+      thirdPartyClients: (prev.thirdPartyClients || []).filter((c: any) => c.id !== id),
+      thirdPartyLoans: (prev.thirdPartyLoans || []).filter((l: any) => l.clientId !== id)
+    }));
+  };
+
+  const handleAddLoan = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!loanForm.clientId) {
+      alert("Selecione um cliente.");
+      return;
+    }
+
+    const newLoan: ThirdPartyLoan = {
+      id: `tpl-${Date.now()}`,
+      userId: user.id,
+      clientId: loanForm.clientId,
+      valorPrincipal: loanForm.valorPrincipal,
+      porcentagemJurosMensal: loanForm.porcentagemJurosMensal,
+      dataEmprestimo: loanForm.dataEmprestimo,
+      diaPagamentoJuros: loanForm.diaPagamentoJuros,
+      status: 'ativo',
+      createdAt: Date.now()
+    };
+
+    setDb((prev: any) => ({
+      ...prev,
+      thirdPartyLoans: [...(prev.thirdPartyLoans || []), newLoan]
+    }));
+
+    setShowLoanModal(false);
+    setLoanForm({ 
+      clientId: '', 
+      valorPrincipal: 0, 
+      porcentagemJurosMensal: 10, 
+      dataEmprestimo: new Date().toISOString().split('T')[0],
+      diaPagamentoJuros: 1 
+    });
+  };
+
+  const handleDeleteLoan = (id: string) => {
+    if (!confirm('Excluir este empréstimo permanentemente?')) return;
+    setDb((prev: any) => ({
+      ...prev,
+      thirdPartyLoans: (prev.thirdPartyLoans || []).filter((l: any) => l.id !== id)
+    }));
+  };
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
@@ -92,16 +176,184 @@ const ThirdPartyModule: React.FC<ThirdPartyModuleProps> = ({ user, db, setDb }) 
         )}
 
         {activeSubTab === 'clients' && (
-          <div className="text-center py-20">
-            <Users size={48} className="mx-auto text-blue-200 mb-4" />
-            <p className="text-blue-400 font-black uppercase tracking-widest text-xs">Área de Clientes em Desenvolvimento</p>
+          <div className="space-y-6 relative z-10">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xl font-black text-blue-800 uppercase tracking-tighter">Meus Clientes</h3>
+              <button 
+                onClick={() => setShowClientModal(true)}
+                className="flex items-center gap-2 bg-blue-600 text-white px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-blue-100 hover:bg-blue-700 transition-all"
+              >
+                <Plus size={16} /> Novo Cliente
+              </button>
+            </div>
+
+            {myClients.length === 0 ? (
+              <div className="py-20 text-center bg-blue-50/30 rounded-[2rem] border-2 border-dashed border-blue-100">
+                <Users size={48} className="mx-auto text-blue-200 mb-4" />
+                <p className="text-blue-400 font-black uppercase tracking-widest text-[10px]">Nenhum cliente cadastrado ainda.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {myClients.map(client => (
+                  <div key={client.id} className="bg-white p-6 rounded-[2rem] border-2 border-blue-50 shadow-sm hover:border-blue-200 transition-all group">
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center font-black text-xl">
+                        {client.nome.charAt(0).toUpperCase()}
+                      </div>
+                      <button 
+                        onClick={() => handleDeleteClient(client.id)}
+                        className="p-2 text-blue-200 hover:text-red-500 transition-colors"
+                      >
+                        <AlertCircle size={18} />
+                      </button>
+                    </div>
+                    <h4 className="font-black text-blue-900 text-lg mb-1">{client.nome}</h4>
+                    <div className="flex items-center gap-2 text-blue-400 mb-4">
+                      <Phone size={14} />
+                      <span className="text-xs font-bold">{client.telefone}</span>
+                    </div>
+                    <div className="pt-4 border-t border-blue-50 flex items-center justify-between">
+                      <div className="flex flex-col">
+                        <span className="text-[9px] font-black text-blue-300 uppercase tracking-widest">Empréstimos</span>
+                        <span className="text-sm font-black text-blue-600">{myLoans.filter(l => l.clientId === client.id).length} ativos</span>
+                      </div>
+                      <button className="p-2 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-600 hover:text-white transition-all">
+                        <ChevronRight size={18} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* MODAL NOVO CLIENTE */}
+        {showClientModal && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-blue-900/40 backdrop-blur-md p-4">
+            <div className="bg-white p-10 rounded-[3rem] w-full max-w-md shadow-2xl animate-in zoom-in duration-300">
+              <div className="flex items-center gap-3 mb-8">
+                <div className="p-2 bg-blue-100 text-blue-600 rounded-xl"><Users size={24} /></div>
+                <h3 className="text-2xl font-black text-blue-900 uppercase tracking-tighter">Novo Cliente</h3>
+              </div>
+              
+              <form onSubmit={handleAddClient} className="space-y-4">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-blue-400 uppercase ml-2 tracking-widest">Nome Completo</label>
+                  <input 
+                    required 
+                    placeholder="Ex: João Silva" 
+                    className="w-full p-4 bg-blue-50/50 rounded-2xl border-2 border-transparent focus:border-blue-200 focus:bg-white transition-all font-bold text-blue-900 outline-none" 
+                    value={clientForm.nome} 
+                    onChange={e => setClientForm({...clientForm, nome: e.target.value})} 
+                  />
+                </div>
+                
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-blue-400 uppercase ml-2 tracking-widest">WhatsApp / Telefone</label>
+                  <input 
+                    required 
+                    placeholder="(00) 00000-0000" 
+                    className="w-full p-4 bg-blue-50/50 rounded-2xl border-2 border-transparent focus:border-blue-200 focus:bg-white transition-all font-bold text-blue-900 outline-none" 
+                    value={clientForm.telefone} 
+                    onChange={e => setClientForm({...clientForm, telefone: e.target.value})} 
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-blue-400 uppercase ml-2 tracking-widest">Observações (Opcional)</label>
+                  <textarea 
+                    placeholder="Alguma nota sobre o cliente..." 
+                    className="w-full p-4 bg-blue-50/50 rounded-2xl border-2 border-transparent focus:border-blue-200 focus:bg-white transition-all font-bold text-blue-900 outline-none min-h-[100px]" 
+                    value={clientForm.observacoes} 
+                    onChange={e => setClientForm({...clientForm, observacoes: e.target.value})} 
+                  />
+                </div>
+
+                <div className="flex gap-4 pt-6">
+                  <button 
+                    type="button" 
+                    onClick={() => setShowClientModal(false)} 
+                    className="flex-1 p-4 bg-slate-100 text-slate-400 rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-slate-200 transition-all"
+                  >
+                    Cancelar
+                  </button>
+                  <button 
+                    type="submit" 
+                    className="flex-1 p-4 bg-blue-600 text-white rounded-2xl font-black uppercase text-xs tracking-widest shadow-lg shadow-blue-100 border-b-4 border-blue-800 hover:bg-blue-700 transition-all"
+                  >
+                    Salvar Cliente
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
         )}
 
         {activeSubTab === 'loans' && (
-          <div className="text-center py-20">
-            <FileText size={48} className="mx-auto text-blue-200 mb-4" />
-            <p className="text-blue-400 font-black uppercase tracking-widest text-xs">Área de Empréstimos em Desenvolvimento</p>
+          <div className="space-y-6 relative z-10">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xl font-black text-blue-800 uppercase tracking-tighter">Empréstimos Ativos</h3>
+              <button 
+                onClick={() => setShowLoanModal(true)}
+                className="flex items-center gap-2 bg-blue-600 text-white px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-blue-100 hover:bg-blue-700 transition-all"
+              >
+                <Plus size={16} /> Novo Empréstimo
+              </button>
+            </div>
+
+            {myLoans.length === 0 ? (
+              <div className="py-20 text-center bg-blue-50/30 rounded-[2rem] border-2 border-dashed border-blue-100">
+                <FileText size={48} className="mx-auto text-blue-200 mb-4" />
+                <p className="text-blue-400 font-black uppercase tracking-widest text-[10px]">Nenhum empréstimo registrado.</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {myLoans.map(loan => {
+                  const client = myClients.find(c => c.id === loan.clientId);
+                  return (
+                    <div key={loan.id} className="bg-white p-6 rounded-[2rem] border-2 border-blue-50 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6">
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 bg-blue-600 text-white rounded-2xl flex items-center justify-center">
+                          <DollarSign size={24} />
+                        </div>
+                        <div>
+                          <h4 className="font-black text-blue-900">{client?.nome || 'Cliente Excluído'}</h4>
+                          <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest">Início: {new Date(loan.dataEmprestimo).toLocaleDateString('pt-BR')}</p>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-8 flex-1 max-w-2xl">
+                        <div>
+                          <p className="text-[9px] font-black text-blue-300 uppercase tracking-widest mb-1">Principal</p>
+                          <p className="text-lg font-black text-blue-600">{formatCurrency(loan.valorPrincipal)}</p>
+                        </div>
+                        <div>
+                          <p className="text-[9px] font-black text-blue-300 uppercase tracking-widest mb-1">Juros Mensal</p>
+                          <p className="text-lg font-black text-amber-600">{loan.porcentagemJurosMensal}%</p>
+                        </div>
+                        <div className="hidden md:block">
+                          <p className="text-[9px] font-black text-blue-300 uppercase tracking-widest mb-1">Dia Venc.</p>
+                          <p className="text-lg font-black text-blue-800">Dia {loan.diaPagamentoJuros}</p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <button className="p-3 bg-blue-50 text-blue-600 rounded-2xl hover:bg-blue-600 hover:text-white transition-all">
+                          <DollarSign size={20} />
+                        </button>
+                        <button 
+                          onClick={() => handleDeleteLoan(loan.id)}
+                          className="p-3 bg-red-50 text-red-400 rounded-2xl hover:bg-red-500 hover:text-white transition-all"
+                        >
+                          <AlertCircle size={20} />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
 
@@ -112,6 +364,104 @@ const ThirdPartyModule: React.FC<ThirdPartyModuleProps> = ({ user, db, setDb }) 
           </div>
         )}
       </div>
+
+      {/* MODAL NOVO CLIENTE */}
+      {/* ... (código anterior do modal de cliente) ... */}
+
+      {/* MODAL NOVO EMPRÉSTIMO */}
+      {showLoanModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-blue-900/40 backdrop-blur-md p-4">
+          <div className="bg-white p-10 rounded-[3rem] w-full max-w-md shadow-2xl animate-in zoom-in duration-300">
+            <div className="flex items-center gap-3 mb-8">
+              <div className="p-2 bg-blue-100 text-blue-600 rounded-xl"><FileText size={24} /></div>
+              <h3 className="text-2xl font-black text-blue-900 uppercase tracking-tighter">Novo Empréstimo</h3>
+            </div>
+            
+            <form onSubmit={handleAddLoan} className="space-y-4">
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-blue-400 uppercase ml-2 tracking-widest">Selecionar Cliente</label>
+                <select 
+                  required 
+                  className="w-full p-4 bg-blue-50/50 rounded-2xl border-2 border-transparent focus:border-blue-200 focus:bg-white transition-all font-bold text-blue-900 outline-none appearance-none"
+                  value={loanForm.clientId}
+                  onChange={e => setLoanForm({...loanForm, clientId: e.target.value})}
+                >
+                  <option value="">Escolha um cliente...</option>
+                  {myClients.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-blue-400 uppercase ml-2 tracking-widest">Valor Principal</label>
+                  <input 
+                    type="number" 
+                    required 
+                    placeholder="R$ 0,00" 
+                    className="w-full p-4 bg-blue-50/50 rounded-2xl border-2 border-transparent focus:border-blue-200 focus:bg-white transition-all font-bold text-blue-900 outline-none" 
+                    value={loanForm.valorPrincipal || ''} 
+                    onChange={e => setLoanForm({...loanForm, valorPrincipal: parseFloat(e.target.value)})} 
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-blue-400 uppercase ml-2 tracking-widest">Juros Mensal (%)</label>
+                  <input 
+                    type="number" 
+                    step="0.1"
+                    required 
+                    placeholder="10%" 
+                    className="w-full p-4 bg-blue-50/50 rounded-2xl border-2 border-transparent focus:border-blue-200 focus:bg-white transition-all font-bold text-blue-900 outline-none" 
+                    value={loanForm.porcentagemJurosMensal || ''} 
+                    onChange={e => setLoanForm({...loanForm, porcentagemJurosMensal: parseFloat(e.target.value)})} 
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-blue-400 uppercase ml-2 tracking-widest">Data Início</label>
+                  <input 
+                    type="date" 
+                    required 
+                    className="w-full p-4 bg-blue-50/50 rounded-2xl border-2 border-transparent focus:border-blue-200 focus:bg-white transition-all font-bold text-blue-900 outline-none" 
+                    value={loanForm.dataEmprestimo} 
+                    onChange={e => setLoanForm({...loanForm, dataEmprestimo: e.target.value})} 
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-blue-400 uppercase ml-2 tracking-widest">Dia Pagamento</label>
+                  <input 
+                    type="number" 
+                    min="1" 
+                    max="31"
+                    required 
+                    placeholder="Dia" 
+                    className="w-full p-4 bg-blue-50/50 rounded-2xl border-2 border-transparent focus:border-blue-200 focus:bg-white transition-all font-bold text-blue-900 outline-none" 
+                    value={loanForm.diaPagamentoJuros || ''} 
+                    onChange={e => setLoanForm({...loanForm, diaPagamentoJuros: parseInt(e.target.value)})} 
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-4 pt-6">
+                <button 
+                  type="button" 
+                  onClick={() => setShowLoanModal(false)} 
+                  className="flex-1 p-4 bg-slate-100 text-slate-400 rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-slate-200 transition-all"
+                >
+                  Cancelar
+                </button>
+                <button 
+                  type="submit" 
+                  className="flex-1 p-4 bg-blue-600 text-white rounded-2xl font-black uppercase text-xs tracking-widest shadow-lg shadow-blue-100 border-b-4 border-blue-800 hover:bg-blue-700 transition-all"
+                >
+                  Criar Empréstimo
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
