@@ -110,7 +110,7 @@ export interface ThirdPartyLoan {
   valorPrincipal: number;
   porcentagemJurosMensal: number;
   dataEmprestimo: string;
-  diaPagamentoJuros: number;
+  dataPagamentoJuros: string;
   status: 'ativo' | 'encerrado';
   createdAt: number;
 }
