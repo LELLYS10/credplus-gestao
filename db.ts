@@ -48,6 +48,26 @@ const initialState: DBState = {
   thirdPartyPayments: []
 };
 
+// Helper para converter objeto de camelCase para snake_case
+const toSnakeCase = (obj: any) => {
+  const snakeObj: any = {};
+  for (const key in obj) {
+    const snakeKey = key.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
+    snakeObj[snakeKey] = obj[key];
+  }
+  return snakeObj;
+};
+
+// Helper para converter objeto de snake_case para camelCase
+const toCamelCase = (obj: any) => {
+  const camelObj: any = {};
+  for (const key in obj) {
+    const camelKey = key.replace(/(_\w)/g, m => m[1].toUpperCase());
+    camelObj[camelKey] = obj[key];
+  }
+  return camelObj;
+};
+
 export const loadDB = async (): Promise<DBState> => {
   const localData = localStorage.getItem(STORAGE_KEY);
   let localState: DBState = localData ? JSON.parse(localData) : initialState;
@@ -79,77 +99,42 @@ export const loadDB = async (): Promise<DBState> => {
       supabase.from('third_party_payments').select('*')
     ]);
 
-    if (users && users.length > 0) {
-      console.log("🔍 Estrutura do usuário no Supabase:", Object.keys(users[0]));
-      console.log("🔍 Exemplo de valor third_party_blocked:", (users[0] as any).third_party_blocked);
-      console.log("🔍 Exemplo de valor thirdPartyBlocked:", (users[0] as any).thirdPartyBlocked);
-    }
+    // Mapear clientes do Supabase (snake_case) para o App (camelCase)
+    const mappedClients = (clients || []).map(c => toCamelCase(c));
+    const mappedGroups = (groups || []).map(g => toCamelCase(g));
+    const mappedCompetences = (competences || []).map(cp => toCamelCase(cp));
+    const mappedRequests = (requests || []).map(r => toCamelCase(r));
+    const mappedReports = (reports || []).map(rp => toCamelCase(rp));
+    const mappedTransactions = (transactions || []).map(t => toCamelCase(t));
 
-    // Mesclar dados do Supabase com dados locais para preservar campos extras
-    // que podem não existir nas colunas do Supabase ainda.
+    // Mesclar usuários com mapeamento manual para campos específicos
     const usersMap = new Map<string, any>();
-
     (users || []).forEach(u => {
       const userId = String(u.id);
+      const mappedUser = toCamelCase(u);
       const localUser = localState.users.find(lu => String(lu.id) === userId);
       
-      // Mapeamento de campos do Supabase (snake_case) para o App (camelCase)
-      const supabaseBlocked = u.third_party_blocked !== undefined ? u.third_party_blocked : u.thirdPartyBlocked;
-      const supabaseUpdatedAt = u.updated_at !== undefined ? u.updated_at : u.updatedAt;
-      
-      // Lógica de Conflito: Quem tiver o updatedAt maior vence.
-      const localUpdatedAt = localUser?.updatedAt || 0;
-      const finalBlockedStatus = (supabaseUpdatedAt >= localUpdatedAt || !localUser)
-        ? (supabaseBlocked !== null && supabaseBlocked !== undefined ? supabaseBlocked : (localUser?.thirdPartyBlocked ?? false))
-        : (localUser?.thirdPartyBlocked ?? false);
-
-      const userWithMappedFields = {
+      usersMap.set(userId, {
         ...(localUser || {}),
-        ...u,
-        id: userId, // Garante que o ID seja string
-        thirdPartyBlocked: finalBlockedStatus,
-        updatedAt: Math.max(Number(supabaseUpdatedAt) || 0, localUpdatedAt)
-      };
-
-      if ((userWithMappedFields as any).third_party_blocked !== undefined) {
-        delete (userWithMappedFields as any).third_party_blocked;
-      }
-      if ((userWithMappedFields as any).updated_at !== undefined) {
-        delete (userWithMappedFields as any).updated_at;
-      }
-
-      // Se já existe no mapa, mescla (o do Supabase mais recente/último ganha)
-      const existing = usersMap.get(userId);
-      usersMap.set(userId, { ...(existing || {}), ...userWithMappedFields });
+        ...mappedUser,
+        id: userId
+      });
     });
 
     const mergedUsers = Array.from(usersMap.values());
-    
-    mergedUsers.forEach(u => {
-      if (u.role === UserRole.VIEWER || u.groupId) {
-        console.log(`👤 Sócio: ${u.email} | Bloqueado: ${u.thirdPartyBlocked} | ID: ${u.id}`);
-      }
-    });
-
-    // Adicionar usuários que existem localmente mas não no Supabase (ex: admins recém criados)
-    localState.users.forEach(lu => {
-      if (!mergedUsers.find(mu => mu.id === lu.id)) {
-        mergedUsers.push(lu);
-      }
-    });
 
     return {
       users: mergedUsers.length > 0 ? mergedUsers : localState.users,
-      groups: groups !== null ? groups : localState.groups,
-      clients: clients !== null ? clients : [], // Prioritize Supabase, ignore local if Supabase is active
-      competences: competences !== null ? competences : localState.competences,
-      requests: requests !== null ? requests : localState.requests,
-      reports: reports !== null ? reports : localState.reports,
-      transactions: transactions !== null ? transactions : localState.transactions,
+      groups: groups !== null ? mappedGroups : localState.groups,
+      clients: (clients !== null && !cErr) ? mappedClients : localState.clients,
+      competences: (competences !== null && !cpErr) ? mappedCompetences : localState.competences,
+      requests: (requests !== null && !rErr) ? mappedRequests : localState.requests,
+      reports: (reports !== null && !rpErr) ? mappedReports : localState.reports,
+      transactions: (transactions !== null && !tErr) ? mappedTransactions : localState.transactions,
       settings: localState.settings || {},
-      thirdPartyClients: tpClients !== null ? tpClients : (localState.thirdPartyClients || []),
-      thirdPartyLoans: tpLoans !== null ? tpLoans : (localState.thirdPartyLoans || []),
-      thirdPartyPayments: tpPayments !== null ? tpPayments : (localState.thirdPartyPayments || [])
+      thirdPartyClients: tpClients !== null ? tpClients.map(c => toCamelCase(c)) : (localState.thirdPartyClients || []),
+      thirdPartyLoans: tpLoans !== null ? tpLoans.map(l => toCamelCase(l)) : (localState.thirdPartyLoans || []),
+      thirdPartyPayments: tpPayments !== null ? tpPayments.map(p => toCamelCase(p)) : (localState.thirdPartyPayments || [])
     };
   } catch (error) {
     console.error("Erro crítico ao carregar do Supabase:", error);
@@ -167,63 +152,32 @@ export const saveDB = async (state: DBState) => {
   if (!supabase) return;
 
   try {
-    // Preparar dados para o Supabase
-    // Garantimos que apenas campos conhecidos e necessários sejam enviados
-    // para evitar erros de "coluna não existe" no Supabase.
-    const usersToSave = state.users.map(u => {
-      const payload: any = {
-        id: String(u.id),
-        email: u.email,
-        role: u.role,
-        third_party_blocked: u.thirdPartyBlocked ?? false,
-        thirdPartyBlocked: u.thirdPartyBlocked ?? false,
-        updated_at: u.updatedAt || Date.now(),
-        updatedAt: u.updatedAt || Date.now()
-      };
-      
-      // Só inclui campos opcionais se eles existirem
-      if (u.password) payload.password = u.password;
-      if (u.groupId) payload.groupId = u.groupId;
-      if (u.status) payload.status = u.status;
-      
-      return payload;
-    });
-
-    console.log("🔄 Sincronizando com Supabase...");
-    const blockedUsers = usersToSave.filter(u => u.third_party_blocked);
-    if (blockedUsers.length > 0) {
-      console.log("🚫 Salvando usuários bloqueados:", blockedUsers.map(u => u.email));
-    }
+    const convertList = (list: any[]) => (list || []).map(item => toSnakeCase(item));
 
     const results = await Promise.all([
-      usersToSave.length > 0 ? supabase.from('users').upsert(usersToSave) : Promise.resolve({ error: null, data: null }),
-      state.groups.length > 0 ? supabase.from('groups').upsert(state.groups) : Promise.resolve({ error: null, data: null }),
-      state.clients.length > 0 ? supabase.from('clients').upsert(state.clients) : Promise.resolve({ error: null, data: null }),
-      state.competences.length > 0 ? supabase.from('competences').upsert(state.competences) : Promise.resolve({ error: null, data: null }),
-      state.requests.length > 0 ? supabase.from('requests').upsert(state.requests) : Promise.resolve({ error: null, data: null }),
-      state.reports.length > 0 ? supabase.from('reports').upsert(state.reports) : Promise.resolve({ error: null, data: null }),
-      state.transactions.length > 0 ? supabase.from('transactions').upsert(state.transactions) : Promise.resolve({ error: null, data: null }),
-      (state.thirdPartyClients && state.thirdPartyClients.length > 0) ? supabase.from('third_party_clients').upsert(state.thirdPartyClients) : Promise.resolve({ error: null, data: null }),
-      (state.thirdPartyLoans && state.thirdPartyLoans.length > 0) ? supabase.from('third_party_loans').upsert(state.thirdPartyLoans) : Promise.resolve({ error: null, data: null }),
-      (state.thirdPartyPayments && state.thirdPartyPayments.length > 0) ? supabase.from('third_party_payments').upsert(state.thirdPartyPayments) : Promise.resolve({ error: null, data: null }),
+      state.users.length > 0 ? supabase.from('users').upsert(convertList(state.users)) : Promise.resolve({ error: null }),
+      state.groups.length > 0 ? supabase.from('groups').upsert(convertList(state.groups)) : Promise.resolve({ error: null }),
+      state.clients.length > 0 ? supabase.from('clients').upsert(convertList(state.clients)) : Promise.resolve({ error: null }),
+      state.competences.length > 0 ? supabase.from('competences').upsert(convertList(state.competences)) : Promise.resolve({ error: null }),
+      state.requests.length > 0 ? supabase.from('requests').upsert(convertList(state.requests)) : Promise.resolve({ error: null }),
+      state.reports.length > 0 ? supabase.from('reports').upsert(convertList(state.reports)) : Promise.resolve({ error: null }),
+      state.transactions.length > 0 ? supabase.from('transactions').upsert(convertList(state.transactions)) : Promise.resolve({ error: null }),
+      (state.thirdPartyClients && state.thirdPartyClients.length > 0) ? supabase.from('third_party_clients').upsert(convertList(state.thirdPartyClients)) : Promise.resolve({ error: null }),
+      (state.thirdPartyLoans && state.thirdPartyLoans.length > 0) ? supabase.from('third_party_loans').upsert(convertList(state.thirdPartyLoans)) : Promise.resolve({ error: null }),
+      (state.thirdPartyPayments && state.thirdPartyPayments.length > 0) ? supabase.from('third_party_payments').upsert(convertList(state.thirdPartyPayments)) : Promise.resolve({ error: null }),
     ]);
 
-    // Verificar se houve erro em algum upsert
     const tableNames = [
       'users', 'groups', 'clients', 'competences', 'requests', 
       'reports', 'transactions', 'third_party_clients', 
       'third_party_loans', 'third_party_payments'
     ];
 
-    let hasError = false;
     results.forEach((res, index) => {
       if (res && (res as any).error) {
-        hasError = true;
         console.error(`❌ Erro Supabase [Tabela: ${tableNames[index]}]:`, (res as any).error);
       }
     });
-
-    if (!hasError) console.log("✅ Sincronização concluída com sucesso!");
 
   } catch (error) {
     console.error("Erro ao sincronizar com Supabase:", error);
@@ -243,22 +197,7 @@ export const insertClient = async (client: Partial<Client>) => {
   if (!supabase) return null;
   
   try {
-    // O usuário solicitou campos específicos: id, name, phone, groupId
-    const payload = {
-      id: client.id,
-      name: client.name,
-      phone: client.phone,
-      groupId: client.groupId,
-      // Incluindo os outros campos para manter a integridade do app, 
-      // mas garantindo que os solicitados estejam presentes.
-      initialCapital: client.initialCapital || 0,
-      currentCapital: client.currentCapital || 0,
-      dueDay: client.dueDay || 1,
-      status: client.status || 'ACTIVE',
-      notes: client.notes || '',
-      createdAt: client.createdAt || Date.now(),
-      firstDueDate: client.firstDueDate || null
-    };
+    const payload = toSnakeCase(client);
 
     const { data, error } = await supabase
       .from('clients')
