@@ -406,37 +406,41 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ db, user, onAddClient, onAddT
         for (const call of functionCalls) {
           if (call.name === "registerSocio") {
             const args = call.args as any;
-            onAddSocio({ ...args, name: toTitleCase(args.name) });
+            await (onAddSocio as any)({ ...args, name: toTitleCase(args.name) });
             setMessages(prev => [...prev, { role: 'model', text: `✅ Sócio **${toTitleCase(args.name)}** cadastrado com sucesso!` }]);
           } else if (call.name === "registerClient") {
             const args = call.args as any;
-            onAddClient({ ...args, name: toTitleCase(args.name) });
+            await (onAddClient as any)({ ...args, name: toTitleCase(args.name) });
             setMessages(prev => [...prev, { role: 'model', text: `✅ Cliente **${toTitleCase(args.name)}** registrado com sucesso!` }]);
           } else if (call.name === "registerTransaction") {
-            onAddTransaction(call.args as any);
+            await (onAddTransaction as any)(call.args as any);
             setMessages(prev => [...prev, { role: 'model', text: `✅ Lançamento registrado com sucesso!` }]);
           } else if (call.name === "registerPayment") {
             const args = call.args as any;
             if (user.role === UserRole.ADMIN) {
-              onAddPayment(args);
+              await (onAddPayment as any)(args);
               const client = db.clients.find(c => c.id === args.clientId);
               const newCap = (client?.currentCapital || 0) - args.amortizationAmount;
               setMessages(prev => [...prev, { role: 'model', text: `✅ Pagamento de **${client?.name}** processado!\n- Juros pagos: R$ ${args.interestAmount}\n- Amortização: R$ ${args.amortizationAmount}\n- **Novo Capital: R$ ${newCap}**` }]);
             } else {
-              onRequestPayment(args.clientId, args.interestAmount, args.amortizationAmount, 0, args.description || 'Solicitado via Agente');
+              await (onRequestPayment as any)(args.clientId, args.interestAmount, args.amortizationAmount, 0, args.description || 'Solicitado via Agente');
               setMessages(prev => [...prev, { role: 'model', text: `⏳ Solicitação de pagamento enviada para o Administrador confirmar.` }]);
             }
           } else if (call.name === "requestPayment") {
             const args = call.args as any;
-            onRequestPayment(args.clientId, args.interestAmount, args.amortizationAmount, args.discountAmount || 0, args.observation || 'Solicitado via Agente');
+            await (onRequestPayment as any)(args.clientId, args.interestAmount, args.amortizationAmount, args.discountAmount || 0, args.observation || 'Solicitado via Agente');
             setMessages(prev => [...prev, { role: 'model', text: `⏳ Solicitação de pagamento enviada para o Administrador confirmar.` }]);
           } else if (call.name === "deleteClient") {
             const args = call.args as any;
             if (user.role === 'ADMIN') {
               const client = db.clients.find(c => c.id === args.clientId);
               if (client) {
-                await (onDeleteClient as any)(args.clientId);
-                setMessages(prev => [...prev, { role: 'model', text: `🗑️ Cliente **${client.name}** excluído.` }]);
+                const success = await (onDeleteClient as any)(args.clientId);
+                if (success) {
+                  setMessages(prev => [...prev, { role: 'model', text: `🗑️ Cliente **${client.name}** excluído.` }]);
+                } else {
+                  setMessages(prev => [...prev, { role: 'model', text: `❌ Não foi possível excluir o cliente **${client.name}**. Verifique se existem dependências.` }]);
+                }
               }
             }
           } else if (call.name === "deleteGroup") {
@@ -444,8 +448,12 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ db, user, onAddClient, onAddT
             if (user.role === 'ADMIN') {
               const group = db.groups.find(g => g.id === args.groupId);
               if (group) {
-                await (onDeleteGroup as any)(args.groupId);
-                setMessages(prev => [...prev, { role: 'model', text: `🗑️ Sócio **${group.name}** excluído.` }]);
+                const success = await (onDeleteGroup as any)(args.groupId);
+                if (success) {
+                  setMessages(prev => [...prev, { role: 'model', text: `🗑️ Sócio **${group.name}** excluído.` }]);
+                } else {
+                  setMessages(prev => [...prev, { role: 'model', text: `❌ Não foi possível excluir o sócio **${group.name}**. Verifique se existem clientes vinculados.` }]);
+                }
               }
             }
           } else if (call.name === "updateClient") {

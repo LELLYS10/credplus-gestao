@@ -170,18 +170,18 @@ const App: React.FC = () => {
     });
   };
 
-  const handleDeleteClient = async (id: string) => {
-    if (!db || !user) return;
+  const handleDeleteClient = async (id: string): Promise<boolean> => {
+    if (!db || !user) return false;
     
     const client = db.clients.find((c: any) => c.id === id);
-    if (!client) return;
+    if (!client) return false;
 
     // Permissão: Admin pode tudo, Sócio só pode deletar o dele
     if (user.role !== UserRole.ADMIN) {
       const userGroupId = user.groupId || db.groups.find((g: any) => g.email === user.email)?.id;
       if (client.groupId !== userGroupId) {
         alert("Você não tem permissão para excluir este cliente.");
-        return;
+        return false;
       }
     }
     
@@ -195,6 +195,7 @@ const App: React.FC = () => {
       await Promise.all(deletions);
     } catch (e) {
       console.error("Erro na exclusão profunda:", e);
+      return false;
     }
 
     setDb((prev: any) => ({
@@ -204,6 +205,7 @@ const App: React.FC = () => {
       transactions: prev.transactions.filter((t: any) => t.clientId !== id),
       requests: prev.requests.filter((r: any) => r.clientId !== id)
     }));
+    return true;
   };
 
   const handleUpdateClient = (clientId: string, updates: any) => {
@@ -360,8 +362,20 @@ const App: React.FC = () => {
           onAddClient={async d => {
             try {
               const newClientId = crypto.randomUUID();
-              const createdAt = new Date(d.startDate).getTime() + 12 * 60 * 60 * 1000;
-              const firstDueDate = new Date(d.firstDueDate).getTime() + 12 * 60 * 60 * 1000;
+              
+              const parseDate = (dateStr: string) => {
+                if (!dateStr) return Date.now();
+                if (dateStr.includes('/')) {
+                  const [day, month, year] = dateStr.split('/').map(Number);
+                  const fullYear = year < 100 ? 2000 + year : year;
+                  return new Date(fullYear, month - 1, day).getTime();
+                }
+                return new Date(dateStr).getTime();
+              };
+
+              const createdAt = parseDate(d.startDate) + 12 * 60 * 60 * 1000;
+              const firstDueDate = parseDate(d.firstDueDate) + 12 * 60 * 60 * 1000;
+              
               const newClient = { 
                 id: newClientId, 
                 ...d, 
@@ -380,7 +394,7 @@ const App: React.FC = () => {
               alert("Cliente cadastrado com sucesso!");
             } catch (err) {
               console.error("Erro ao cadastrar cliente:", err);
-              alert("Erro ao cadastrar cliente. Verifique os dados.");
+              alert("Erro ao cadastrar cliente no Supabase.");
             }
           }} 
           onDeleteClient={handleDeleteClient}
@@ -548,16 +562,62 @@ const App: React.FC = () => {
           onAddClient={async (data: any) => {
               try {
                 const newClientId = crypto.randomUUID();
-                const createdAt = new Date(data.startDate).getTime() + 12 * 60 * 60 * 1000;
-                const firstDueDate = new Date(data.firstDueDate).getTime() + 12 * 60 * 60 * 1000;
-                const newClient = { 
-                  id: newClientId, 
-                  ...data, 
-                  status: 'ACTIVE' as const, 
-                  createdAt, 
-                  firstDueDate,
-                  currentCapital: data.initialCapital 
+                
+                // Robust date parsing
+                const parseDate = (d: string) => {
+                  if (!d) return Date.now();
+                  if (typeof d !== 'string') return new Date(d).getTime();
+                  
+                  if (d.includes('/')) {
+                    const parts = d.split('/');
+                    if (parts.length === 3) {
+                      const day = parseInt(parts[0]);
+                      const month = parseInt(parts[1]) - 1;
+                      let year = parseInt(parts[2]);
+                      if (year < 100) year += 2000;
+                      const date = new Date(year, month, day);
+                      if (!isNaN(date.getTime())) return date.getTime();
+                    }
+                  }
+                  const date = new Date(d);
+                  return isNaN(date.getTime()) ? Date.now() : date.getTime();
                 };
+
+                const createdAt = parseDate(data.startDate) + 12 * 60 * 60 * 1000;
+                const firstDueDate = parseDate(data.firstDueDate) + 12 * 60 * 60 * 1000;
+                
+                // Map group name to ID if necessary
+                let gid = data.groupId;
+                const group = db.groups.find(g => 
+                  g.id === gid || 
+                  g.name.toLowerCase() === gid.toLowerCase() ||
+                  g.name.toLowerCase().includes(gid.toLowerCase())
+                );
+                
+                if (group) {
+                  gid = group.id;
+                } else {
+                  // Se não encontrar o grupo, não podemos cadastrar
+                  alert(`Sócio "${data.groupId}" não encontrado. Por favor, verifique o nome.`);
+                  return;
+                }
+
+                // Sanitize: only include fields present in the Client interface
+                const newClient: Client = { 
+                  id: newClientId, 
+                  name: data.name,
+                  phone: data.phone,
+                  groupId: gid,
+                  initialCapital: data.initialCapital,
+                  currentCapital: data.initialCapital,
+                  dueDay: data.dueDay,
+                  status: 'ACTIVE', 
+                  notes: data.notes || '',
+                  createdAt, 
+                  firstDueDate
+                };
+
+                console.log("📝 Tentando cadastrar cliente via Agente:", newClient);
 
                 // Inserir no Supabase
                 await insertClient(newClient);
@@ -569,7 +629,7 @@ const App: React.FC = () => {
                 alert("Cliente cadastrado com sucesso!");
               } catch (err) {
                 console.error("Erro ao cadastrar cliente:", err);
-                alert("Erro ao cadastrar cliente. Verifique os dados.");
+                alert("Erro ao cadastrar cliente no Supabase. Verifique o console.");
               }
             }}
             onAddTransaction={(trx) => {

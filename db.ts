@@ -48,33 +48,28 @@ const initialState: DBState = {
   thirdPartyPayments: []
 };
 
-// Helper para converter objeto de camelCase para snake_case
-const toSnakeCase = (obj: any) => {
-  const snakeObj: any = {};
-  for (const key in obj) {
-    const snakeKey = key.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
-    snakeObj[snakeKey] = obj[key];
-  }
-  return snakeObj;
+// Helper para converter objeto (removido conversão automática para evitar erros de schema)
+const prepareForSupabase = (obj: any) => {
+  // Retorna o objeto como está, pois o Supabase parece estar usando camelCase no schema do usuário
+  return obj;
 };
 
-// Helper para converter objeto de snake_case para camelCase
-const toCamelCase = (obj: any) => {
-  const camelObj: any = {};
-  for (const key in obj) {
-    const camelKey = key.replace(/(_\w)/g, m => m[1].toUpperCase());
-    camelObj[camelKey] = obj[key];
-  }
-  return camelObj;
+// Helper para converter objeto vindo do Supabase
+const prepareFromSupabase = (obj: any) => {
+  return obj;
 };
 
 export const loadDB = async (): Promise<DBState> => {
   const localData = localStorage.getItem(STORAGE_KEY);
   let localState: DBState = localData ? JSON.parse(localData) : initialState;
 
-  if (!supabase) return localState;
+  if (!supabase) {
+    console.log("ℹ️ Supabase não inicializado. Usando dados locais.");
+    return localState;
+  }
 
   try {
+    console.log("🔄 Carregando dados do Supabase...");
     const [
       { data: users, error: uErr },
       { data: groups, error: gErr },
@@ -99,19 +94,25 @@ export const loadDB = async (): Promise<DBState> => {
       supabase.from('third_party_payments').select('*')
     ]);
 
-    // Mapear clientes do Supabase (snake_case) para o App (camelCase)
-    const mappedClients = (clients || []).map(c => toCamelCase(c));
-    const mappedGroups = (groups || []).map(g => toCamelCase(g));
-    const mappedCompetences = (competences || []).map(cp => toCamelCase(cp));
-    const mappedRequests = (requests || []).map(r => toCamelCase(r));
-    const mappedReports = (reports || []).map(rp => toCamelCase(rp));
-    const mappedTransactions = (transactions || []).map(t => toCamelCase(t));
+    if (uErr || gErr || cErr) {
+      console.error("❌ Erro ao carregar tabelas principais:", { uErr, gErr, cErr });
+    }
 
-    // Mesclar usuários com mapeamento manual para campos específicos
+    // Mapear dados do Supabase
+    const mappedClients = (clients || []).map(c => prepareFromSupabase(c));
+    const mappedGroups = (groups || []).map(g => prepareFromSupabase(g));
+    const mappedCompetences = (competences || []).map(cp => prepareFromSupabase(cp));
+    const mappedRequests = (requests || []).map(r => prepareFromSupabase(r));
+    const mappedReports = (reports || []).map(rp => prepareFromSupabase(rp));
+    const mappedTransactions = (transactions || []).map(t => prepareFromSupabase(t));
+
+    console.log(`✅ Dados carregados: ${mappedClients.length} clientes, ${mappedGroups.length} sócios.`);
+
+    // Mesclar usuários
     const usersMap = new Map<string, any>();
     (users || []).forEach(u => {
       const userId = String(u.id);
-      const mappedUser = toCamelCase(u);
+      const mappedUser = prepareFromSupabase(u);
       const localUser = localState.users.find(lu => String(lu.id) === userId);
       
       usersMap.set(userId, {
@@ -132,9 +133,9 @@ export const loadDB = async (): Promise<DBState> => {
       reports: (reports !== null && !rpErr) ? mappedReports : localState.reports,
       transactions: (transactions !== null && !tErr) ? mappedTransactions : localState.transactions,
       settings: localState.settings || {},
-      thirdPartyClients: tpClients !== null ? tpClients.map(c => toCamelCase(c)) : (localState.thirdPartyClients || []),
-      thirdPartyLoans: tpLoans !== null ? tpLoans.map(l => toCamelCase(l)) : (localState.thirdPartyLoans || []),
-      thirdPartyPayments: tpPayments !== null ? tpPayments.map(p => toCamelCase(p)) : (localState.thirdPartyPayments || [])
+      thirdPartyClients: tpClients !== null ? tpClients.map(c => prepareFromSupabase(c)) : (localState.thirdPartyClients || []),
+      thirdPartyLoans: tpLoans !== null ? tpLoans.map(l => prepareFromSupabase(l)) : (localState.thirdPartyLoans || []),
+      thirdPartyPayments: tpPayments !== null ? tpPayments.map(p => prepareFromSupabase(p)) : (localState.thirdPartyPayments || [])
     };
   } catch (error) {
     console.error("Erro crítico ao carregar do Supabase:", error);
@@ -152,7 +153,7 @@ export const saveDB = async (state: DBState) => {
   if (!supabase) return;
 
   try {
-    const convertList = (list: any[]) => (list || []).map(item => toSnakeCase(item));
+    const convertList = (list: any[]) => (list || []).map(item => prepareForSupabase(item));
 
     const results = await Promise.all([
       state.users.length > 0 ? supabase.from('users').upsert(convertList(state.users)) : Promise.resolve({ error: null }),
@@ -187,24 +188,40 @@ export const saveDB = async (state: DBState) => {
 export const deleteFromDB = async (table: string, id: string) => {
   if (!supabase) return;
   try {
-    await supabase.from(table).delete().eq('id', id);
+    console.log(`🗑️ Tentando deletar de ${table} id: ${id}`);
+    const { error } = await supabase.from(table).delete().eq('id', id);
+    if (error) {
+      console.error(`❌ Erro ao deletar de ${table}:`, error);
+      throw error;
+    }
+    console.log(`✅ Deletado de ${table} com sucesso.`);
   } catch (error) {
-    console.error(`Erro ao deletar de ${table}:`, error);
+    console.error(`Erro fatal ao deletar de ${table}:`, error);
+    throw error;
   }
 };
 
 export const insertClient = async (client: Partial<Client>) => {
-  if (!supabase) return null;
+  if (!supabase) {
+    console.warn("⚠️ Supabase não disponível para insertClient.");
+    return null;
+  }
   
   try {
-    const payload = toSnakeCase(client);
+    const payload = prepareForSupabase(client);
+    console.log("🚀 Enviando payload para Supabase (clients):", payload);
 
     const { data, error } = await supabase
       .from('clients')
       .insert([payload])
       .select();
 
-    if (error) throw error;
+    if (error) {
+      console.error("❌ Erro detalhado do Supabase (insertClient):", error);
+      throw error;
+    }
+    
+    console.log("✅ Cliente inserido com sucesso no Supabase:", data);
     return data;
   } catch (error) {
     console.error("Erro ao inserir cliente no Supabase:", error);
