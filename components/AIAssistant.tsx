@@ -327,15 +327,13 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ db, user, onAddClient, onAddT
           socios_disponiveis: user.role === UserRole.ADMIN ? db.groups.map(g => ({ id: g.id, nome: g.name })) : [],
           clientes: db.clients
             .filter(c => !userGroupId || c.groupId === userGroupId)
-            .slice(0, 150)
+            .slice(0, 40) // Reduzido de 150 para 40 para melhorar a velocidade
             .map(c => ({ 
-              id: c.id, nome: c.name, capital_atual: c.currentCapital, 
-              juros_vencidos: clientStatus[c.id]?.vencido || 0,
-              juros_hoje: clientStatus[c.id]?.hoje || 0,
-              juros_futuro: clientStatus[c.id]?.futuro || 0,
-              vencimento_dia: c.dueDay,
-              data_vencimento_atual: c.firstDueDate ? new Date(c.firstDueDate).toLocaleDateString('pt-BR') : null,
-              grupo: groupMap[c.groupId] || ''
+              id: c.id, nome: c.name, capital: c.currentCapital, 
+              vencido: clientStatus[c.id]?.vencido || 0,
+              hoje: clientStatus[c.id]?.hoje || 0,
+              dia: c.dueDay,
+              socio: groupMap[c.groupId] || ''
             }))
         };
 
@@ -348,20 +346,15 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ db, user, onAddClient, onAddT
           ],
           config: {
             thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
-            systemInstruction: `Você é o assistente ultra-eficiente da CredPlus. 
-            USUÁRIO ATUAL: ${user.email} (Função: ${user.role}).
-            DATA ATUAL: ${dateStr} (Hoje é dia ${todayDay}).
-            ADMINISTRADORES PRINCIPAIS: 1. Lellis Flávio (credplusemp@gmail.com), 2. Michael Douglas (michaeldsandes@gmail.com).
-            SAUDAÇÃO: Identifique o usuário pelo e-mail e use o nome se for um dos ADMs acima.
+            systemInstruction: `Você é o assistente CredPlus. 
+            USUÁRIO: ${user.email} (${user.role}).
+            DATA: ${dateStr}.
             REGRAS: 
-            - PRIVACIDADE: Só veja clientes do seu grupo.
-            - EXCLUSÃO: Só ADMIN pode excluir. Peça confirmação.
-            - PAGAMENTOS: ADMIN usa 'registerPayment', Sócio usa 'requestPayment'.
-            - CONSULTA: Liste vencidos, hoje ou amanhã conforme solicitado.
-            - CADASTRO: Colete dados necessários para Sócios e Clientes.
-            - EDIÇÃO: Altere campos específicos conforme solicitado.
-            - SAÚDE: Use 'getSystemHealth' para verificar se o banco de dados está online.
-            - Seja CURTO e DIRETO.` ,
+            - Só veja clientes do seu grupo.
+            - Só ADMIN exclui.
+            - ADMIN: 'registerPayment', Sócio: 'requestPayment'.
+            - CADASTRO: Se faltar dados para Cliente/Sócio, peça-os um por um ou em lista.
+            - Seja extremamente conciso.` ,
             tools: [{ functionDeclarations: [registerSocioTool, registerClientTool, registerTransactionTool, registerPaymentTool, requestPaymentTool, deleteClientTool, deleteGroupTool, updateClientTool, updateSocioTool, getSystemHealthTool] }]
           }
         });
@@ -415,69 +408,75 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ db, user, onAddClient, onAddT
         }
         
         for (const call of functionCalls) {
-          if (call.name === "registerSocio") {
-            const args = call.args as any;
-            await (onAddSocio as any)({ ...args, name: toTitleCase(args.name) });
-            setMessages(prev => [...prev, { role: 'model', text: `✅ Sócio **${toTitleCase(args.name)}** cadastrado com sucesso!` }]);
-          } else if (call.name === "registerClient") {
-            const args = call.args as any;
-            await (onAddClient as any)({ ...args, name: toTitleCase(args.name) });
-            setMessages(prev => [...prev, { role: 'model', text: `✅ Cliente **${toTitleCase(args.name)}** registrado com sucesso!` }]);
-          } else if (call.name === "registerTransaction") {
-            await (onAddTransaction as any)(call.args as any);
-            setMessages(prev => [...prev, { role: 'model', text: `✅ Lançamento registrado com sucesso!` }]);
-          } else if (call.name === "registerPayment") {
-            const args = call.args as any;
-            if (user.role === UserRole.ADMIN) {
-              await (onAddPayment as any)(args);
-              const client = db.clients.find(c => c.id === args.clientId);
-              const newCap = (client?.currentCapital || 0) - args.amortizationAmount;
-              setMessages(prev => [...prev, { role: 'model', text: `✅ Pagamento de **${client?.name}** processado!\n- Juros pagos: R$ ${args.interestAmount}\n- Amortização: R$ ${args.amortizationAmount}\n- **Novo Capital: R$ ${newCap}**` }]);
-            } else {
-              await (onRequestPayment as any)(args.clientId, args.interestAmount, args.amortizationAmount, 0, args.description || 'Solicitado via Agente');
+          try {
+            if (call.name === "registerSocio") {
+              const args = call.args as any;
+              await (onAddSocio as any)({ ...args, name: toTitleCase(args.name) });
+              setMessages(prev => [...prev, { role: 'model', text: `✅ Sócio **${toTitleCase(args.name)}** cadastrado com sucesso!` }]);
+            } else if (call.name === "registerClient") {
+              const args = call.args as any;
+              await (onAddClient as any)({ ...args, name: toTitleCase(args.name) });
+              setMessages(prev => [...prev, { role: 'model', text: `✅ Cliente **${toTitleCase(args.name)}** registrado com sucesso!` }]);
+            } else if (call.name === "registerTransaction") {
+              await (onAddTransaction as any)(call.args as any);
+              setMessages(prev => [...prev, { role: 'model', text: `✅ Lançamento registrado com sucesso!` }]);
+            } else if (call.name === "registerPayment") {
+              const args = call.args as any;
+              if (user.role === UserRole.ADMIN) {
+                await (onAddPayment as any)(args);
+                const client = db.clients.find(c => c.id === args.clientId);
+                const newCap = (client?.currentCapital || 0) - args.amortizationAmount;
+                setMessages(prev => [...prev, { role: 'model', text: `✅ Pagamento de **${client?.name}** processado!\n- Juros pagos: R$ ${args.interestAmount}\n- Amortização: R$ ${args.amortizationAmount}\n- **Novo Capital: R$ ${newCap}**` }]);
+              } else {
+                await (onRequestPayment as any)(args.clientId, args.interestAmount, args.amortizationAmount, 0, args.description || 'Solicitado via Agente');
+                setMessages(prev => [...prev, { role: 'model', text: `⏳ Solicitação de pagamento enviada para o Administrador confirmar.` }]);
+              }
+            } else if (call.name === "requestPayment") {
+              const args = call.args as any;
+              await (onRequestPayment as any)(args.clientId, args.interestAmount, args.amortizationAmount, args.discountAmount || 0, args.observation || 'Solicitado via Agente');
               setMessages(prev => [...prev, { role: 'model', text: `⏳ Solicitação de pagamento enviada para o Administrador confirmar.` }]);
-            }
-          } else if (call.name === "requestPayment") {
-            const args = call.args as any;
-            await (onRequestPayment as any)(args.clientId, args.interestAmount, args.amortizationAmount, args.discountAmount || 0, args.observation || 'Solicitado via Agente');
-            setMessages(prev => [...prev, { role: 'model', text: `⏳ Solicitação de pagamento enviada para o Administrador confirmar.` }]);
-          } else if (call.name === "deleteClient") {
-            const args = call.args as any;
-            if (user.role === 'ADMIN') {
-              const client = db.clients.find(c => c.id === args.clientId);
-              if (client) {
-                const success = await (onDeleteClient as any)(args.clientId);
-                if (success) {
-                  setMessages(prev => [...prev, { role: 'model', text: `🗑️ Cliente **${client.name}** excluído.` }]);
-                } else {
-                  setMessages(prev => [...prev, { role: 'model', text: `❌ Não foi possível excluir o cliente **${client.name}**. Verifique se existem dependências.` }]);
+            } else if (call.name === "deleteClient") {
+              const args = call.args as any;
+              if (user.role === 'ADMIN') {
+                const client = db.clients.find(c => c.id === args.clientId);
+                if (client) {
+                  const success = await (onDeleteClient as any)(args.clientId);
+                  if (success) {
+                    setMessages(prev => [...prev, { role: 'model', text: `🗑️ Cliente **${client.name}** excluído.` }]);
+                  } else {
+                    setMessages(prev => [...prev, { role: 'model', text: `❌ Não foi possível excluir o cliente **${client.name}**. Verifique se existem dependências.` }]);
+                  }
                 }
               }
-            }
-          } else if (call.name === "deleteGroup") {
-            const args = call.args as any;
-            if (user.role === 'ADMIN') {
-              const group = db.groups.find(g => g.id === args.groupId);
-              if (group) {
-                const success = await (onDeleteGroup as any)(args.groupId);
-                if (success) {
-                  setMessages(prev => [...prev, { role: 'model', text: `🗑️ Sócio **${group.name}** excluído.` }]);
-                } else {
-                  setMessages(prev => [...prev, { role: 'model', text: `❌ Não foi possível excluir o sócio **${group.name}**. Verifique se existem clientes vinculados.` }]);
+            } else if (call.name === "deleteGroup") {
+              const args = call.args as any;
+              if (user.role === 'ADMIN') {
+                const group = db.groups.find(g => g.id === args.groupId);
+                if (group) {
+                  const success = await (onDeleteGroup as any)(args.groupId);
+                  if (success) {
+                    setMessages(prev => [...prev, { role: 'model', text: `🗑️ Sócio **${group.name}** excluído.` }]);
+                  } else {
+                    setMessages(prev => [...prev, { role: 'model', text: `❌ Não foi possível excluir o sócio **${group.name}**. Verifique se existem clientes vinculados.` }]);
+                  }
                 }
               }
+            } else if (call.name === "updateClient") {
+              const args = call.args as any;
+              onUpdateClient(args.clientId, args.updates);
+              setMessages(prev => [...prev, { role: 'model', text: `✅ Dados do cliente atualizados!` }]);
+            } else if (call.name === "updateSocio") {
+              const args = call.args as any;
+              onUpdateSocio(args.groupId, args.updates);
+              setMessages(prev => [...prev, { role: 'model', text: `✅ Dados do sócio atualizados!` }]);
+            } else if (call.name === "getSystemHealth") {
+              const health = await checkHealth();
+              setMessages(prev => [...prev, { role: 'model', text: `🏥 **Status do Sistema:**\n- Status: ${health.status}\n- Mensagem: ${health.message}` }]);
             }
-          } else if (call.name === "updateClient") {
-            const args = call.args as any;
-            onUpdateClient(args.clientId, args.updates);
-            setMessages(prev => [...prev, { role: 'model', text: `✅ Dados do cliente atualizados!` }]);
-          } else if (call.name === "updateSocio") {
-            const args = call.args as any;
-            onUpdateSocio(args.groupId, args.updates);
-            setMessages(prev => [...prev, { role: 'model', text: `✅ Dados do sócio atualizados!` }]);
-          } else if (call.name === "getSystemHealth") {
-            const health = await checkHealth();
-            setMessages(prev => [...prev, { role: 'model', text: `🏥 **Status do Sistema:**\n- Status: ${health.status}\n- Mensagem: ${health.message}` }]);
+          } catch (err: any) {
+            console.error(`Error executing tool ${call.name}:`, err);
+            const msg = err?.message || (typeof err === 'string' ? err : JSON.stringify(err));
+            setMessages(prev => [...prev, { role: 'model', text: `❌ Erro ao executar **${call.name}**: ${msg}` }]);
           }
         }
       } else {
@@ -554,11 +553,14 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ db, user, onAddClient, onAddT
               </div>
             ))}
             {isLoading && (
-              <div className="flex justify-start">
-                <div className="bg-white p-3 rounded-2xl shadow-sm border border-slate-100 flex gap-1.5">
-                  <div className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-bounce"></div>
-                  <div className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-bounce delay-100"></div>
-                  <div className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-bounce delay-200"></div>
+              <div className="flex justify-start animate-pulse">
+                <div className="bg-white p-3 md:p-4 rounded-2xl rounded-tl-none shadow-sm border border-slate-100 flex items-center gap-3">
+                  <div className="flex gap-1">
+                    <div className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-bounce"></div>
+                    <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-bounce [animation-delay:0.2s]"></div>
+                    <div className="w-1.5 h-1.5 bg-emerald-600 rounded-full animate-bounce [animation-delay:0.4s]"></div>
+                  </div>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Processando...</span>
                 </div>
               </div>
             )}

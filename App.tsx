@@ -631,11 +631,11 @@ const App: React.FC = () => {
                   throw new Error(errorMsg);
                 }
 
-                const group = db.groups.find(g => 
-                  g.id === gid || 
-                  g.name.toLowerCase() === String(gid).toLowerCase() ||
-                  g.name.toLowerCase().includes(String(gid).toLowerCase())
-                );
+                const group = db.groups.find(g => {
+                  const search = String(gid).toLowerCase();
+                  const name = g.name.toLowerCase();
+                  return g.id === gid || name === search || name.includes(search) || search.includes(name);
+                });
                 
                 if (group) {
                   gid = group.id;
@@ -645,7 +645,16 @@ const App: React.FC = () => {
                   throw new Error(errorMsg);
                 }
 
-                const initialCapital = typeof data.initialCapital === 'string' ? parseFloat(data.initialCapital) : data.initialCapital;
+                const parseCurrency = (val: any) => {
+                  if (typeof val === 'number') return val;
+                  if (typeof val !== 'string') return 0;
+                  // Remove dots (thousands) and replace comma with dot (decimal)
+                  const cleaned = val.replace(/\./g, '').replace(',', '.');
+                  const parsed = parseFloat(cleaned);
+                  return isNaN(parsed) ? 0 : parsed;
+                };
+
+                const initialCapital = parseCurrency(data.initialCapital);
                 const dueDay = typeof data.dueDay === 'string' ? parseInt(data.dueDay) : data.dueDay;
 
                 // Sanitize: only include fields present in the Client interface
@@ -673,9 +682,16 @@ const App: React.FC = () => {
                   return runCompetenceSync(newState);
                 });
                 alert("Cliente cadastrado com sucesso!");
-              } catch (err) {
-                console.error("Erro ao cadastrar cliente via Agente:", err);
-                alert(`Erro ao cadastrar cliente: ${err instanceof Error ? err.message : 'Erro desconhecido'}`);
+              } catch (err: any) {
+                console.error("❌ Erro detalhado ao cadastrar cliente:", err);
+                let msg = "Erro desconhecido";
+                
+                if (typeof err === 'string') msg = err;
+                else if (err?.message) msg = err.message;
+                else if (err?.error_description) msg = err.error_description;
+                else if (typeof err === 'object') msg = JSON.stringify(err);
+
+                alert(`Erro ao cadastrar cliente: ${msg}`);
                 throw err;
               }
             }}
