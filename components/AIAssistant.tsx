@@ -341,7 +341,7 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ db, user, onAddClient, onAddT
           model: "gemini-3-flash-preview",
           contents: [
             { role: 'model', parts: [{ text: "Olá! Sou o assistente CredPlus. Como posso ajudar?" }] },
-            ...messages.slice(-10).map(m => ({ role: m.role, parts: [{ text: m.text }] })),
+            ...messages.slice(-6).map(m => ({ role: m.role, parts: [{ text: m.text }] })),
             { role: 'user', parts: [{ text: `Contexto: ${JSON.stringify(context)}. Entrada: ${userMessage}` }] }
           ],
           config: {
@@ -361,12 +361,18 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ db, user, onAddClient, onAddT
       } catch (error: any) {
         const errorStr = typeof error === 'string' ? error : (error.message || JSON.stringify(error));
         const is503 = errorStr.includes("503") || errorStr.includes("high demand") || errorStr.includes("UNAVAILABLE");
+        const is429 = errorStr.includes("429") || errorStr.includes("quota") || errorStr.includes("limit");
         
         if (is503 && retryCount < maxRetries) {
           retryCount++;
           await new Promise(resolve => setTimeout(resolve, retryCount * 2000));
           return callAI();
         }
+
+        if (is429) {
+          throw new Error("Limite de uso atingido. ⏳ Por favor, aguarde um minuto e tente novamente. Se o erro persistir, verifique sua cota no Google AI Studio.");
+        }
+
         throw error;
       }
     };
@@ -492,6 +498,8 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ db, user, onAddClient, onAddT
       
       if (errorStr.includes("503") || errorStr.includes("high demand") || errorStr.includes("UNAVAILABLE")) {
         errorMsg = "O serviço de IA está com alta demanda no momento. Por favor, tente novamente em alguns segundos.";
+      } else if (errorStr.includes("429") || errorStr.includes("quota") || errorStr.includes("limit")) {
+        errorMsg = "Limite de uso atingido. ⏳ Por favor, aguarde um minuto e tente novamente.";
       } else if (errorStr.includes("fetch")) {
         errorMsg = "Falha de conexão. Verifique sua internet.";
       } else if (errorStr.includes("API key")) {
