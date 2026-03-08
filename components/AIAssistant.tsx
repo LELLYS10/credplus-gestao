@@ -475,7 +475,7 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ db, user, onAddClient, onAddT
     } catch (error: any) {
       console.error("AI Error:", error);
       const errorStr = typeof error === 'string' ? error : (error.message || JSON.stringify(error));
-      let errorMsg = "Erro ao processar sua solicitação.";
+      let errorMsg = error.message || "Erro ao processar sua solicitação.";
       
       if (errorStr.includes("503") || errorStr.includes("high demand") || errorStr.includes("UNAVAILABLE")) {
         errorMsg = "O serviço de IA está com alta demanda no momento. Por favor, tente novamente em alguns segundos.";

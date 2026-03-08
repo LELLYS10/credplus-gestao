@@ -67,7 +67,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ groups, clients, users, compete
     firstDueDate: '' 
   });
 
-  const handleClientSubmit = (e: React.FormEvent) => {
+  const handleClientSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!clientFormData.groupId) {
       alert("Por favor, selecione um sócio.");
@@ -83,7 +83,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ groups, clients, users, compete
     }
     
     try {
-      onAddClient({ 
+      await onAddClient({ 
         ...clientFormData, 
         currentCapital: clientFormData.initialCapital
       });
@@ -100,7 +100,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ groups, clients, users, compete
       });
     } catch (err) {
       console.error("Erro ao processar formulário:", err);
-      alert("Erro ao processar dados do cliente.");
+      // No need for alert here as onAddClient already alerts
     }
   };
 

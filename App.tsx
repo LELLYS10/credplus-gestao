@@ -365,22 +365,35 @@ const App: React.FC = () => {
               
               const parseDate = (dateStr: string) => {
                 if (!dateStr) return Date.now();
+                if (typeof dateStr !== 'string') return new Date(dateStr).getTime();
                 if (dateStr.includes('/')) {
-                  const [day, month, year] = dateStr.split('/').map(Number);
-                  const fullYear = year < 100 ? 2000 + year : year;
-                  return new Date(fullYear, month - 1, day).getTime();
+                  const parts = dateStr.split('/');
+                  if (parts.length === 3) {
+                    const day = parseInt(parts[0]);
+                    const month = parseInt(parts[1]) - 1;
+                    let year = parseInt(parts[2]);
+                    if (year < 100) year += 2000;
+                    const date = new Date(year, month, day);
+                    if (!isNaN(date.getTime())) return date.getTime();
+                  }
                 }
-                return new Date(dateStr).getTime();
+                const date = new Date(dateStr);
+                return isNaN(date.getTime()) ? Date.now() : date.getTime();
               };
 
               const createdAt = parseDate(d.startDate) + 12 * 60 * 60 * 1000;
               const firstDueDate = parseDate(d.firstDueDate) + 12 * 60 * 60 * 1000;
               
-              const newClient = { 
+              const newClient: Client = { 
                 id: newClientId, 
-                ...d, 
-                name: toTitleCase(d.name), 
+                name: toTitleCase(d.name),
+                phone: d.phone,
+                groupId: d.groupId,
+                initialCapital: d.initialCapital,
+                currentCapital: d.initialCapital,
+                dueDay: d.dueDay,
                 status: 'ACTIVE',
+                notes: d.notes || '',
                 createdAt,
                 firstDueDate
               };
@@ -394,7 +407,8 @@ const App: React.FC = () => {
               alert("Cliente cadastrado com sucesso!");
             } catch (err) {
               console.error("Erro ao cadastrar cliente:", err);
-              alert("Erro ao cadastrar cliente no Supabase.");
+              alert("Erro ao cadastrar cliente no Supabase. Verifique o console.");
+              throw err; // Re-throw to let AIAssistant know it failed
             }
           }} 
           onDeleteClient={handleDeleteClient}
@@ -598,8 +612,9 @@ const App: React.FC = () => {
                   gid = group.id;
                 } else {
                   // Se não encontrar o grupo, não podemos cadastrar
-                  alert(`Sócio "${data.groupId}" não encontrado. Por favor, verifique o nome.`);
-                  return;
+                  const errorMsg = `Sócio "${data.groupId}" não encontrado. Por favor, verifique o nome.`;
+                  alert(errorMsg);
+                  throw new Error(errorMsg);
                 }
 
                 // Sanitize: only include fields present in the Client interface
@@ -630,6 +645,7 @@ const App: React.FC = () => {
               } catch (err) {
                 console.error("Erro ao cadastrar cliente:", err);
                 alert("Erro ao cadastrar cliente no Supabase. Verifique o console.");
+                throw err; // Re-throw to let AIAssistant know it failed
               }
             }}
             onAddTransaction={(trx) => {
