@@ -5,6 +5,7 @@ import { DBState, User, TransactionType, UserRole } from '../types';
 import { MessageSquare, Send, X, Bot, Sparkles, User as UserIcon, Mic, MicOff } from 'lucide-react';
 import Markdown from 'react-markdown';
 import { toTitleCase, getEffectiveDueDay } from '../utils';
+import { checkHealth } from '../db';
 
 interface AIAssistantProps {
   db: DBState;
@@ -233,6 +234,15 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ db, user, onAddClient, onAddT
     }
   };
 
+  const getSystemHealthTool: FunctionDeclaration = {
+    name: "getSystemHealth",
+    description: "Verifica a saúde do sistema e a conexão com o banco de dados Supabase.",
+    parameters: {
+      type: Type.OBJECT,
+      properties: {}
+    }
+  };
+
   useEffect(() => {
     const handleOpenAI = (e: any) => {
       setIsOpen(true);
@@ -350,8 +360,9 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ db, user, onAddClient, onAddT
             - CONSULTA: Liste vencidos, hoje ou amanhã conforme solicitado.
             - CADASTRO: Colete dados necessários para Sócios e Clientes.
             - EDIÇÃO: Altere campos específicos conforme solicitado.
+            - SAÚDE: Use 'getSystemHealth' para verificar se o banco de dados está online.
             - Seja CURTO e DIRETO.` ,
-            tools: [{ functionDeclarations: [registerSocioTool, registerClientTool, registerTransactionTool, registerPaymentTool, requestPaymentTool, deleteClientTool, deleteGroupTool, updateClientTool, updateSocioTool] }]
+            tools: [{ functionDeclarations: [registerSocioTool, registerClientTool, registerTransactionTool, registerPaymentTool, requestPaymentTool, deleteClientTool, deleteGroupTool, updateClientTool, updateSocioTool, getSystemHealthTool] }]
           }
         });
       } catch (error: any) {
@@ -464,6 +475,9 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ db, user, onAddClient, onAddT
             const args = call.args as any;
             onUpdateSocio(args.groupId, args.updates);
             setMessages(prev => [...prev, { role: 'model', text: `✅ Dados do sócio atualizados!` }]);
+          } else if (call.name === "getSystemHealth") {
+            const health = await checkHealth();
+            setMessages(prev => [...prev, { role: 'model', text: `🏥 **Status do Sistema:**\n- Status: ${health.status}\n- Mensagem: ${health.message}` }]);
           }
         }
       } else {

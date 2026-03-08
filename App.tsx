@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { User, UserRole, Group, Client, Competence, PaymentRequest, RequestStatus, Transaction } from './types';
+import { User, UserRole, Group, Client, Competence, PaymentRequest, RequestStatus, Transaction, TransactionType } from './types';
 import { loadDB, saveDB, deleteFromDB, insertClient } from './db';
 import { generatePendingCompetences, applyFIFOPayment } from './logic';
 import Layout from './components/Layout';
@@ -131,6 +131,15 @@ const App: React.FC = () => {
     }
   }, [user, activeTab]);
 
+  useEffect(() => {
+    const handleSyncCloud = async () => {
+      const freshData = await loadDB();
+      setDb(freshData);
+    };
+    window.addEventListener('sync-cloud', handleSyncCloud as any);
+    return () => window.removeEventListener('sync-cloud', handleSyncCloud as any);
+  }, []);
+
   const handleProcessRequest = (requestId: string, action: RequestStatus) => {
     if (user?.role !== UserRole.ADMIN || !db) return;
     setDb((prev: any) => {
@@ -222,7 +231,16 @@ const App: React.FC = () => {
     setDb((prev: any) => ({
       ...prev,
       groups: prev.groups.map((g: any) => g.id === groupId ? { ...g, ...updates } : g),
-      users: prev.users.map((u: any) => u.groupId === groupId ? { ...u, ...updates, updatedAt: Date.now() } : u)
+      users: prev.users.map((u: any) => {
+        if (u.groupId === groupId) {
+          // Only update relevant fields for the user
+          const userUpdates: any = { updatedAt: Date.now() };
+          if (updates.email) userUpdates.email = updates.email;
+          if (updates.password) userUpdates.password = updates.password;
+          return { ...u, ...userUpdates };
+        }
+        return u;
+      })
     }));
   };
 
@@ -361,6 +379,7 @@ const App: React.FC = () => {
           onUpdateGroup={handleUpdateSocio}
           onAddClient={async d => {
             try {
+              console.log("📝 Tentando cadastrar cliente via Painel:", d);
               const newClientId = crypto.randomUUID();
               
               const parseDate = (dateStr: string) => {
@@ -384,14 +403,17 @@ const App: React.FC = () => {
               const createdAt = parseDate(d.startDate) + 12 * 60 * 60 * 1000;
               const firstDueDate = parseDate(d.firstDueDate) + 12 * 60 * 60 * 1000;
               
+              const initialCapital = typeof d.initialCapital === 'string' ? parseFloat(d.initialCapital) : d.initialCapital;
+              const dueDay = typeof d.dueDay === 'string' ? parseInt(d.dueDay) : d.dueDay;
+
               const newClient: Client = { 
                 id: newClientId, 
                 name: toTitleCase(d.name),
                 phone: d.phone,
                 groupId: d.groupId,
-                initialCapital: d.initialCapital,
-                currentCapital: d.initialCapital,
-                dueDay: d.dueDay,
+                initialCapital: isNaN(initialCapital) ? 0 : initialCapital,
+                currentCapital: isNaN(initialCapital) ? 0 : initialCapital,
+                dueDay: isNaN(dueDay) ? 1 : dueDay,
                 status: 'ACTIVE',
                 notes: d.notes || '',
                 createdAt,
@@ -407,8 +429,8 @@ const App: React.FC = () => {
               alert("Cliente cadastrado com sucesso!");
             } catch (err) {
               console.error("Erro ao cadastrar cliente:", err);
-              alert("Erro ao cadastrar cliente no Supabase. Verifique o console.");
-              throw err; // Re-throw to let AIAssistant know it failed
+              alert("Erro ao cadastrar cliente. Verifique o console para detalhes.");
+              throw err;
             }
           }} 
           onDeleteClient={handleDeleteClient}
@@ -567,7 +589,7 @@ const App: React.FC = () => {
       >
         {renderContent()}
       </Layout>
-      {user.role === UserRole.ADMIN && activeTab !== 'third-party' && (
+      {user && (
         <AIAssistant 
           db={db} 
           user={user} 
@@ -575,6 +597,7 @@ const App: React.FC = () => {
           onUpdateSocio={handleUpdateSocio}
           onAddClient={async (data: any) => {
               try {
+                console.log("📝 Tentando cadastrar cliente via Agente:", data);
                 const newClientId = crypto.randomUUID();
                 
                 // Robust date parsing
@@ -602,37 +625,45 @@ const App: React.FC = () => {
                 
                 // Map group name to ID if necessary
                 let gid = data.groupId;
+                if (!gid) {
+                  const errorMsg = "O ID ou nome do Sócio é obrigatório.";
+                  alert(errorMsg);
+                  throw new Error(errorMsg);
+                }
+
                 const group = db.groups.find(g => 
                   g.id === gid || 
-                  g.name.toLowerCase() === gid.toLowerCase() ||
-                  g.name.toLowerCase().includes(gid.toLowerCase())
+                  g.name.toLowerCase() === String(gid).toLowerCase() ||
+                  g.name.toLowerCase().includes(String(gid).toLowerCase())
                 );
                 
                 if (group) {
                   gid = group.id;
                 } else {
-                  // Se não encontrar o grupo, não podemos cadastrar
-                  const errorMsg = `Sócio "${data.groupId}" não encontrado. Por favor, verifique o nome.`;
+                  const errorMsg = `Sócio "${gid}" não encontrado. Por favor, verifique o nome ou crie o sócio primeiro.`;
                   alert(errorMsg);
                   throw new Error(errorMsg);
                 }
 
+                const initialCapital = typeof data.initialCapital === 'string' ? parseFloat(data.initialCapital) : data.initialCapital;
+                const dueDay = typeof data.dueDay === 'string' ? parseInt(data.dueDay) : data.dueDay;
+
                 // Sanitize: only include fields present in the Client interface
                 const newClient: Client = { 
                   id: newClientId, 
-                  name: data.name,
+                  name: toTitleCase(data.name),
                   phone: data.phone,
                   groupId: gid,
-                  initialCapital: data.initialCapital,
-                  currentCapital: data.initialCapital,
-                  dueDay: data.dueDay,
+                  initialCapital: isNaN(initialCapital) ? 0 : initialCapital,
+                  currentCapital: isNaN(initialCapital) ? 0 : initialCapital,
+                  dueDay: isNaN(dueDay) ? 1 : dueDay,
                   status: 'ACTIVE', 
                   notes: data.notes || '',
                   createdAt, 
                   firstDueDate
                 };
 
-                console.log("📝 Tentando cadastrar cliente via Agente:", newClient);
+                console.log("🚀 Payload final para Supabase:", newClient);
 
                 // Inserir no Supabase
                 await insertClient(newClient);
@@ -643,12 +674,13 @@ const App: React.FC = () => {
                 });
                 alert("Cliente cadastrado com sucesso!");
               } catch (err) {
-                console.error("Erro ao cadastrar cliente:", err);
-                alert("Erro ao cadastrar cliente no Supabase. Verifique o console.");
-                throw err; // Re-throw to let AIAssistant know it failed
+                console.error("Erro ao cadastrar cliente via Agente:", err);
+                alert(`Erro ao cadastrar cliente: ${err instanceof Error ? err.message : 'Erro desconhecido'}`);
+                throw err;
               }
             }}
             onAddTransaction={(trx) => {
+              if (user.role !== UserRole.ADMIN) return;
               setDb((prev: any) => {
                 const updatedClients = prev.clients.map((c: any) => {
                   if (c.id === trx.clientId) {
@@ -664,10 +696,11 @@ const App: React.FC = () => {
               });
             }}
             onAddSocio={(data) => {
+              if (user.role !== UserRole.ADMIN) return;
               const newGroupId = `g-${Date.now()}`;
               const newGroup: Group = {
                 id: newGroupId,
-                name: data.name,
+                name: toTitleCase(data.name),
                 email: data.email,
                 phone: data.phone,
                 interestRate: data.interestRate
@@ -686,6 +719,7 @@ const App: React.FC = () => {
               }));
             }}
             onAddPayment={(data) => {
+              if (user.role !== UserRole.ADMIN) return;
               setDb((prev: any) => {
                 const updatedCompetences = applyFIFOPayment(
                   [...prev.competences],
@@ -706,7 +740,7 @@ const App: React.FC = () => {
                   newTransactions.push({
                     id: `t-int-${Date.now()}`,
                     clientId: data.clientId,
-                    type: 'INTEREST_PAYMENT' as any,
+                    type: TransactionType.AMORTIZATION,
                     amount: data.interestAmount,
                     description: data.description || 'Pagamento de juros via Agente',
                     createdAt: Date.now()
@@ -716,7 +750,7 @@ const App: React.FC = () => {
                   newTransactions.push({
                     id: `t-amo-${Date.now()}`,
                     clientId: data.clientId,
-                    type: 'AMORTIZATION' as any,
+                    type: TransactionType.AMORTIZATION,
                     amount: data.amortizationAmount,
                     description: data.description || 'Amortização via Agente',
                     createdAt: Date.now()

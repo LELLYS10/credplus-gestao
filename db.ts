@@ -49,8 +49,26 @@ const initialState: DBState = {
 };
 
 // Helper para converter objeto (removido conversão automática para evitar erros de schema)
-const prepareForSupabase = (obj: any) => {
-  // Retorna o objeto como está, pois o Supabase parece estar usando camelCase no schema do usuário
+const prepareForSupabase = (obj: any, table?: string) => {
+  if (!obj) return obj;
+  
+  // Se soubermos a tabela, podemos filtrar campos que não existem no banco
+  if (table === 'users') {
+    const { id, email, password, role, groupId, status, thirdPartyBlocked, updatedAt } = obj;
+    return { id, email, password, role, groupId, status, thirdPartyBlocked, updatedAt };
+  }
+  
+  if (table === 'groups') {
+    const { id, name, email, phone, interestRate } = obj;
+    return { id, name, email, phone, interestRate };
+  }
+
+  if (table === 'clients') {
+    const { id, name, phone, groupId, initialCapital, currentCapital, dueDay, status, notes, createdAt, firstDueDate } = obj;
+    return { id, name, phone, groupId, initialCapital, currentCapital, dueDay, status, notes, createdAt, firstDueDate };
+  }
+
+  // Para outras tabelas ou se não especificado, retorna como está
   return obj;
 };
 
@@ -153,19 +171,17 @@ export const saveDB = async (state: DBState) => {
   if (!supabase) return;
 
   try {
-    const convertList = (list: any[]) => (list || []).map(item => prepareForSupabase(item));
-
     const results = await Promise.all([
-      state.users.length > 0 ? supabase.from('users').upsert(convertList(state.users)) : Promise.resolve({ error: null }),
-      state.groups.length > 0 ? supabase.from('groups').upsert(convertList(state.groups)) : Promise.resolve({ error: null }),
-      state.clients.length > 0 ? supabase.from('clients').upsert(convertList(state.clients)) : Promise.resolve({ error: null }),
-      state.competences.length > 0 ? supabase.from('competences').upsert(convertList(state.competences)) : Promise.resolve({ error: null }),
-      state.requests.length > 0 ? supabase.from('requests').upsert(convertList(state.requests)) : Promise.resolve({ error: null }),
-      state.reports.length > 0 ? supabase.from('reports').upsert(convertList(state.reports)) : Promise.resolve({ error: null }),
-      state.transactions.length > 0 ? supabase.from('transactions').upsert(convertList(state.transactions)) : Promise.resolve({ error: null }),
-      (state.thirdPartyClients && state.thirdPartyClients.length > 0) ? supabase.from('third_party_clients').upsert(convertList(state.thirdPartyClients)) : Promise.resolve({ error: null }),
-      (state.thirdPartyLoans && state.thirdPartyLoans.length > 0) ? supabase.from('third_party_loans').upsert(convertList(state.thirdPartyLoans)) : Promise.resolve({ error: null }),
-      (state.thirdPartyPayments && state.thirdPartyPayments.length > 0) ? supabase.from('third_party_payments').upsert(convertList(state.thirdPartyPayments)) : Promise.resolve({ error: null }),
+      state.users.length > 0 ? supabase.from('users').upsert(state.users.map(i => prepareForSupabase(i, 'users'))) : Promise.resolve({ error: null }),
+      state.groups.length > 0 ? supabase.from('groups').upsert(state.groups.map(i => prepareForSupabase(i, 'groups'))) : Promise.resolve({ error: null }),
+      state.clients.length > 0 ? supabase.from('clients').upsert(state.clients.map(i => prepareForSupabase(i, 'clients'))) : Promise.resolve({ error: null }),
+      state.competences.length > 0 ? supabase.from('competences').upsert(state.competences.map(i => prepareForSupabase(i, 'competences'))) : Promise.resolve({ error: null }),
+      state.requests.length > 0 ? supabase.from('requests').upsert(state.requests.map(i => prepareForSupabase(i, 'requests'))) : Promise.resolve({ error: null }),
+      state.reports.length > 0 ? supabase.from('reports').upsert(state.reports.map(i => prepareForSupabase(i, 'reports'))) : Promise.resolve({ error: null }),
+      state.transactions.length > 0 ? supabase.from('transactions').upsert(state.transactions.map(i => prepareForSupabase(i, 'transactions'))) : Promise.resolve({ error: null }),
+      (state.thirdPartyClients && state.thirdPartyClients.length > 0) ? supabase.from('third_party_clients').upsert(state.thirdPartyClients.map(i => prepareForSupabase(i, 'third_party_clients'))) : Promise.resolve({ error: null }),
+      (state.thirdPartyLoans && state.thirdPartyLoans.length > 0) ? supabase.from('third_party_loans').upsert(state.thirdPartyLoans.map(i => prepareForSupabase(i, 'third_party_loans'))) : Promise.resolve({ error: null }),
+      (state.thirdPartyPayments && state.thirdPartyPayments.length > 0) ? supabase.from('third_party_payments').upsert(state.thirdPartyPayments.map(i => prepareForSupabase(i, 'third_party_payments'))) : Promise.resolve({ error: null }),
     ]);
 
     const tableNames = [
@@ -226,5 +242,18 @@ export const insertClient = async (client: Partial<Client>) => {
   } catch (error) {
     console.error("Erro ao inserir cliente no Supabase:", error);
     throw error;
+  }
+};
+
+export const checkHealth = async () => {
+  if (!supabase) return { status: 'LOCAL', message: 'Sistema operando localmente (Supabase não configurado).' };
+  
+  try {
+    const { data, error } = await supabase.from('users').select('count', { count: 'exact', head: true });
+    if (error) throw error;
+    return { status: 'ONLINE', message: 'Conexão com Supabase está ativa e estável.' };
+  } catch (error: any) {
+    console.error("Erro de saúde do Supabase:", error);
+    return { status: 'ERROR', message: `Erro na conexão com Supabase: ${error.message || 'Erro desconhecido'}` };
   }
 };

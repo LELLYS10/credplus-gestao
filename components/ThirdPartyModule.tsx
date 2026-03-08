@@ -216,6 +216,19 @@ const ThirdPartyModule: React.FC<ThirdPartyModuleProps> = ({ user, db, setDb }) 
     }));
   };
 
+  const [isSyncing, setIsSyncing] = useState(false);
+  const handleSync = async () => {
+    setIsSyncing(true);
+    try {
+      // The saveDB is triggered by setDb in App.tsx, but we can force a reload
+      // to ensure everything is in sync with the cloud.
+      window.dispatchEvent(new CustomEvent('sync-cloud'));
+      await new Promise(resolve => setTimeout(resolve, 1500));
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
       {/* Header */}
@@ -224,9 +237,19 @@ const ThirdPartyModule: React.FC<ThirdPartyModuleProps> = ({ user, db, setDb }) 
           <div className="p-2 bg-blue-100 text-blue-700 rounded-xl"><Briefcase size={32} /></div>
           EMPRÉSTIMOS DE TERCEIROS
         </h2>
-        <div className="flex items-center gap-2 bg-blue-50 px-4 py-2 rounded-2xl border border-blue-100">
-          <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></div>
-          <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest">Módulo Privado: {user.email}</span>
+        <div className="flex items-center gap-3">
+          <button 
+            onClick={handleSync}
+            disabled={isSyncing}
+            className={`flex items-center gap-2 px-4 py-2 rounded-2xl border transition-all font-black uppercase text-[10px] tracking-widest ${isSyncing ? 'bg-blue-50 text-blue-300 border-blue-100' : 'bg-white text-blue-600 border-blue-200 hover:bg-blue-50 shadow-sm'}`}
+          >
+            <LayoutDashboard size={14} className={isSyncing ? 'animate-spin' : ''} />
+            {isSyncing ? 'Sincronizando...' : 'Sincronizar Nuvem'}
+          </button>
+          <div className="flex items-center gap-2 bg-blue-50 px-4 py-2 rounded-2xl border border-blue-100">
+            <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></div>
+            <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest">Módulo Privado: {user.email}</span>
+          </div>
         </div>
       </div>
 
