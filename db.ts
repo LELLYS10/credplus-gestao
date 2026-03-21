@@ -1,39 +1,19 @@
 import { createClient } from '@supabase/supabase-js';
 import { User, Group, Client, Competence, PaymentRequest, UserRole, RequestStatus, DBState, Report, Transaction } from './types';
-
+ 
 const STORAGE_KEY = 'loan_management_db_v1';
-
-const getEnv = (key: string): string => {
-  try {
-    // Standard Vite access via import.meta.env
-    const metaEnv = (import.meta as any).env;
-    const viteKey = `VITE_${key}`;
-    
-    // 1. Try VITE_ prefix (standard for Vite/Vercel)
-    if (metaEnv && metaEnv[viteKey]) return metaEnv[viteKey];
-    
-    // 2. Try direct key from process.env (injected by vite.config.ts)
-    const processEnv = (typeof process !== 'undefined') ? process.env : null;
-    if (processEnv && processEnv[key]) return processEnv[key] as string;
-    if (processEnv && processEnv[viteKey]) return processEnv[viteKey] as string;
-
-    return '';
-  } catch {
-    return '';
-  }
-};
-
-const supabaseUrl = getEnv('SUPABASE_URL');
-const supabaseKey = getEnv('SUPABASE_ANON_KEY');
-
+ 
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
+const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
+ 
 if (!supabaseUrl || !supabaseKey) {
   console.warn("⚠️ Supabase: Chaves não encontradas. O sistema funcionará apenas em modo LOCAL (navegador).");
 }
-
+ 
 export const supabase = (supabaseUrl && supabaseKey) 
   ? createClient(supabaseUrl, supabaseKey)
   : null;
-
+ 
 const initialState: DBState = {
   users: [{ id: '1', email: 'credplusemp@gmail.com', password: '123456', role: UserRole.ADMIN }],
   groups: [],
@@ -47,7 +27,7 @@ const initialState: DBState = {
   thirdPartyLoans: [],
   thirdPartyPayments: []
 };
-
+ 
 // Helper para converter objeto (removido conversão automática para evitar erros de schema)
 const prepareForSupabase = (obj: any, table?: string) => {
   if (!obj) return obj;
@@ -62,30 +42,30 @@ const prepareForSupabase = (obj: any, table?: string) => {
     const { id, name, email, phone, interestRate } = obj;
     return { id, name, email, phone, interestRate };
   }
-
+ 
   if (table === 'clients') {
-    const { id, name, phone, groupId, initialCapital, currentCapital, dueDay, status, notes, createdAt, firstDueDate } = obj;
-    return { id, name, phone, groupId, initialCapital, currentCapital, dueDay, status, notes, createdAt, firstDueDate };
+    const { id, name, phone, groupId, initialCapital, currentCapital, dueDay, status, notes, createdAt, firstDueDate, interestRate, repaymentTerms } = obj;
+    return { id, name, phone, groupId, initialCapital, currentCapital, dueDay, status, notes, createdAt, firstDueDate, interestRate, repaymentTerms };
   }
-
+ 
   // Para outras tabelas ou se não especificado, retorna como está
   return obj;
 };
-
+ 
 // Helper para converter objeto vindo do Supabase
 const prepareFromSupabase = (obj: any) => {
   return obj;
 };
-
+ 
 export const loadDB = async (): Promise<DBState> => {
   const localData = localStorage.getItem(STORAGE_KEY);
   let localState: DBState = localData ? JSON.parse(localData) : initialState;
-
+ 
   if (!supabase) {
     console.log("ℹ️ Supabase não inicializado. Usando dados locais.");
     return localState;
   }
-
+ 
   try {
     console.log("🔄 Carregando dados do Supabase...");
     const [
@@ -111,11 +91,11 @@ export const loadDB = async (): Promise<DBState> => {
       supabase.from('third_party_loans').select('*'),
       supabase.from('third_party_payments').select('*')
     ]);
-
+ 
     if (uErr || gErr || cErr) {
       console.error("❌ Erro ao carregar tabelas principais:", { uErr, gErr, cErr });
     }
-
+ 
     // Mapear dados do Supabase
     const mappedClients = (clients || []).map(c => prepareFromSupabase(c));
     const mappedGroups = (groups || []).map(g => prepareFromSupabase(g));
@@ -123,9 +103,9 @@ export const loadDB = async (): Promise<DBState> => {
     const mappedRequests = (requests || []).map(r => prepareFromSupabase(r));
     const mappedReports = (reports || []).map(rp => prepareFromSupabase(rp));
     const mappedTransactions = (transactions || []).map(t => prepareFromSupabase(t));
-
+ 
     console.log(`✅ Dados carregados: ${mappedClients.length} clientes, ${mappedGroups.length} sócios.`);
-
+ 
     // Mesclar usuários
     const usersMap = new Map<string, any>();
     (users || []).forEach(u => {
@@ -139,9 +119,9 @@ export const loadDB = async (): Promise<DBState> => {
         id: userId
       });
     });
-
+ 
     const mergedUsers = Array.from(usersMap.values());
-
+ 
     return {
       users: mergedUsers.length > 0 ? mergedUsers : localState.users,
       groups: groups !== null ? mappedGroups : localState.groups,
@@ -160,7 +140,7 @@ export const loadDB = async (): Promise<DBState> => {
     return localState;
   }
 };
-
+ 
 export const saveDB = async (state: DBState) => {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
@@ -169,7 +149,7 @@ export const saveDB = async (state: DBState) => {
   }
   
   if (!supabase) return;
-
+ 
   try {
     const results = await Promise.all([
       state.users.length > 0 ? supabase.from('users').upsert(state.users.map(i => prepareForSupabase(i, 'users'))) : Promise.resolve({ error: null }),
@@ -183,24 +163,24 @@ export const saveDB = async (state: DBState) => {
       (state.thirdPartyLoans && state.thirdPartyLoans.length > 0) ? supabase.from('third_party_loans').upsert(state.thirdPartyLoans.map(i => prepareForSupabase(i, 'third_party_loans'))) : Promise.resolve({ error: null }),
       (state.thirdPartyPayments && state.thirdPartyPayments.length > 0) ? supabase.from('third_party_payments').upsert(state.thirdPartyPayments.map(i => prepareForSupabase(i, 'third_party_payments'))) : Promise.resolve({ error: null }),
     ]);
-
+ 
     const tableNames = [
       'users', 'groups', 'clients', 'competences', 'requests', 
       'reports', 'transactions', 'third_party_clients', 
       'third_party_loans', 'third_party_payments'
     ];
-
+ 
     results.forEach((res, index) => {
       if (res && (res as any).error) {
         console.error(`❌ Erro Supabase [Tabela: ${tableNames[index]}]:`, (res as any).error);
       }
     });
-
+ 
   } catch (error) {
     console.error("Erro ao sincronizar com Supabase:", error);
   }
 };
-
+ 
 export const deleteFromDB = async (table: string, id: string) => {
   if (!supabase) return;
   try {
@@ -216,7 +196,7 @@ export const deleteFromDB = async (table: string, id: string) => {
     throw error;
   }
 };
-
+ 
 export const insertClient = async (client: Partial<Client>) => {
   if (!supabase) {
     console.warn("⚠️ Supabase não disponível para insertClient.");
@@ -224,14 +204,14 @@ export const insertClient = async (client: Partial<Client>) => {
   }
   
   try {
-    const payload = prepareForSupabase(client);
+    const payload = prepareForSupabase(client, 'clients');
     console.log("🚀 Enviando payload para Supabase (clients):", payload);
-
+ 
     const { data, error } = await supabase
       .from('clients')
       .insert([payload])
       .select();
-
+ 
     if (error) {
       console.error("❌ Erro detalhado do Supabase (insertClient):", error);
       throw error;
@@ -244,7 +224,7 @@ export const insertClient = async (client: Partial<Client>) => {
     throw error;
   }
 };
-
+ 
 export const checkHealth = async () => {
   if (!supabase) return { status: 'LOCAL', message: 'Sistema operando localmente (Supabase não configurado).' };
   
