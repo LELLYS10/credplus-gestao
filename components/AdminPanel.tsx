@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Group, Client, UserRole, User, Competence, Report, Transaction, UserGroupType, ApprovalStatus, LoanType } from '../types';
+import { Group, Client, UserRole, User, Competence, Report, Transaction, UserGroupType, ClientApprovalStatus } from '../types';
 import { formatCurrency, getMonthName, getToday, getEffectiveDueDay } from '../utils';
 import { Plus, UserPlus, Trash2, Settings2, FileText, Loader2, Users, ShieldCheck, Download, Database, Upload, AlertTriangle } from 'lucide-react';
 import { saveDB } from '../db';
@@ -29,7 +29,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ groups, clients, users, compete
   const [showClientModal, setShowClientModal] = React.useState(false);
   const [isGenerating, setIsGenerating] = React.useState(false);
   
-  const [groupFormData, setGroupFormData] = React.useState({ name: '', email: '', phone: '', interestRate: 6, password: '' });
+  const [groupFormData, setGroupFormData] = React.useState({ name: '', email: '', phone: '', interestRate: 6, password: '', groupType: UserGroupType.GRUPO_A as UserGroupType });
   
   const handleEditGroup = (g: Group) => {
     const associatedUser = users.find(u => u.groupId === g.id || u.email === g.email);
@@ -39,7 +39,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ groups, clients, users, compete
       email: g.email,
       phone: g.phone,
       interestRate: g.interestRate,
-      password: associatedUser?.password || ''
+      password: associatedUser?.password || '',
+      groupType: g.groupType || UserGroupType.GRUPO_A
     });
     setShowGroupModal(true);
   };
@@ -54,7 +55,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ groups, clients, users, compete
     }
     setShowGroupModal(false);
     setEditingGroup(null);
-    setGroupFormData({ name: '', email: '', phone: '', interestRate: 6, password: '' });
+    setGroupFormData({ name: '', email: '', phone: '', interestRate: 6, password: '', groupType: UserGroupType.GRUPO_A });
   };
 
   const [clientFormData, setClientFormData] = React.useState({ 
@@ -64,20 +65,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ groups, clients, users, compete
     initialCapital: 0, 
     dueDay: 1, 
     startDate: new Date().toISOString().split('T')[0],
-    firstDueDate: '',
-    loanType: LoanType.RECORRENTE,
-    interestRate: 6,
-    commissionPercent: 0,
-    installmentsCount: 12
+    firstDueDate: '' 
   });
-
-  // Obter opções de loanType baseadas no grupo do ADMIN
-  const getLoanTypeOptions = () => {
-    return [LoanType.RECORRENTE, LoanType.PARCELADO];
-  };
-
-  // Verificar se deve mostrar campo de comissão (para ADMIN é sempre true)
-  const showCommissionField = true;
 
   const handleClientSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -256,7 +245,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ groups, clients, users, compete
                       onDeleteGroup(g.id);
                     }
                   }} 
-                  className="absolute top-3 right-3 z-50 bg-red-50 text-red-600 hover:bg-red-600 hover:text-white transition-all p-2.5 rounded-xl border border-red-100 shadow-sm flex items-center justify-center"
+                  className="absolute top-3 right-3 z-50 bg-red-50 text-red-600 hover:bs-red-600 hover:text-white transition-all p-2.5 rounded-xl border border-red-100 shadow-sm flex items-center justify-center"
                   title="Excluir Sócio"
                 >
                   <Trash2 size={18}/>
@@ -275,7 +264,20 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ groups, clients, users, compete
                   </div>
                 </div>
                 <div className="pt-4 border-t border-slate-50 flex flex-wrap items-center justify-between mt-4 gap-2">
-                  <span className="bg-emerald-50 text-emerald-700 px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest shrink-0">{g.interestRate}% JUROS</span>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="bg-emerald-50 text-emerald-700 px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest shrink-0">{g.interestRate}% JUROS</span>
+                    {g.groupType && (
+                      <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest shrink-0 ${
+                        g.groupType === UserGroupType.GRUPO_ESPECIAL
+                          ? 'bg-purple-50 text-purple-700'
+                          : g.groupType === UserGroupType.GRUPO_B
+                          ? 'bg-blue-50 text-blue-700'
+                          : 'bg-amber-50 text-amber-700'
+                      }`}>
+                        {g.groupType === UserGroupType.GRUPO_ESPECIAL ? 'Especial' : g.groupType === UserGroupType.GRUPO_B ? 'Grupo B' : 'Grupo A'}
+                      </span>
+                    )}
+                  </div>
                   <div className="flex items-center gap-2 shrink-0">
                     {(() => {
                       const associatedUser = users.find(u => u.groupId === g.id);
@@ -343,7 +345,12 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ groups, clients, users, compete
                       <td className="py-4 px-6 text-slate-500 font-bold">{groups.find(g=>g.id===c.groupId)?.name || 'N/A'}</td>
                       <td className="py-4 px-6 text-right">
                         <div className="flex items-center justify-end gap-2">
-                          <span className="bg-emerald-50 text-emerald-600 px-2 py-0.5 rounded-full text-[9px] font-black uppercase">Ativo</span>
+                          {c.approvalStatus === ClientApprovalStatus.PRE_CADASTRO || c.approvalStatus === ClientApprovalStatus.AGUARDANDO_ADM
+                            ? <span className="bg-amber-50 text-amber-600 px-2 py-0.5 rounded-full text-[9px] font-black uppercase">Pendente</span>
+                            : c.approvalStatus === ClientApprovalStatus.REJEITADO
+                            ? <span className="bg-red-50 text-red-500 px-2 py-0.5 rounded-full text-[9px] font-black uppercase">Rejeitado</span>
+                            : <span className="bg-emerald-50 text-emerald-600 px-2 py-0.5 rounded-full text-[9px] font-black uppercase">Ativo</span>
+                          }
                           <button onClick={() => { if(confirm(`Excluir cliente ${c.name}?`)) onDeleteClient(c.id); }} className="text-slate-300 hover:text-red-500 p-1 transition-colors">
                             <Trash2 size={14} />
                           </button>
@@ -505,6 +512,19 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ groups, clients, users, compete
                  <input required placeholder="Nome do Sócio" className="w-full p-4 bg-slate-50 rounded-2xl border font-bold" value={groupFormData.name} onChange={e=>setGroupFormData({...groupFormData, name: e.target.value})} />
                  <input required placeholder="E-mail de Acesso" className="w-full p-4 bg-slate-50 rounded-2xl border font-bold" value={groupFormData.email} onChange={e=>setGroupFormData({...groupFormData, email: e.target.value})} />
                  <input required placeholder="Telefone/WhatsApp" className="w-full p-4 bg-slate-50 rounded-2xl border font-bold" value={groupFormData.phone} onChange={e=>setGroupFormData({...groupFormData, phone: e.target.value})} />
+                 <div>
+                   <label className="text-[9px] font-black text-slate-400 uppercase ml-2 tracking-widest">Grupo / Perfil de Acesso</label>
+                   <select
+                     required
+                     className="w-full p-4 bg-slate-50 rounded-2xl border font-bold mt-1"
+                     value={groupFormData.groupType}
+                     onChange={e => setGroupFormData({...groupFormData, groupType: e.target.value as UserGroupType})}
+                   >
+                     <option value={UserGroupType.GRUPO_A}>Grupo A — Pode cadastrar clientes</option>
+                     <option value={UserGroupType.GRUPO_B}>Grupo B — Vê comissões + cadastros</option>
+                     <option value={UserGroupType.GRUPO_ESPECIAL}>Grupo Especial — Acesso ampliado</option>
+                   </select>
+                 </div>
                  <div className="grid grid-cols-2 gap-4">
                     <div><label className="text-[9px] font-black text-slate-400 uppercase ml-2 tracking-widest">Taxa de Juros (%)</label><input type="number" step="0.1" required className="w-full p-4 bg-slate-50 rounded-2xl border font-bold" value={isNaN(groupFormData.interestRate) ? '' : groupFormData.interestRate} onChange={e=>setGroupFormData({...groupFormData, interestRate: parseFloat(e.target.value)})} /></div>
                     <div><label className="text-[9px] font-black text-slate-400 uppercase ml-2 tracking-widest">Senha</label><input type="password" required className="w-full p-4 bg-slate-50 rounded-2xl border font-bold" value={groupFormData.password} onChange={e=>setGroupFormData({...groupFormData, password: e.target.value})} /></div>
@@ -546,30 +566,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ groups, clients, users, compete
                        <input type="date" required className="w-full p-4 bg-slate-50 rounded-2xl border font-bold" value={clientFormData.firstDueDate} onChange={e=>setClientFormData({...clientFormData, firstDueDate: e.target.value})} />
                     </div>
                  </div>
-                 <div className="grid grid-cols-2 gap-4">
-                    <div>
-                       <label className="text-[9px] font-black text-slate-400 uppercase ml-2 tracking-widest">Tipo de Empréstimo</label>
-                       <select required className="w-full p-4 bg-slate-50 rounded-2xl border font-bold" value={clientFormData.loanType} onChange={e=>setClientFormData({...clientFormData, loanType: e.target.value as LoanType})}>
-                          {getLoanTypeOptions().map(opt => <option key={opt} value={opt}>{opt === LoanType.RECORRENTE ? 'Recorrente' : opt === LoanType.PARCELADO ? 'Parcelado' : 'Terceiro'}</option>)}
-                       </select>
-                    </div>
-                    <div>
-                       <label className="text-[9px] font-black text-slate-400 uppercase ml-2 tracking-widest">Taxa de Juros (%)</label>
-                       <input type="number" step="0.1" required className="w-full p-4 bg-slate-50 rounded-2xl border font-bold" value={clientFormData.interestRate} onChange={e=>setClientFormData({...clientFormData, interestRate: parseFloat(e.target.value)})} />
-                    </div>
-                 </div>
-                 {showCommissionField && (
-                   <div className="grid grid-cols-2 gap-4">
-                      <div>
-                         <label className="text-[9px] font-black text-slate-400 uppercase ml-2 tracking-widest">Comissão (%)</label>
-                         <input type="number" step="0.1" className="w-full p-4 bg-slate-50 rounded-2xl border font-bold" value={clientFormData.commissionPercent || 0} onChange={e=>setClientFormData({...clientFormData, commissionPercent: parseFloat(e.target.value)})} />
-                      </div>
-                      <div>
-                         <label className="text-[9px] font-black text-slate-400 uppercase ml-2 tracking-widest">Parcelas</label>
-                         <input type="number" className="w-full p-4 bg-slate-50 rounded-2xl border font-bold" value={clientFormData.installmentsCount || 12} onChange={e=>setClientFormData({...clientFormData, installmentsCount: parseInt(e.target.value)})} />
-                      </div>
-                   </div>
-                 )}
                  <div className="flex gap-4 pt-4">
                     <button type="button" onClick={()=>setShowClientModal(false)} className="flex-1 p-4 border rounded-2xl font-black text-slate-400 uppercase text-xs">Cancelar</button>
                     <button type="submit" className="flex-1 p-4 bg-emerald-600 text-white rounded-2xl font-black uppercase text-xs shadow-lg border-b-4 border-emerald-800">Criar Cliente</button>
