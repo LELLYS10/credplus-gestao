@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { User, Group, Client, Competence, PaymentRequest, UserRole, RequestStatus, DBState, Report, Transaction } from './types';
+import { User, Group, Client, Competence, PaymentRequest, UserRole, UserGroupType, ApprovalStatus, RequestStatus, DBState, Report, Transaction } from './types';
  
 const STORAGE_KEY = 'loan_management_db_v1';
  
@@ -13,9 +13,9 @@ if (!supabaseUrl || !supabaseKey) {
 export const supabase = (supabaseUrl && supabaseKey) 
   ? createClient(supabaseUrl, supabaseKey)
   : null;
- 
+
 const initialState: DBState = {
-  users: [{ id: '1', email: 'credplusemp@gmail.com', password: '123456', role: UserRole.ADMIN }],
+  users: [{ id: '1', email: 'credplusemp@gmail.com', password: '123456', role: UserRole.ADMIN, groupType: UserGroupType.GRUPO_ESPECIAL, canCreateClient: true, canCreateContract: true, canApprove: true, canDelete: true, canManageAll: true }],
   groups: [],
   clients: [],
   competences: [],
@@ -34,8 +34,8 @@ const prepareForSupabase = (obj: any, table?: string) => {
   
   // Se soubermos a tabela, podemos filtrar campos que não existem no banco
   if (table === 'users') {
-    const { id, email, password, role, groupId, status, thirdPartyBlocked, updatedAt } = obj;
-    return { id, email, password, role, groupId, status, thirdPartyBlocked, updatedAt };
+    const { id, email, password, role, groupId, status, thirdPartyBlocked, updatedAt, groupType, managerName, canCreateClient, canCreateContract, canApprove, canDelete, canManageAll, commissionPercent } = obj;
+    return { id, email, password, role, groupId, status, thirdPartyBlocked, updatedAt, groupType, managerName, canCreateClient, canCreateContract, canApprove, canDelete, canManageAll, commissionPercent };
   }
   
   if (table === 'groups') {
@@ -44,8 +44,8 @@ const prepareForSupabase = (obj: any, table?: string) => {
   }
  
   if (table === 'clients') {
-    const { id, name, phone, groupId, initialCapital, currentCapital, dueDay, status, notes, createdAt, firstDueDate, interestRate, repaymentTerms } = obj;
-    return { id, name, phone, groupId, initialCapital, currentCapital, dueDay, status, notes, createdAt, firstDueDate, interestRate, repaymentTerms };
+    const { id, name, phone, groupId, initialCapital, currentCapital, dueDay, status, notes, createdAt, firstDueDate, interestRate, repaymentTerms, createdBy, approvedBy, approvedAt, loanType, commissionPercent, installmentsCount } = obj;
+    return { id, name, phone, groupId, initialCapital, currentCapital, dueDay, status, notes, createdAt, firstDueDate, interestRate, repaymentTerms, createdBy, approvedBy, approvedAt, loanType, commissionPercent, installmentsCount };
   }
  
   // Para outras tabelas ou se não especificado, retorna como está

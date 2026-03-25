@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Group, Client, UserRole, User, Competence, Report, Transaction } from '../types';
+import { Group, Client, UserRole, User, Competence, Report, Transaction, UserGroupType, ApprovalStatus, LoanType } from '../types';
 import { formatCurrency, getMonthName, getToday, getEffectiveDueDay } from '../utils';
 import { Plus, UserPlus, Trash2, Settings2, FileText, Loader2, Users, ShieldCheck, Download, Database, Upload, AlertTriangle } from 'lucide-react';
 import { saveDB } from '../db';
@@ -64,8 +64,20 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ groups, clients, users, compete
     initialCapital: 0, 
     dueDay: 1, 
     startDate: new Date().toISOString().split('T')[0],
-    firstDueDate: '' 
+    firstDueDate: '',
+    loanType: LoanType.RECORRENTE,
+    interestRate: 6,
+    commissionPercent: 0,
+    installmentsCount: 12
   });
+
+  // Obter opções de loanType baseadas no grupo do ADMIN
+  const getLoanTypeOptions = () => {
+    return [LoanType.RECORRENTE, LoanType.PARCELADO];
+  };
+
+  // Verificar se deve mostrar campo de comissão (para ADMIN é sempre true)
+  const showCommissionField = true;
 
   const handleClientSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -534,6 +546,30 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ groups, clients, users, compete
                        <input type="date" required className="w-full p-4 bg-slate-50 rounded-2xl border font-bold" value={clientFormData.firstDueDate} onChange={e=>setClientFormData({...clientFormData, firstDueDate: e.target.value})} />
                     </div>
                  </div>
+                 <div className="grid grid-cols-2 gap-4">
+                    <div>
+                       <label className="text-[9px] font-black text-slate-400 uppercase ml-2 tracking-widest">Tipo de Empréstimo</label>
+                       <select required className="w-full p-4 bg-slate-50 rounded-2xl border font-bold" value={clientFormData.loanType} onChange={e=>setClientFormData({...clientFormData, loanType: e.target.value as LoanType})}>
+                          {getLoanTypeOptions().map(opt => <option key={opt} value={opt}>{opt === LoanType.RECORRENTE ? 'Recorrente' : opt === LoanType.PARCELADO ? 'Parcelado' : 'Terceiro'}</option>)}
+                       </select>
+                    </div>
+                    <div>
+                       <label className="text-[9px] font-black text-slate-400 uppercase ml-2 tracking-widest">Taxa de Juros (%)</label>
+                       <input type="number" step="0.1" required className="w-full p-4 bg-slate-50 rounded-2xl border font-bold" value={clientFormData.interestRate} onChange={e=>setClientFormData({...clientFormData, interestRate: parseFloat(e.target.value)})} />
+                    </div>
+                 </div>
+                 {showCommissionField && (
+                   <div className="grid grid-cols-2 gap-4">
+                      <div>
+                         <label className="text-[9px] font-black text-slate-400 uppercase ml-2 tracking-widest">Comissão (%)</label>
+                         <input type="number" step="0.1" className="w-full p-4 bg-slate-50 rounded-2xl border font-bold" value={clientFormData.commissionPercent || 0} onChange={e=>setClientFormData({...clientFormData, commissionPercent: parseFloat(e.target.value)})} />
+                      </div>
+                      <div>
+                         <label className="text-[9px] font-black text-slate-400 uppercase ml-2 tracking-widest">Parcelas</label>
+                         <input type="number" className="w-full p-4 bg-slate-50 rounded-2xl border font-bold" value={clientFormData.installmentsCount || 12} onChange={e=>setClientFormData({...clientFormData, installmentsCount: parseInt(e.target.value)})} />
+                      </div>
+                   </div>
+                 )}
                  <div className="flex gap-4 pt-4">
                     <button type="button" onClick={()=>setShowClientModal(false)} className="flex-1 p-4 border rounded-2xl font-black text-slate-400 uppercase text-xs">Cancelar</button>
                     <button type="submit" className="flex-1 p-4 bg-emerald-600 text-white rounded-2xl font-black uppercase text-xs shadow-lg border-b-4 border-emerald-800">Criar Cliente</button>

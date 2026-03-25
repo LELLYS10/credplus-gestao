@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { User, UserRole, Group, Client, Competence, PaymentRequest, RequestStatus, Transaction, TransactionType } from './types';
+import { User, UserRole, UserGroupType, Group, Client, Competence, PaymentRequest, RequestStatus, Transaction, TransactionType, ApprovalStatus, LoanType } from './types';
 import { loadDB, saveDB, deleteFromDB, insertClient } from './db';
 import { generatePendingCompetences, applyFIFOPayment } from './logic';
 import Layout from './components/Layout';
@@ -12,7 +12,7 @@ import ClientsList from './components/ClientsList';
 import ThirdPartyModule from './components/ThirdPartyModule';
 import AIAssistant from './components/AIAssistant';
 import Logo from './components/Logo';
-import { ChevronRight, RefreshCw, X, ShieldCheck } from 'lucide-react';
+import { ChevronRight, RefreshCw, X, ShieldCheck, CheckCircle } from 'lucide-react';
 import { toTitleCase } from './utils';
 
 const SESSION_KEY = 'credplus_session_v1';
@@ -88,8 +88,8 @@ const App: React.FC = () => {
         // Fallback to initial state if everything fails
         setDb({
           users: [
-            { id: '1', email: 'credplusemp@gmail.com', password: '5721', role: UserRole.ADMIN },
-            { id: '2', email: 'michaeldsandes@gmail.com', password: '0718', role: UserRole.ADMIN }
+            { id: '1', email: 'credplusemp@gmail.com', password: '5721', role: UserRole.ADMIN, groupType: UserGroupType.GRUPO_ESPECIAL, canCreateClient: true, canCreateContract: true, canApprove: true, canDelete: true, canManageAll: true },
+            { id: '2', email: 'michaeldsandes@gmail.com', password: '0718', role: UserRole.ADMIN, groupType: UserGroupType.GRUPO_ESPECIAL, canCreateClient: true, canCreateContract: true, canApprove: true, canDelete: true, canManageAll: true }
           ],
           groups: [],
           clients: [],
@@ -130,6 +130,39 @@ const App: React.FC = () => {
       setActiveTab('dashboard');
     }
   }, [user, activeTab]);
+
+  // Funções de verificação de permissões
+  const canCreateClient = () => user?.canCreateClient === true;
+  const canCreateContract = () => user?.canCreateContract === true;
+  const canApprove = () => user?.canApprove === true;
+  const canManageAll = () => user?.canManageAll === true;
+
+  // Função para obter opções de loanType baseado no grupo do usuário
+  const getLoanTypeOptions = () => {
+    const groupType = user?.groupType;
+    if (groupType === UserGroupType.GRUPO_A) {
+      return [LoanType.TERCEIRO];
+    } else if (groupType === UserGroupType.GRUPO_B) {
+      return [LoanType.RECORRENTE, LoanType.PARCELADO];
+    } else {
+      return [LoanType.RECORRENTE, LoanType.PARCELADO];
+    }
+  };
+
+  // Função para obter taxa de juros baseada no grupo
+  const getDefaultInterestRate = () => {
+    const groupType = user?.groupType;
+    if (groupType === UserGroupType.GRUPO_B) {
+      return 12; // Taxa fixa para GRUPO_B
+    }
+    return user?.groupType === UserGroupType.GRUPO_ESPECIAL ? 6 : 6;
+  };
+
+  // Função para verificar se deve mostrar campo de comissão
+  const shouldShowCommission = () => {
+    const groupType = user?.groupType;
+    return groupType === UserGroupType.GRUPO_B || groupType === UserGroupType.GRUPO_ESPECIAL;
+  };
 
   useEffect(() => {
     const handleSyncCloud = async () => {
@@ -340,6 +373,64 @@ const App: React.FC = () => {
         
         return <ThirdPartyModule user={liveUser} db={db} setDb={setDb} />;
       case 'requests': return <RequestsList user={liveUser} requests={db.requests} clients={db.clients} groups={db.groups} onAction={handleProcessRequest} />;
+      case 'approve':
+        if (liveUser.role !== UserRole.ADMIN) return <div className="p-10 text-center font-black uppercase text-red-500">Acesso Negado</div>;
+        return (
+          <div className="space-y-6">
+            <h2 className="text-2xl font-black uppercase tracking-widest text-slate-700">Aprovar Cadastros</h2>
+            {db.clients.filter((c: any) => c.approvalStatus === ApprovalStatus.PENDENTE).length === 0 ? (
+              <div className="bg-white p-10 rounded-[2rem] border border-slate-200 text-center">
+                <CheckCircle className="w-16 h-16 text-emerald-500 mx-auto mb-4" />
+                <p className="font-black text-slate-600 uppercase tracking-widest">Nenhum cadastro pendente</p>
+              </div>
+            ) : (
+              <div className="grid gap-4">
+                {db.clients.filter((c: any) => c.approvalStatus === ApprovalStatus.PENDENTE).map(client => (
+                  <div key={client.id} className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <h3 className="font-black text-slate-800 text-lg">{client.name}</h3>
+                        <p className="text-sm text-slate-500 font-bold">{client.phone}</p>
+                        <p className="text-xs text-slate-400 mt-2">
+                          Criado por: {client.createdBy || 'N/A'} | Capital: R$ {client.initialCapital?.toLocaleString('pt-BR') || '0'}
+                        </p>
+                      </div>
+                      <div className="flex gap-2">
+                        <button 
+                          onClick={() => {
+                            setDb((prev: any) => ({
+                              ...prev,
+                              clients: prev.clients.map((c: any) => c.id === client.id ? { 
+                                ...c, 
+                                approvalStatus: ApprovalStatus.APROVADO,
+                                approvedBy: liveUser.email,
+                                approvedAt: Date.now()
+                              } : c)
+                            }));
+                          }}
+                          className="px-4 py-2 bg-emerald-600 text-white rounded-xl font-black text-xs uppercase shadow-lg border-b-4 border-emerald-800"
+                        >
+                          Aprovar
+                        </button>
+                        <button 
+                          onClick={() => {
+                            setDb((prev: any) => ({
+                              ...prev,
+                              clients: prev.clients.map((c: any) => c.id === client.id ? { ...c, approvalStatus: ApprovalStatus.REJEITADO } : c)
+                            }));
+                          }}
+                          className="px-4 py-2 bg-red-500 text-white rounded-xl font-black text-xs uppercase border-b-4 border-red-700"
+                        >
+                          Rejeitar
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        );
       case 'admin': 
         if (liveUser.role !== UserRole.ADMIN) return <div className="p-10 text-center font-black uppercase text-red-500">Acesso Negado</div>;
         return <AdminPanel 
@@ -417,7 +508,14 @@ const App: React.FC = () => {
                 status: 'ACTIVE',
                 notes: d.notes || '',
                 createdAt,
-                firstDueDate
+                firstDueDate,
+                // Novos campos
+                approvalStatus: canCreateContract() ? ApprovalStatus.APROVADO : ApprovalStatus.PENDENTE,
+                createdBy: liveUser.email,
+                loanType: d.loanType || LoanType.RECORRENTE,
+                interestRate: d.interestRate || getDefaultInterestRate(),
+                commissionPercent: d.commissionPercent,
+                installmentsCount: d.installmentsCount
               };
 
               // Inserir no Supabase
@@ -586,6 +684,7 @@ const App: React.FC = () => {
           const userGroupId = liveUser.groupId || db.groups.find((g: any) => g.email === liveUser.email)?.id;
           return r.status === RequestStatus.PENDING && r.groupId === userGroupId;
         }).length}
+        pendingApprovalsCount={db.clients.filter((c: any) => c.approvalStatus === ApprovalStatus.PENDENTE).length}
       >
         {renderContent()}
       </Layout>
@@ -669,7 +768,14 @@ const App: React.FC = () => {
                   status: 'ACTIVE', 
                   notes: data.notes || '',
                   createdAt, 
-                  firstDueDate
+                  firstDueDate,
+                  // Novos campos
+                  approvalStatus: canCreateContract() ? ApprovalStatus.APROVADO : ApprovalStatus.PENDENTE,
+                  createdBy: user?.email || 'AI',
+                  loanType: data.loanType || LoanType.RECORRENTE,
+                  interestRate: data.interestRate || getDefaultInterestRate(),
+                  commissionPercent: data.commissionPercent,
+                  installmentsCount: data.installmentsCount
                 };
 
                 console.log("🚀 Payload final para Supabase:", newClient);

@@ -1,7 +1,27 @@
-
 export enum UserRole {
   ADMIN = 'ADMIN',
   VIEWER = 'VIEWER'
+}
+
+// Tipo de grupo do usuário
+export enum UserGroupType {
+  GRUPO_A = 'GRUPO A',
+  GRUPO_B = 'GRUPO B',
+  GRUPO_ESPECIAL = 'GRUPO ESPECIAL'
+}
+
+// Status de aprovação do cadastro
+export enum ApprovalStatus {
+  PENDENTE = 'PENDENTE',
+  APROVADO = 'APROVADO',
+  REJEITADO = 'REJEITADO'
+}
+
+// Tipo de empréstimo
+export enum LoanType {
+  RECORRENTE = 'recorrente',
+  PARCELADO = 'parcelado',
+  TERCEIRO = 'terceiro'
 }
 
 export interface User {
@@ -9,8 +29,20 @@ export interface User {
   email: string;
   password: string;
   role: UserRole;
+  // Tipo de grupo (Grupo A, B ou Especial)
+  groupType: UserGroupType;
+  // Nome do usuário/gestor (ex: JAILTON, RICARDO, SANNY, etc)
+  managerName?: string;
   groupId?: string;
   status?: 'ACTIVE' | 'BLOCKED';
+  // Permissões
+  canCreateClient?: boolean;
+  canCreateContract?: boolean;
+  canApprove?: boolean;
+  canDelete?: boolean;
+  canManageAll?: boolean;
+  // Comissão para Grupo B (percentual sobre juros recebidos)
+  commissionPercent?: number;
   thirdPartyBlocked?: boolean;
   updatedAt?: number;
 }
@@ -28,13 +60,30 @@ export interface Client {
   name: string;
   phone: string;
   groupId: string;
+  // Quem criou o cadastro
+  createdBy?: string;
+  // Status de aprovação
+  approvalStatus: ApprovalStatus;
+  // Quem aprovou
+  approvedBy?: string;
+  approvedAt?: number;
+  // Tipo de empréstimo
+  loanType?: LoanType;
+  // Taxa de juros (percentual)
+  interestRate: number;
+  // Comissão (percentual) - aplicável para Grupo B
+  commissionPercent?: number;
+  // Dados do empréstimo
   initialCapital: number;
   currentCapital: number;
   dueDay: number;
+  // Parcelas (se parcelado)
+  installmentsCount?: number;
+  firstDueDate?: number;
+  // Status do contrato
   status: 'ACTIVE' | 'INACTIVE';
   notes: string;
   createdAt: number;
-  firstDueDate?: number;
 }
 
 export interface Competence {
@@ -92,11 +141,11 @@ export interface Report {
   dataJson: any;
 }
 
-// Added AppSettings interface to fix compilation error in Dashboard component
 export interface AppSettings {
   [key: string]: any;
 }
 
+// Clientes de terceiros (exclusivo Grupo A)
 export interface ThirdPartyClient {
   id: string;
   userId: string;
@@ -106,6 +155,7 @@ export interface ThirdPartyClient {
   createdAt: number;
 }
 
+// Empréstimos de terceiros (exclusivo Grupo A)
 export interface ThirdPartyLoan {
   id: string;
   userId: string;
@@ -118,6 +168,7 @@ export interface ThirdPartyLoan {
   createdAt: number;
 }
 
+// Pagamentos de terceiros
 export interface ThirdPartyPayment {
   id: string;
   userId: string;

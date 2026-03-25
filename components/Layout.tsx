@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { User, UserRole } from '../types';
-import { LogOut, Home, Users, CheckSquare, Settings, Menu, X, Briefcase, ShieldCheck } from 'lucide-react';
+import { LogOut, Home, Users, CheckSquare, Settings, Menu, X, Briefcase, ShieldCheck, UserCheck } from 'lucide-react';
 import Logo from './Logo';
 
 interface LayoutProps {
@@ -11,17 +11,21 @@ interface LayoutProps {
   activeTab: string;
   setActiveTab: (tab: string) => void;
   pendingCount: number;
+  pendingApprovalsCount?: number;
 }
 
-const Layout: React.FC<LayoutProps> = ({ user, onLogout, children, activeTab, setActiveTab, pendingCount }) => {
+const Layout: React.FC<LayoutProps> = ({ user, onLogout, children, activeTab, setActiveTab, pendingCount, pendingApprovalsCount = 0 }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
 
   if (!user) return <div className="p-10 text-center">Carregando sessão...</div>;
+
+  const isAdmin = user.role === UserRole.ADMIN;
 
   const menuItems = [
     { id: 'dashboard', label: 'Painel Principal', icon: Home, roles: [UserRole.ADMIN, UserRole.VIEWER] },
     { id: 'clients', label: 'Clientes', icon: Users, roles: [UserRole.ADMIN, UserRole.VIEWER] },
     { id: 'requests', label: 'Solicitações', icon: CheckSquare, roles: [UserRole.ADMIN, UserRole.VIEWER], badge: pendingCount },
+    { id: 'approve', label: 'Aprovar Cadastros', icon: UserCheck, roles: [UserRole.ADMIN], badge: pendingApprovalsCount },
     { id: 'third-party', label: 'Terceiros', icon: Briefcase, roles: [UserRole.VIEWER] },
     { id: 'admin', label: 'Administração', icon: Settings, roles: [UserRole.ADMIN] },
   ].filter(item => item.roles.includes(user.role));
