@@ -21,12 +21,12 @@ const Layout: React.FC<LayoutProps> = ({ user, onLogout, children, activeTab, se
   const perms = getUserPermissions(user);
 
   const menuItems = [
-    { id: 'dashboard', label: 'Painel Principal', icon: Home, show: true, badge: 0 },
+    { id: 'dashboard', label: 'Painel Geral', icon: Home, show: true, badge: 0 },
     { id: 'clients', label: 'Clientes', icon: Users, show: true, badge: 0 },
     { id: 'requests', label: 'Solicitações', icon: CheckSquare, show: true, badge: pendingCount },
     { id: 'pending-approvals', label: 'Aprovar Cadastros', icon: ShieldCheck, show: perms.isAdmin, badge: pendingApprovalsCount },
     { id: 'third-party', label: 'Terceiros', icon: Briefcase, show: user.role === UserRole.VIEWER, badge: 0 },
-    { id: 'x4', label: 'X4 — Painel ADM', icon: LayoutDashboard, show: perms.canAccessX4, badge: 0 },
+    { id: 'x4', label: 'Painel X4 - Visão HTML', icon: LayoutDashboard, show: perms.isAdmin, badge: 0 },
     { id: 'admin', label: 'Administração', icon: Settings, show: perms.isAdmin, badge: 0 },
   ].filter(item => item.show);
 
@@ -49,10 +49,10 @@ const Layout: React.FC<LayoutProps> = ({ user, onLogout, children, activeTab, se
               activeTab === item.id
                 ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-800/40 border-b-2 border-emerald-700'
                 : 'text-emerald-100/60 hover:bg-emerald-800/50 hover:text-white'
-            } ${item.id === 'x4' ? 'border border-amber-500/20' : ''}`}
+            } `}
           >
             <div className="flex items-center gap-3">
-              <item.icon size={20} className={activeTab === item.id ? 'text-amber-400' : (item.id === 'x4' ? 'text-amber-400/60' : '')} />
+              <item.icon size={20} className={activeTab === item.id ? 'text-amber-400' : ''} />
               <span className="font-semibold">{item.label}</span>
               {item.id === 'third-party' && user.thirdPartyBlocked && (
                 <span className="ml-2 px-1.5 py-0.5 bg-red-500/20 text-red-300 text-[8px] font-black uppercase rounded border border-red-500/30">

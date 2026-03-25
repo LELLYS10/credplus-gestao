@@ -11,8 +11,8 @@ import ClientsList from './components/ClientsList';
 import ThirdPartyModule from './components/ThirdPartyModule';
 import AIAssistant from './components/AIAssistant';
 import Logo from './components/Logo';
-import PendingApprovals, { ApprovalData } from './components/PendingApprovals';
 import X4Dashboard from './components/X4Dashboard';
+
 import { ChevronRight, RefreshCw, X, ShieldCheck } from 'lucide-react';
 import { toTitleCase } from './utils';
 
@@ -162,7 +162,7 @@ const App: React.FC = () => {
   };
 
   // X3: Aprovar pré-cadastro e completar contrato
-  const handleApproveClient = (clientId: string, contractData: ApprovalData) => {
+  const handleApproveClient = (clientId: string, contractData: any) => {
     if (!db || user?.role !== UserRole.ADMIN) return;
     const parseDate = (d: string) => {
       if (!d) return Date.now();
@@ -349,21 +349,13 @@ const App: React.FC = () => {
         return <ClientsList
           user={liveUser} clients={db.clients} groups={db.groups}
           onViewClient={id => { setSelectedClientId(id); setActiveTab('client-detail'); }}
-          onPreRegister={perms.isAdmin ? undefined : handlePreRegisterClient}
+
         />;
 
       case 'requests':
         return <RequestsList user={liveUser} requests={db.requests} clients={db.clients} groups={db.groups} onAction={handleProcessRequest} />;
 
-      case 'pending-approvals':
-        if (!perms.isAdmin) return <div className="p-10 text-center font-black uppercase text-red-500">Acesso Negado</div>;
-        return <PendingApprovals
-          user={liveUser} clients={db.clients} groups={db.groups}
-          onApprove={handleApproveClient} onReject={handleRejectClient}
-        />;
-
       case 'x4':
-        if (!perms.canAccessX4) return <div className="p-10 text-center font-black uppercase text-red-500">Acesso Negado — Exclusivo ADM</div>;
         return <X4Dashboard user={liveUser} clients={db.clients} groups={db.groups} competences={db.competences} />;
 
       case 'third-party':
@@ -391,37 +383,46 @@ const App: React.FC = () => {
           onAddGroup={d => {
             try {
               const emailExists = db.users.some((u: any) => u.email.toLowerCase() === d.email.toLowerCase());
-              if (emailExists) { alert("Este e-mail já está cadastrado em outro   const updatedTransactions = prev.transactions.map((t: any) => t.id === id ? { ...t, ...data } : t);
-              const updatedClients = prev.clients.map((c: any) => {
-                const clientTrxs = updatedTransactions.filter((t: any) => t.clientId === c.id);
-                let newCap = c.initialCapital;
-                clientTrxs.forEach((t: any) => {
-                  if (t.type === 'INVESTMENT') newCap += t.amount;
-                  if (t.type === 'WITHDRAWAL' || t.type === 'AMORTIZATION') newCap -= t.amount;
-                });
-                return { ...c, currentCapital: Math.max(0, newCap) };
-              });
-              const newState = { ...prev, clients: updatedClients, transactions: updatedTransactions };
-              return runCompetenceSync(newState);
-            });
+              if (emailExists) {
+                alert("Este e-mail já está cadastrado.");
+                return;
+              }
+              const newGroupId = `g-${Date.now()}`;
+              const newGroup = { id: newGroupId, name: toTitleCase(d.name), email: d.email, phone: d.phone, interestRate: d.interestRate };
+              const newUser = { id: `u-${Date.now()}`, email: d.email, password: d.password, role: UserRole.VIEWER, groupId: newGroupId };
+              setDb((prev: any) => ({ ...prev, groups: [...prev.groups, newGroup], users: [...prev.users, newUser] }));
+              alert("Sócio cadastrado com sucesso!");
+            } catch (err) {
+              console.error(err);
+            }
           }}
           onDeleteClient={id => { handleDeleteClient(id); setActiveTab('dashboard'); }}
-          onAddTransaction={trx => {
-            if (user.role !== UserRole.ADMIN) return;
+          onDeleteGroup={handleDeleteGroup}
+          onUpdateGroup={handleUpdateSocio}
+          onAddClient={async d => {
+            const newClientId = crypto.randomUUID();
+            const newClient = {
+              id: newClientId,
+              name: toTitleCase(d.name),
+              phone: d.phone,
+              groupId: d.groupId,
+              initialCapital: d.initialCapital,
+              currentCapital: d.initialCapital,
+              dueDay: d.dueDay,
+              status: 'ACTIVE' as const,
+              notes: d.notes || '',
+              createdAt: Date.now()
+            };
             setDb((prev: any) => {
-              const updatedClients = prev.clients.map((c: any) => {
-                if (c.id === trx.clientId) {
-                  let newCap = c.currentCapital;
-                  if (trx.type === 'INVESTMENT') newCap += trx.amount;
-                  if (trx.type === 'WITHDRAWAL' || trx.type === 'AMORTIZATION') newCap -= trx.amount;
-                  return { ...c, currentCapital: Math.max(0, newCap) };
-                }
-                return c;
-              });
-              return { ...prev, clients: updatedClients, transactions: [...prev.transactions, trx] };
+              const newState = { ...prev, clients: [...prev.clients, newClient] };
+              return runCompetenceSync(newState);
             });
+            alert("Cliente cadastrado com sucesso!");
           }}
-          groups={db.groups}
+          onAddReport={r => setDb((prev: any) => {
+            const newState = { ...prev, reports: [...prev.reports, r] };
+            return runCompetenceSync(newState);
+          })}
         />;
 
       default: return null;
@@ -521,7 +522,7 @@ const App: React.FC = () => {
               return runCompetenceSync(newState);
             });
           }}
-          onAddSccio={(data) => {
+          onAddSocio={(data) => {
             if (user.role !== UserRole.ADMIN) return;
             const newGroupId = `g-${Date.now()}`;
             const newGroup: Group = { id: newGroupId, name: toTitleCase(data.name), email: data.email, phone: data.phone, interestRate: data.interestRate };
