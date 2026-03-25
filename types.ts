@@ -3,25 +3,17 @@ export enum UserRole {
   VIEWER = 'VIEWER'
 }
 
-// Tipo de grupo do usuário
 export enum UserGroupType {
-  GRUPO_A = 'GRUPO A',
-  GRUPO_B = 'GRUPO B',
-  GRUPO_ESPECIAL = 'GRUPO ESPECIAL'
+  GRUPO_A = 'GRUPO_A',
+  GRUPO_B = 'GRUPO_B',
+  GRUPO_ESPECIAL = 'GRUPO_ESPECIAL'
 }
 
-// Status de aprovação do cadastro
-export enum ApprovalStatus {
-  PENDENTE = 'PENDENTE',
-  APROVADO = 'APROVADO',
+export enum ClientApprovalStatus {
+  PRE_CADASTRO = 'PRE_CADASTRO',
+  AGUARDANDO_ADM = 'AGUARDANDO_ADM',
+  ATIVO = 'ATIVO',
   REJEITADO = 'REJEITADO'
-}
-
-// Tipo de empréstimo
-export enum LoanType {
-  RECORRENTE = 'recorrente',
-  PARCELADO = 'parcelado',
-  TERCEIRO = 'terceiro'
 }
 
 export interface User {
@@ -29,22 +21,17 @@ export interface User {
   email: string;
   password: string;
   role: UserRole;
-  // Tipo de grupo (Grupo A, B ou Especial)
-  groupType: UserGroupType;
-  // Nome do usuário/gestor (ex: JAILTON, RICARDO, SANNY, etc)
-  managerName?: string;
   groupId?: string;
   status?: 'ACTIVE' | 'BLOCKED';
-  // Permissões
+  thirdPartyBlocked?: boolean;
+  updatedAt?: number;
+  groupType?: UserGroupType;
   canCreateClient?: boolean;
   canCreateContract?: boolean;
   canApprove?: boolean;
   canDelete?: boolean;
   canManageAll?: boolean;
-  // Comissão para Grupo B (percentual sobre juros recebidos)
-  commissionPercent?: number;
-  thirdPartyBlocked?: boolean;
-  updatedAt?: number;
+  commissionVisibility?: boolean;
 }
 
 export interface Group {
@@ -53,6 +40,7 @@ export interface Group {
   email: string;
   phone: string;
   interestRate: number;
+  groupType?: UserGroupType;
 }
 
 export interface Client {
@@ -60,30 +48,23 @@ export interface Client {
   name: string;
   phone: string;
   groupId: string;
-  // Quem criou o cadastro
-  createdBy?: string;
-  // Status de aprovação
-  approvalStatus: ApprovalStatus;
-  // Quem aprovou
-  approvedBy?: string;
-  approvedAt?: number;
-  // Tipo de empréstimo
-  loanType?: LoanType;
-  // Taxa de juros (percentual)
-  interestRate: number;
-  // Comissão (percentual) - aplicável para Grupo B
-  commissionPercent?: number;
-  // Dados do empréstimo
   initialCapital: number;
   currentCapital: number;
   dueDay: number;
-  // Parcelas (se parcelado)
-  installmentsCount?: number;
-  firstDueDate?: number;
-  // Status do contrato
   status: 'ACTIVE' | 'INACTIVE';
   notes: string;
   createdAt: number;
+  firstDueDate?: number;
+  approvalStatus?: ClientApprovalStatus;
+  createdBy?: string;
+  approvedBy?: string;
+  approvedAt?: number;
+  assignedGroupType?: UserGroupType;
+  contractValue?: number;
+  contractRate?: number;
+  contractCommission?: number;
+  contractDueDate?: string;
+  contractNotes?: string;
 }
 
 export interface Competence {
@@ -145,7 +126,6 @@ export interface AppSettings {
   [key: string]: any;
 }
 
-// Clientes de terceiros (exclusivo Grupo A)
 export interface ThirdPartyClient {
   id: string;
   userId: string;
@@ -155,7 +135,6 @@ export interface ThirdPartyClient {
   createdAt: number;
 }
 
-// Empréstimos de terceiros (exclusivo Grupo A)
 export interface ThirdPartyLoan {
   id: string;
   userId: string;
@@ -168,7 +147,6 @@ export interface ThirdPartyLoan {
   createdAt: number;
 }
 
-// Pagamentos de terceiros
 export interface ThirdPartyPayment {
   id: string;
   userId: string;
@@ -193,3 +171,23 @@ export interface DBState {
   thirdPartyLoans?: ThirdPartyLoan[];
   thirdPartyPayments?: ThirdPartyPayment[];
 }
+
+export const getUserPermissions = (user: User) => {
+  const isAdmin = user.role === UserRole.ADMIN;
+  const groupType = user.groupType;
+  const isGrupoB = groupType === UserGroupType.GRUPO_B;
+  return {
+    canCreateClient: true,
+    canCreateContract: isAdmin,
+    canApprove: isAdmin,
+    canDelete: isAdmin,
+    canManageAll: isAdmin,
+    canViewCommission: isAdmin || isGrupoB,
+    canViewAllData: isAdmin,
+    canAccessX4: isAdmin,
+    isAdmin,
+    isGrupoA: groupType === UserGroupType.GRUPO_A,
+    isGrupoB,
+    isGrupoEspecial: groupType === UserGroupType.GRUPO_ESPECIAL || isAdmin,
+  };
+};
