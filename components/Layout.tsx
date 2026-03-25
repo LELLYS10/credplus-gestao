@@ -1,7 +1,6 @@
-
 import React from 'react';
-import { User, UserRole } from '../types';
-import { LogOut, Home, Users, CheckSquare, Settings, Menu, X, Briefcase, ShieldCheck, UserCheck } from 'lucide-react';
+import { User, UserRole, getUserPermissions } from '../types';
+import { LogOut, Home, Users, CheckSquare, Settings, Menu, X, Briefcase, ShieldCheck, LayoutDashboard } from 'lucide-react';
 import Logo from './Logo';
 
 interface LayoutProps {
@@ -19,16 +18,17 @@ const Layout: React.FC<LayoutProps> = ({ user, onLogout, children, activeTab, se
 
   if (!user) return <div className="p-10 text-center">Carregando sessão...</div>;
 
-  const isAdmin = user.role === UserRole.ADMIN;
+  const perms = getUserPermissions(user);
 
   const menuItems = [
-    { id: 'dashboard', label: 'Painel Principal', icon: Home, roles: [UserRole.ADMIN, UserRole.VIEWER] },
-    { id: 'clients', label: 'Clientes', icon: Users, roles: [UserRole.ADMIN, UserRole.VIEWER] },
-    { id: 'requests', label: 'Solicitações', icon: CheckSquare, roles: [UserRole.ADMIN, UserRole.VIEWER], badge: pendingCount },
-    { id: 'approve', label: 'Aprovar Cadastros', icon: UserCheck, roles: [UserRole.ADMIN], badge: pendingApprovalsCount },
-    { id: 'third-party', label: 'Terceiros', icon: Briefcase, roles: [UserRole.VIEWER] },
-    { id: 'admin', label: 'Administração', icon: Settings, roles: [UserRole.ADMIN] },
-  ].filter(item => item.roles.includes(user.role));
+    { id: 'dashboard', label: 'Painel Principal', icon: Home, show: true, badge: 0 },
+    { id: 'clients', label: 'Clientes', icon: Users, show: true, badge: 0 },
+    { id: 'requests', label: 'Solicitações', icon: CheckSquare, show: true, badge: pendingCount },
+    { id: 'pending-approvals', label: 'Aprovar Cadastros', icon: ShieldCheck, show: perms.isAdmin, badge: pendingApprovalsCount },
+    { id: 'third-party', label: 'Terceiros', icon: Briefcase, show: user.role === UserRole.VIEWER, badge: 0 },
+    { id: 'x4', label: 'X4 — Painel ADM', icon: LayoutDashboard, show: perms.canAccessX4, badge: 0 },
+    { id: 'admin', label: 'Administração', icon: Settings, show: perms.isAdmin, badge: 0 },
+  ].filter(item => item.show);
 
   const SidebarContent = () => (
     <div className="flex flex-col h-full bg-emerald-900 text-white p-4">
@@ -44,18 +44,15 @@ const Layout: React.FC<LayoutProps> = ({ user, onLogout, children, activeTab, se
         {menuItems.map(item => (
           <button
             key={item.id}
-            onClick={() => {
-              setActiveTab(item.id);
-              setIsMobileMenuOpen(false);
-            }}
+            onClick={() => { setActiveTab(item.id); setIsMobileMenuOpen(false); }}
             className={`w-full flex items-center justify-between p-3 rounded-xl transition-all ${
-              activeTab === item.id 
-                ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-800/40 border-b-2 border-emerald-700' 
+              activeTab === item.id
+                ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-800/40 border-b-2 border-emerald-700'
                 : 'text-emerald-100/60 hover:bg-emerald-800/50 hover:text-white'
-            }`}
+            } ${item.id === 'x4' ? 'border border-amber-500/20' : ''}`}
           >
             <div className="flex items-center gap-3">
-              <item.icon size={20} className={activeTab === item.id ? 'text-amber-400' : ''} />
+              <item.icon size={20} className={activeTab === item.id ? 'text-amber-400' : (item.id === 'x4' ? 'text-amber-400/60' : '')} />
               <span className="font-semibold">{item.label}</span>
               {item.id === 'third-party' && user.thirdPartyBlocked && (
                 <span className="ml-2 px-1.5 py-0.5 bg-red-500/20 text-red-300 text-[8px] font-black uppercase rounded border border-red-500/30">
@@ -63,10 +60,10 @@ const Layout: React.FC<LayoutProps> = ({ user, onLogout, children, activeTab, se
                 </span>
               )}
             </div>
-            {item.badge && item.badge > 0 && (
-              <span className="bg-amber-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-md animate-pulse">
-                {item.badge}
-              </span>
+            {item.badge > 0 && (
+              <span className={`text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-md animate-pulse ${
+                item.id === 'pending-approvals' ? 'bg-red-500' : 'bg-amber-500'
+              }`}>{item.badge}</span>
             )}
           </button>
         ))}
@@ -79,7 +76,11 @@ const Layout: React.FC<LayoutProps> = ({ user, onLogout, children, activeTab, se
           </div>
           <div className="overflow-hidden">
             <p className="text-[10px] text-emerald-500 uppercase font-black tracking-widest">
-              {user.role === UserRole.ADMIN ? 'Administrador' : 'Sócio Ativo'}
+              {user.role === UserRole.ADMIN ? 'Administrador' : (
+                user.groupType === 'GRUPO_A' ? 'Grupo A' :
+                user.groupType === 'GRUPO_B' ? 'Grupo B' :
+                user.groupType === 'GRUPO_ESPECIAL' ? 'Grupo Especial' : 'Sócio Ativo'
+              )}
             </p>
             <p className="text-xs font-bold truncate text-emerald-100">{user.email}</p>
           </div>
@@ -97,14 +98,9 @@ const Layout: React.FC<LayoutProps> = ({ user, onLogout, children, activeTab, se
 
   return (
     <div className="min-h-screen flex bg-slate-50">
-      {/* Desktop Sidebar */}
       <aside className="hidden lg:block w-64 flex-shrink-0">
-        <div className="fixed inset-y-0 w-64">
-          <SidebarContent />
-        </div>
+        <div className="fixed inset-y-0 w-64"><SidebarContent /></div>
       </aside>
-
-      {/* Mobile Header */}
       <div className="lg:hidden fixed top-0 left-0 right-0 bg-emerald-900 text-white z-40 px-4 py-3 flex items-center justify-between shadow-lg">
         <div className="flex items-center gap-3">
           <Logo size="sm" />
@@ -114,17 +110,11 @@ const Layout: React.FC<LayoutProps> = ({ user, onLogout, children, activeTab, se
           {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
         </button>
       </div>
-
-      {/* Mobile Sidebar Overlay */}
       {isMobileMenuOpen && (
         <div className="lg:hidden fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm" onClick={() => setIsMobileMenuOpen(false)}>
-          <div className="w-64 h-full" onClick={e => e.stopPropagation()}>
-            <SidebarContent />
-          </div>
+          <div className="w-64 h-full" onClick={e => e.stopPropagation()}><SidebarContent /></div>
         </div>
       )}
-
-      {/* Main Content */}
       <main className="flex-1 lg:ml-0 px-4 pt-20 pb-10 lg:pt-8 lg:px-10 max-w-[1440px] mx-auto w-full overflow-x-hidden">
         {children}
       </main>
