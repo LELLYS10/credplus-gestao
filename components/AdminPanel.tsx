@@ -47,11 +47,15 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ groups, clients, users, compete
 
   const handleGroupSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    const submitData = {
+      ...groupFormData,
+      interestRate: groupFormData.groupType === UserGroupType.GRUPO_ESPECIAL ? 0 : groupFormData.interestRate
+    };
     if (editingGroup) {
-      onUpdateGroup(editingGroup.id, groupFormData);
+      onUpdateGroup(editingGroup.id, submitData);
       alert("Sócio atualizado com sucesso!");
     } else {
-      onAddGroup(groupFormData);
+      onAddGroup(submitData);
     }
     setShowGroupModal(false);
     setEditingGroup(null);
@@ -532,7 +536,11 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ groups, clients, users, compete
           </div>
         )}
 <div className="grid grid-cols-2 gap-4">
-                    <div><label className="text-[9px] font-black text-slate-400 uppercase ml-2 tracking-widest">Taxa de Juros (%)</label><input type="number" step="0.1" required className="w-full p-4 bg-slate-50 rounded-2xl border font-bold" value={isNaN(groupFormData.interestRate) ? '' : groupFormData.interestRate} onChange={e=>setGroupFormData({...groupFormData, interestRate: parseFloat(e.target.value)})} /></div>
+                    {groupFormData.groupType !== UserGroupType.GRUPO_ESPECIAL ? (
+                      <div><label className="text-[9px] font-black text-slate-400 uppercase ml-2 tracking-widest">Taxa de Juros (%)</label><input type="number" step="0.1" required className="w-full p-4 bg-slate-50 rounded-2xl border font-bold" value={isNaN(groupFormData.interestRate) ? '' : groupFormData.interestRate} onChange={e=>setGroupFormData({...groupFormData, interestRate: parseFloat(e.target.value)})} /></div>
+                    ) : (
+                      <div className="flex items-center p-4 bg-purple-50 border border-purple-200 rounded-2xl"><p className="text-[9px] font-black text-purple-600 uppercase tracking-widest leading-tight">★ Taxa individual por cliente no cadastro</p></div>
+                    )}
                     <div><label className="text-[9px] font-black text-slate-400 uppercase ml-2 tracking-widest">Senha</label><input type="password" required className="w-full p-4 bg-slate-50 rounded-2xl border font-bold" value={groupFormData.password} onChange={e=>setGroupFormData({...groupFormData, password: e.target.value})} /></div>
                  </div>
                  <div className="flex gap-4 pt-4">
