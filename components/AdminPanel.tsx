@@ -29,7 +29,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ groups, clients, users, compete
   const [showClientModal, setShowClientModal] = React.useState(false);
   const [isGenerating, setIsGenerating] = React.useState(false);
   
-  const [groupFormData, setGroupFormData] = React.useState({ name: '', email: '', phone: '', interestRate: 6, password: '', groupType: UserGroupType.GRUPO_A as UserGroupType });
+  const [groupFormData, setGroupFormData] = React.useState({ name: '', email: '', phone: '', interestRate: 6, password: '', groupType: UserGroupType.GRUPO_A as UserGroupType, commissionRate: 0 });
   
   const handleEditGroup = (g: Group) => {
     const associatedUser = users.find(u => u.groupId === g.id || u.email === g.email);
@@ -55,7 +55,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ groups, clients, users, compete
     }
     setShowGroupModal(false);
     setEditingGroup(null);
-    setGroupFormData({ name: '', email: '', phone: '', interestRate: 6, password: '', groupType: UserGroupType.GRUPO_A });
+    setGroupFormData({ name: '', email: '', phone: '', interestRate: 6, password: '', groupType: UserGroupType.GRUPO_A, commissionRate: 0 });
   };
 
   const [clientFormData, setClientFormData] = React.useState({ 
@@ -306,7 +306,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ groups, clients, users, compete
            ))}
            <button onClick={()=>{
              setEditingGroup(null);
-             setGroupFormData({ name: '', email: '', phone: '', interestRate: 6, password: '' });
+             setGroupFormData({ name: '', email: '', phone: '', interestRate: 6, password: '', groupType: UserGroupType.GRUPO_A, commissionRate: 0 });
              setShowGroupModal(true);
            }} className="border-2 border-dashed border-slate-200 rounded-[2rem] flex flex-col items-center justify-center py-12 text-slate-300 hover:text-emerald-500 hover:border-emerald-200 hover:bg-emerald-50/30 transition-all group">
              <div className="w-16 h-16 rounded-full border-2 border-dashed border-slate-200 flex items-center justify-center group-hover:border-emerald-500 group-hover:scale-110 transition-all">
