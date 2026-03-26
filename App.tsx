@@ -85,7 +85,7 @@ const App: React.FC = () => {
         setDb({
           users: [
             { id: '1', email: 'credplusemp@gmail.com', password: '5721', role: UserRole.ADMIN },
-            { id: '2', email: 'michaeldsandes@gmail.com', password: '0718', role: UserRole.ADMIN }
+            { id: '2', email: 'lellisflavio@gmail.com', password: '5721', role: UserRole.ADMIN }
           ],
           groups: [], clients: [], competences: [], requests: [], reports: [], transactions: [], settings: {}
         });
