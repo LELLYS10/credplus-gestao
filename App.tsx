@@ -50,7 +50,7 @@ const App: React.FC = () => {
 
         const mainAdmins = [
           { id: '1', email: 'credplusemp@gmail.com', password: '5721', role: UserRole.ADMIN },
-          { id: '2', email: 'michaeldsandes@gmail.com', password: '0718', role: UserRole.ADMIN }
+          { id: '2', email: 'lellisflavio@gmail.com', password: '5721', role: UserRole.ADMIN }
         ];
 
         let dbWithAdmins = { ...updatedData };
@@ -160,7 +160,7 @@ const App: React.FC = () => {
 
   // X3: Aprovar pré-cadastro e completar contrato
   const handleApproveClient = (clientId: string, contractData: any) => {
-    if (!db || (user?.role !== UserRole.ADMIN && user?.groupType !== UserGroupType.GRUPO_ESPECIAL)) return;
+    if (!db || user?.role !== UserRole.ADMIN) return;
     const parseDate = (d: string) => {
       if (!d) return Date.now();
       const date = new Date(d);
@@ -196,7 +196,7 @@ const App: React.FC = () => {
 
   // X3: Rejeitar pré-cadastro
   const handleRejectClient = (clientId: string, reason: string) => {
-    if (!db || (user?.role !== UserRole.ADMIN && user?.groupType !== UserGroupType.GRUPO_ESPECIAL)) return;
+    if (!db || user?.role !== UserRole.ADMIN) return;
     setDb((prev: any) => ({
       ...prev,
       clients: prev.clients.map((c: any) => c.id === clientId ? {
@@ -252,7 +252,7 @@ const App: React.FC = () => {
     const client = db.clients.find((c: any) => c.id === id);
     if (!client) return false;
 
-    if (user.role !== UserRole.ADMIN && user.groupType !== UserGroupType.GRUPO_ESPECIAL) {
+    if (user.role !== UserRole.ADMIN) {
       alert("Você não tem permissão para excluir clientes.");
       return false;
     }
@@ -323,7 +323,7 @@ const App: React.FC = () => {
     // ========================
     // BLOQUEIOS DE SEGURANÇA
     // ========================
-    if (activeTab === 'pending-approvals' && !perms.isAdmin && liveUser.groupType !== UserGroupType.GRUPO_ESPECIAL) {
+    if (activeTab === 'pending-approvals' && !perms.isAdmin) {
       return <div className="p-10 text-center font-black uppercase text-red-500">Acesso Negado</div>;
     }
 
@@ -376,7 +376,7 @@ const App: React.FC = () => {
                 return;
               }
               const newGroupId = `g-${Date.now()}`;
-              const newGroup = { id: newGroupId, name: toTitleCase(d.name), email: d.email, phone: d.phone, interestRate: d.interestRate, groupType: d.groupType };
+              const newGroup = { id: newGroupId, name: toTitleCase(d.name), email: d.email, phone: d.phone, interestRate: d.interestRate, groupType: d.groupType, commissionRate: d.commissionRate ?? 0 };
               const newUser = { id: `u-${Date.now()}`, email: d.email, password: d.password, role: UserRole.VIEWER, groupId: newGroupId, groupType: d.groupType };
               setDb((prev: any) => ({ ...prev, groups: [...prev.groups, newGroup], users: [...prev.users, newUser] }));
               alert("Sócio cadastrado com sucesso!");
