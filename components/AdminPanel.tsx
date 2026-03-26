@@ -65,7 +65,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ groups, clients, users, compete
     initialCapital: 0, 
     dueDay: 1, 
     startDate: new Date().toISOString().split('T')[0],
-    firstDueDate: '' 
+    firstDueDate: '', contractRate: 0
   });
 
   const handleClientSubmit = async (e: React.FormEvent) => {
@@ -556,6 +556,13 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ groups, clients, users, compete
                     <div><label className="text-[9px] font-black text-slate-400 uppercase ml-2 tracking-widest">Capital Inicial</label><input type="number" required className="w-full p-4 bg-slate-50 rounded-2xl border font-bold" value={isNaN(clientFormData.initialCapital) ? '' : clientFormData.initialCapital} onChange={e=>setClientFormData({...clientFormData, initialCapital: parseFloat(e.target.value)})} /></div>
                     <div><label className="text-[9px] font-black text-slate-400 uppercase ml-2 tracking-widest">Vencimento (Dia)</label><input type="number" min="1" max="31" required className="w-full p-4 bg-slate-50 rounded-2xl border font-bold" value={isNaN(clientFormData.dueDay) ? '' : clientFormData.dueDay} onChange={e=>setClientFormData({...clientFormData, dueDay: parseInt(e.target.value)})} /></div>
                  </div>
+                 {/* Taxa individual para Grupo Especial */}
+                 {groups.find(g => g.id === clientFormData.groupId)?.groupType === UserGroupType.GRUPO_ESPECIAL && (
+                   <div>
+                     <label className="text-[9px] font-black text-purple-600 uppercase ml-2 tracking-widest">★ Taxa Individual do Cliente (%)</label>
+                     <input type="number" step="0.1" min="0" required className="w-full p-4 bg-purple-50 border border-purple-200 rounded-2xl font-bold" placeholder="Ex: 8.5" value={isNaN(clientFormData.contractRate) || clientFormData.contractRate === 0 ? '' : clientFormData.contractRate} onChange={e => setClientFormData({...clientFormData, contractRate: parseFloat(e.target.value)})} />
+                   </div>
+                 )}
                  <div className="grid grid-cols-2 gap-4">
                     <div>
                        <label className="text-[9px] font-black text-slate-400 uppercase ml-2 tracking-widest">Início do Empréstimo</label>
