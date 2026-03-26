@@ -1,4 +1,4 @@
-export enum UserRole {
+eexport enum UserRole {
   ADMIN = 'ADMIN',
   VIEWER = 'VIEWER'
 }
@@ -40,6 +40,7 @@ export interface Group {
   email: string;
   phone: string;
   interestRate: number;
+  commissionRate?: number;
   groupType?: UserGroupType;
 }
 
