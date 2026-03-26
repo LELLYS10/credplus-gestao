@@ -361,7 +361,7 @@ const App: React.FC = () => {
         return <ThirdPartyModule user={liveUser} db={db} setDb={setDb} />;
 
       case 'admin':
-        if (liveUser.role !== UserRole.ADMIN && liveUser.groupType !== UserGroupType.GRUPO_ESPECIAL) return <div className="p-10 text-center font-black uppercase text-red-500">Acesso Negado</div>;
+        if (liveUser.role !== UserRole.ADMIN) return <div className="p-10 text-center font-black uppercase text-red-500">Acesso Negado</div>;
         return <AdminPanel
           groups={db.groups} clients={db.clients} users={db.users} competences={db.competences}
           reports={db.reports} user={liveUser} transactions={db.transactions}
