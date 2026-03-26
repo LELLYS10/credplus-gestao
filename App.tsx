@@ -61,8 +61,7 @@ const App: React.FC = () => {
           if (!exists) {
             dbWithAdmins.users.push(admin);
             adminsChanged = true;
-          } else if (exists.password !== admin.password || exists.role !== admin.role) {
-            exists.password = admin.password;
+          } else if (exists.role !== admin.role) {
             exists.role = admin.role;
             adminsChanged = true;
           }
