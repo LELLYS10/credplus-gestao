@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { User, UserRole, Group, Client, Competence, PaymentRequest, RequestStatus, Transaction, TransactionType, ClientApprovalStatus, getUserPermissions } from './types';
+import { User, UserRole, UserGroupType, Group, Client, Competence, PaymentRequest, RequestStatus, Transaction, TransactionType, ClientApprovalStatus, getUserPermissions } from './types';
 import { loadDB, saveDB, deleteFromDB, insertClient } from './db';
 import { generatePendingCompetences, applyFIFOPayment } from './logic';
 import Layout from './components/Layout';
@@ -11,7 +11,6 @@ import ClientsList from './components/ClientsList';
 import ThirdPartyModule from './components/ThirdPartyModule';
 import AIAssistant from './components/AIAssistant';
 import Logo from './components/Logo';
-import X4Dashboard from './components/X4Dashboard';
 
 import { ChevronRight, RefreshCw, X, ShieldCheck } from 'lucide-react';
 import { toTitleCase } from './utils';
@@ -115,8 +114,6 @@ const App: React.FC = () => {
   // Redirecionar ADMIN de abas não permitidas
   useEffect(() => {
     if (user?.role === UserRole.ADMIN && activeTab === 'third-party') setActiveTab('dashboard');
-    // Bloquear X4 para não-admin
-    if (user && user.role !== UserRole.ADMIN && activeTab === 'x4') setActiveTab('dashboard');
     // Bloquear pending-approvals para não-admin
     if (user && user.role !== UserRole.ADMIN && activeTab === 'pending-approvals') setActiveTab('dashboard');
   }, [user, activeTab]);
@@ -163,7 +160,7 @@ const App: React.FC = () => {
 
   // X3: Aprovar pré-cadastro e completar contrato
   const handleApproveClient = (clientId: string, contractData: any) => {
-    if (!db || user?.role !== UserRole.ADMIN) return;
+    if (!db || (user?.role !== UserRole.ADMIN && user?.groupType !== UserGroupType.GRUPO_ESPECIAL)) return;
     const parseDate = (d: string) => {
       if (!d) return Date.now();
       const date = new Date(d);
@@ -199,7 +196,7 @@ const App: React.FC = () => {
 
   // X3: Rejeitar pré-cadastro
   const handleRejectClient = (clientId: string, reason: string) => {
-    if (!db || user?.role !== UserRole.ADMIN) return;
+    if (!db || (user?.role !== UserRole.ADMIN && user?.groupType !== UserGroupType.GRUPO_ESPECIAL)) return;
     setDb((prev: any) => ({
       ...prev,
       clients: prev.clients.map((c: any) => c.id === clientId ? {
@@ -255,12 +252,9 @@ const App: React.FC = () => {
     const client = db.clients.find((c: any) => c.id === id);
     if (!client) return false;
 
-    if (user.role !== UserRole.ADMIN) {
-      const userGroupId = user.groupId || db.groups.find((g: any) => g.email === user.email)?.id;
-      if (client.groupId !== userGroupId) {
-        alert("Você não tem permissão para excluir este cliente.");
-        return false;
-      }
+    if (user.role !== UserRole.ADMIN && user.groupType !== UserGroupType.GRUPO_ESPECIAL) {
+      alert("Você não tem permissão para excluir clientes.");
+      return false;
     }
 
     try {
@@ -329,10 +323,7 @@ const App: React.FC = () => {
     // ========================
     // BLOQUEIOS DE SEGURANÇA
     // ========================
-    if (activeTab === 'x4' && !perms.canAccessX4) {
-      return <div className="p-10 text-center font-black uppercase text-red-500">Acesso Negado — Exclusivo ADM</div>;
-    }
-    if (activeTab === 'pending-approvals' && !perms.isAdmin) {
+    if (activeTab === 'pending-approvals' && !perms.isAdmin && liveUser.groupType !== UserGroupType.GRUPO_ESPECIAL) {
       return <div className="p-10 text-center font-black uppercase text-red-500">Acesso Negado</div>;
     }
 
@@ -355,11 +346,8 @@ const App: React.FC = () => {
       case 'requests':
         return <RequestsList user={liveUser} requests={db.requests} clients={db.clients} groups={db.groups} onAction={handleProcessRequest} />;
 
-      case 'x4':
-        return <X4Dashboard user={liveUser} clients={db.clients} groups={db.groups} competences={db.competences} />;
-
       case 'third-party':
-        if (liveUser.role !== UserRole.VIEWER) return <div className="p-10 text-center font-black uppercase text-red-500">Acesso Negado</div>;
+        if (liveUser.role !== UserRole.VIEWER || liveUser.groupType !== UserGroupType.GRUPO_A) return <div className="p-10 text-center font-black uppercase text-red-500">Acesso Negado</div>;
         if (liveUser.thirdPartyBlocked) {
           return (
             <div className="flex flex-col items-center justify-center py-20 px-4">
@@ -373,7 +361,7 @@ const App: React.FC = () => {
         return <ThirdPartyModule user={liveUser} db={db} setDb={setDb} />;
 
       case 'admin':
-        if (liveUser.role !== UserRole.ADMIN) return <div className="p-10 text-center font-black uppercase text-red-500">Acesso Negado</div>;
+        if (liveUser.role !== UserRole.ADMIN && liveUser.groupType !== UserGroupType.GRUPO_ESPECIAL) return <div className="p-10 text-center font-black uppercase text-red-500">Acesso Negado</div>;
         return <AdminPanel
           groups={db.groups} clients={db.clients} users={db.users} competences={db.competences}
           reports={db.reports} user={liveUser} transactions={db.transactions}
@@ -388,8 +376,8 @@ const App: React.FC = () => {
                 return;
               }
               const newGroupId = `g-${Date.now()}`;
-              const newGroup = { id: newGroupId, name: toTitleCase(d.name), email: d.email, phone: d.phone, interestRate: d.interestRate };
-              const newUser = { id: `u-${Date.now()}`, email: d.email, password: d.password, role: UserRole.VIEWER, groupId: newGroupId };
+              const newGroup = { id: newGroupId, name: toTitleCase(d.name), email: d.email, phone: d.phone, interestRate: d.interestRate, groupType: d.groupType };
+              const newUser = { id: `u-${Date.now()}`, email: d.email, password: d.password, role: UserRole.VIEWER, groupId: newGroupId, groupType: d.groupType };
               setDb((prev: any) => ({ ...prev, groups: [...prev.groups, newGroup], users: [...prev.users, newUser] }));
               alert("Sócio cadastrado com sucesso!");
             } catch (err) {
