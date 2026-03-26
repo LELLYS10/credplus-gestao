@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Client, Competence, Group, User, UserRole, PaymentRequest, RequestStatus, AppSettings } from '../types';
+import { Client, Competence, Group, User, UserRole, UserGroupType, PaymentRequest, RequestStatus, AppSettings, getUserPermissions } from '../types';
 import { formatCurrency, getToday, getEffectiveDueDay } from '../utils';
 import { TrendingUp, AlertCircle, Clock, CheckCircle2, ChevronRight, DollarSign, AlertTriangle, X, ArrowRight, Calendar, Bot, Sparkles } from 'lucide-react';
 
@@ -153,6 +153,13 @@ const Dashboard: React.FC<DashboardProps> = ({ user, clients, competences, group
 
     return { totalCapital, overdueInterest, dueTodayInterest, dueTomorrowInterest, receivedThisMonth };
   }, [filteredClients, competences, todayDate, tomorrowDate, todayMonth, todayYear, todayDay]);
+  // Comissão para Grupo B
+  const perms = user ? getUserPermissions(user) : null;
+  const userGroup = user ? groups.find((g: any) => g.id === user.groupId || g.email === user.email) : null;
+  const commissionRate = userGroup?.interestRate ?? 0;
+  const commissionThisMonth = (perms?.canViewCommission && !perms?.isAdmin)
+    ? stats.receivedThisMonth * (commissionRate / 100)
+    : 0;
 
   const StatCard = ({ title, value, icon: Icon, colorClass, highlight, highlightColor = 'red', dark, onClick }: any) => (
     <div 
@@ -267,6 +274,9 @@ const Dashboard: React.FC<DashboardProps> = ({ user, clients, competences, group
             highlightColor="blue"
           />
           <StatCard title="Recebido no Mês" value={stats.receivedThisMonth} icon={CheckCircle2} colorClass="bg-green-100 text-green-600" />
+              {perms?.canViewCommission && !perms?.isAdmin && (
+                <StatCard title={`Minha Comissão (${commissionRate}%)`} value={commissionThisMonth} icon={DollarSign} colorClass="bg-purple-100 text-purple-600" />
+              )}
         </div>
       </div>
 
