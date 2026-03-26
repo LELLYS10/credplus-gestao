@@ -1,6 +1,6 @@
 import React from 'react';
-import { User, UserRole, getUserPermissions } from '../types';
-import { LogOut, Home, Users, CheckSquare, Settings, Menu, X, Briefcase, ShieldCheck, LayoutDashboard } from 'lucide-react';
+import { User, UserRole, UserGroupType, getUserPermissions } from '../types';
+import { LogOut, Home, Users, CheckSquare, Settings, Menu, X, Briefcase, ShieldCheck } from 'lucide-react';
 import Logo from './Logo';
 
 interface LayoutProps {
@@ -25,8 +25,7 @@ const Layout: React.FC<LayoutProps> = ({ user, onLogout, children, activeTab, se
     { id: 'clients', label: 'Clientes', icon: Users, show: true, badge: 0 },
     { id: 'requests', label: 'Solicitações', icon: CheckSquare, show: true, badge: pendingCount },
     { id: 'pending-approvals', label: 'Aprovar Cadastros', icon: ShieldCheck, show: perms.isAdmin, badge: pendingApprovalsCount },
-    { id: 'third-party', label: 'Terceiros', icon: Briefcase, show: user.role === UserRole.VIEWER, badge: 0 },
-    { id: 'x4', label: 'Painel X4 - Visão HTML', icon: LayoutDashboard, show: perms.isAdmin, badge: 0 },
+    { id: 'third-party', label: 'Terceiros', icon: Briefcase, show: user.role === UserRole.VIEWER && user.groupType === UserGroupType.GRUPO_A && !user.thirdPartyBlocked, badge: 0 },
     { id: 'admin', label: 'Administração', icon: Settings, show: perms.isAdmin, badge: 0 },
   ].filter(item => item.show);
 
