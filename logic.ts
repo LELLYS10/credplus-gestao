@@ -29,7 +29,7 @@ export const generatePendingCompetences = (db: any) => {
     if (!client || client.status !== 'ACTIVE') return;
 
     const group = groups.find((g: Group) => g.id === client.groupId);
-    const rate = group ? group.interestRate : 0;
+    const rate = (client.contractRate && client.contractRate > 0) ? client.contractRate : (group ? group.interestRate : 0);
     const currentCap = client.currentCapital || 0;
     const expectedInterest = Math.max(0, currentCap * (rate / 100));
 
