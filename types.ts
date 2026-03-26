@@ -1,4 +1,4 @@
-eexport enum UserRole {
+apexport enum UserRole {
   ADMIN = 'ADMIN',
   VIEWER = 'VIEWER'
 }
