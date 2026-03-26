@@ -156,9 +156,12 @@ const Dashboard: React.FC<DashboardProps> = ({ user, clients, competences, group
   // Comissão para Grupo B
   const perms = user ? getUserPermissions(user) : null;
   const userGroup = user ? groups.find((g: any) => g.id === user.groupId || g.email === user.email) : null;
-  const commissionRate = userGroup?.interestRate ?? 0;
-  const commissionThisMonth = (perms?.canViewCommission && !perms?.isAdmin)
+  const commissionRate = userGroup?.commissionRate ?? 0;
+  const commissionParcial = (perms?.canViewCommission && !perms?.isAdmin)
     ? stats.receivedThisMonth * (commissionRate / 100)
+    : 0;
+  const commissionTotal = (perms?.canViewCommission && !perms?.isAdmin)
+    ? competences.filter(comp => filteredClients.some(cl => cl.id === comp.clientId) && comp.paidAmount > 0).reduce((acc, comp) => acc + comp.paidAmount, 0) * (commissionRate / 100)
     : 0;
 
   const StatCard = ({ title, value, icon: Icon, colorClass, highlight, highlightColor = 'red', dark, onClick }: any) => (
@@ -275,7 +278,10 @@ const Dashboard: React.FC<DashboardProps> = ({ user, clients, competences, group
           />
           <StatCard title="Recebido no Mês" value={stats.receivedThisMonth} icon={CheckCircle2} colorClass="bg-green-100 text-green-600" />
               {perms?.canViewCommission && !perms?.isAdmin && (
-                <StatCard title={`Minha Comissão (${commissionRate}%)`} value={commissionThisMonth} icon={DollarSign} colorClass="bg-purple-100 text-purple-600" />
+                <StatCard title={`Comissão Mês (${commissionRate}%)`} value={commissionParcial} icon={DollarSign} colorClass="bg-purple-100 text-purple-600" />
+              )}
+              {perms?.canViewCommission && !perms?.isAdmin && (
+                <StatCard title="Comissão Total Acum." value={commissionTotal} icon={DollarSign} colorClass="bg-indigo-100 text-indigo-600" />
               )}
         </div>
       </div>
