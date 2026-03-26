@@ -525,7 +525,13 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ groups, clients, users, compete
                      <option value={UserGroupType.GRUPO_ESPECIAL}>Grupo Especial — Acesso ampliado</option>
                    </select>
                  </div>
-                 <div className="grid grid-cols-2 gap-4">
+                         {groupFormData.groupType === UserGroupType.GRUPO_B && (
+          <div>
+            <label className="text-[9px] font-black text-blue-500 uppercase ml-2 tracking-widest">★ Taxa de Comissão do Colaborador (%)</label>
+            <input type="number" step="0.1" min="0" className="w-full p-4 bg-blue-50 border border-blue-200 rounded-2xl font-bold" placeholder="Ex: 5" value={isNaN(groupFormData.commissionRate) || groupFormData.commissionRate === 0 ? '' : groupFormData.commissionRate} onChange={e => setGroupFormData({...groupFormData, commissionRate: parseFloat(e.target.value)})} />
+          </div>
+        )}
+<div className="grid grid-cols-2 gap-4">
                     <div><label className="text-[9px] font-black text-slate-400 uppercase ml-2 tracking-widest">Taxa de Juros (%)</label><input type="number" step="0.1" required className="w-full p-4 bg-slate-50 rounded-2xl border font-bold" value={isNaN(groupFormData.interestRate) ? '' : groupFormData.interestRate} onChange={e=>setGroupFormData({...groupFormData, interestRate: parseFloat(e.target.value)})} /></div>
                     <div><label className="text-[9px] font-black text-slate-400 uppercase ml-2 tracking-widest">Senha</label><input type="password" required className="w-full p-4 bg-slate-50 rounded-2xl border font-bold" value={groupFormData.password} onChange={e=>setGroupFormData({...groupFormData, password: e.target.value})} /></div>
                  </div>
