@@ -67,6 +67,12 @@ const App: React.FC = () => {
           }
         });
 
+        // Remover admin legado que não faz mais parte do sistema
+        const legacyEmails = ['michaeldsandes@gmail.com'];
+        legacyEmails.forEach(email => {
+          const idx = dbWithAdmins.users.findIndex((u: any) => u.email.toLowerCase() === email.toLowerCase());
+          if (idx >= 0) { dbWithAdmins.users.splice(idx, 1); adminsChanged = true; }
+        });
         if (adminsChanged) saveDB(dbWithAdmins);
 
         if (savedUser) {
