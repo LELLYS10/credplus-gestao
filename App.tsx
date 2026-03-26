@@ -346,7 +346,7 @@ const App: React.FC = () => {
         return <RequestsList user={liveUser} requests={db.requests} clients={db.clients} groups={db.groups} onAction={handleProcessRequest} />;
 
       case 'third-party':
-        if (liveUser.role !== UserRole.VIEWER || liveUser.groupType !== UserGroupType.GRUPO_A) return <div className="p-10 text-center font-black uppercase text-red-500">Acesso Negado</div>;
+        if (liveUser.role !== UserRole.VIEWER || (liveUser.groupType && liveUser.groupType !== UserGroupType.GRUPO_A)) return <div className="p-10 text-center font-black uppercase text-red-500">Acesso Negado</div>;
         if (liveUser.thirdPartyBlocked) {
           return (
             <div className="flex flex-col items-center justify-center py-20 px-4">
