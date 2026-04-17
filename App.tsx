@@ -28,7 +28,7 @@ const App: React.FC = () => {
   const runCompetenceSync = (currentDb: any) => {
     try {
       if (!currentDb || !currentDb.clients) return currentDb;
-      // SÃ³ sincroniza clientes ATIVOS aprovados
+      // SÃÂ³ sincroniza clientes ATIVOS aprovados
       const activeClients = currentDb.clients.filter((c: any) =>
         c.status === 'ACTIVE' && (!c.approvalStatus || c.approvalStatus === ClientApprovalStatus.ATIVO)
       );
@@ -67,7 +67,7 @@ const App: React.FC = () => {
           }
         });
 
-        // Remover admin legado que nÃ£o faz mais parte do sistema
+        // Remover admin legado que nÃÂ£o faz mais parte do sistema
         const legacyEmails = ['michaeldsandes@gmail.com'];
         legacyEmails.forEach(email => {
           const idx = dbWithAdmins.users.findIndex((u: any) => u.email.toLowerCase() === email.toLowerCase());
@@ -116,10 +116,10 @@ const App: React.FC = () => {
     }
   }, [db, user]);
 
-  // Redirecionar ADMIN de abas nÃ£o permitidas
+  // Redirecionar ADMIN de abas nÃÂ£o permitidas
   useEffect(() => {
     if (user?.role === UserRole.ADMIN && activeTab === 'third-party') setActiveTab('dashboard');
-    // Bloquear pending-approvals para nÃ£o-admin
+    // Bloquear pending-approvals para nÃÂ£o-admin
     if (user && user.role !== UserRole.ADMIN && activeTab === 'pending-approvals') setActiveTab('dashboard');
   }, [user, activeTab]);
 
@@ -149,7 +149,7 @@ const App: React.FC = () => {
           updatedClients = updatedClients.map((c: any) => {
             if (c.id === request.clientId) {
               const newCapital = Math.max(0, c.currentCapital - request.amortizationValue);
-              updatedTransactions.push({ id: `trx-${Date.now()}`, clientId: c.id, type: 'AMORTIZATION' as any, amount: request.amortizationValue, description: `AmortizaÃ§Ã£o via pagamento validado.`, createdAt: Date.now() });
+              updatedTransactions.push({ id: `trx-${Date.now()}`, clientId: c.id, type: 'AMORTIZATION' as any, amount: request.amortizationValue, description: `AmortizaÃÂ§ÃÂ£o via pagamento validado.`, createdAt: Date.now() });
               return { ...c, currentCapital: newCapital };
             }
             return c;
@@ -163,7 +163,7 @@ const App: React.FC = () => {
     });
   };
 
-  // X3: Aprovar prÃ©-cadastro e completar contrato
+  // X3: Aprovar prÃÂ©-cadastro e completar contrato
   const handleApproveClient = (clientId: string, contractData: any) => {
     if (!db || user?.role !== UserRole.ADMIN) return;
     const parseDate = (d: string) => {
@@ -199,7 +199,7 @@ const App: React.FC = () => {
     alert(`Contrato aprovado e ativado com sucesso!`);
   };
 
-  // X3: Rejeitar prÃ©-cadastro
+  // X3: Rejeitar prÃÂ©-cadastro
   const handleRejectClient = (clientId: string, reason: string) => {
     if (!db || user?.role !== UserRole.ADMIN) return;
     setDb((prev: any) => ({
@@ -214,14 +214,14 @@ const App: React.FC = () => {
     alert('Cadastro rejeitado.');
   };
 
-  // X3: PrÃ©-cadastro por sÃ³cio (Grupo A ou B)
+  // X3: PrÃÂ©-cadastro por sÃÂ³cio (Grupo A ou B)
   const handlePreRegisterClient = async (data: any) => {
     if (!db || !user) return;
     const liveUser = db.users.find((u: any) => u.id === user.id) || user;
     const userGroupId = liveUser.groupId || db.groups.find((g: any) => g.email === liveUser.email)?.id;
 
     if (!userGroupId) {
-      alert('Erro: seu usuÃ¡rio nÃ£o estÃ¡ vinculado a um grupo. Contate o ADM.');
+      alert('Erro: seu usuÃÂ¡rio nÃÂ£o estÃÂ¡ vinculado a um grupo. Contate o ADM.');
       return;
     }
 
@@ -245,10 +245,10 @@ const App: React.FC = () => {
     try {
       await insertClient(newClient);
       setDb((prev: any) => ({ ...prev, clients: [...prev.clients, newClient] }));
-      alert('PrÃ©-cadastro enviado com sucesso! Aguardando aprovaÃ§Ã£o do ADM.');
+      alert('PrÃÂ©-cadastro enviado com sucesso! Aguardando aprovaÃÂ§ÃÂ£o do ADM.');
     } catch (err) {
-      console.error('Erro no prÃ©-cadastro:', err);
-      alert('Erro ao enviar prÃ©-cadastro. Tente novamente.');
+      console.error('Erro no prÃÂ©-cadastro:', err);
+      alert('Erro ao enviar prÃÂ©-cadastro. Tente novamente.');
     }
   };
 
@@ -258,7 +258,7 @@ const App: React.FC = () => {
     if (!client) return false;
 
     if (user.role !== UserRole.ADMIN) {
-      alert("VocÃª nÃ£o tem permissÃ£o para excluir clientes.");
+      alert("VocÃÂª nÃÂ£o tem permissÃÂ£o para excluir clientes.");
       return false;
     }
 
@@ -269,7 +269,7 @@ const App: React.FC = () => {
         ...db.transactions.filter((t: any) => t.clientId === id).map((t: any) => deleteFromDB('transactions', t.id)),
         ...db.requests.filter((r: any) => r.clientId === id).map((r: any) => deleteFromDB('requests', r.id))
       ]);
-    } catch (e) { console.error("Erro na exclusÃ£o profunda:", e); return false; }
+    } catch (e) { console.error("Erro na exclusÃÂ£o profunda:", e); return false; }
 
     setDb((prev: any) => ({
       ...prev,
@@ -309,15 +309,15 @@ const App: React.FC = () => {
     try {
       const group = db.groups.find((g: any) => g.id === id);
       if (!group) return false;
-      if (group.email === 'credplusemp@gmail.com') { alert("Este usuÃ¡rio admin nÃ£o pode ser excluÃ­do."); return false; }
+      if (group.email === 'credplusemp@gmail.com') { alert("Este usuÃÂ¡rio admin nÃÂ£o pode ser excluÃÂ­do."); return false; }
       const linkedClients = db.clients.filter((c: any) => c.groupId === id);
-      if (linkedClients.length > 0) { alert("NÃ£o Ã© possÃ­vel excluir este sÃ³cio porque existem clientes vinculados. Transfira ou exclua os clientes primeiro."); return false; }
+      if (linkedClients.length > 0) { alert("NÃÂ£o ÃÂ© possÃÂ­vel excluir este sÃÂ³cio porque existem clientes vinculados. Transfira ou exclua os clientes primeiro."); return false; }
       const usersToDelete = db.users.filter((u: any) => u.groupId === id);
       await Promise.all([...usersToDelete.map((u: any) => deleteFromDB('users', u.id)), deleteFromDB('groups', id)]);
       setDb((prev: any) => ({ ...prev, groups: prev.groups.filter((g: any) => g.id !== id), users: prev.users.filter((u: any) => u.groupId !== id) }));
-      alert("SÃ³cio excluÃ­do com sucesso.");
+      alert("SÃÂ³cio excluÃÂ­do com sucesso.");
       return true;
-    } catch (e) { console.error("Erro na exclusÃ£o do grupo:", e); alert("Ocorreu um erro ao tentar excluir o sÃ³cio."); return false; }
+    } catch (e) { console.error("Erro na exclusÃÂ£o do grupo:", e); alert("Ocorreu um erro ao tentar excluir o sÃÂ³cio."); return false; }
   };
 
   const renderContent = () => {
@@ -326,7 +326,7 @@ const App: React.FC = () => {
     const perms = getUserPermissions(liveUser);
 
     // ========================
-    // BLOQUEIOS DE SEGURANÃA
+    // BLOQUEIOS DE SEGURANÃÂA
     // ========================
     if (activeTab === 'pending-approvals' && !perms.isAdmin) {
       return <div className="p-10 text-center font-black uppercase text-red-500">Acesso Negado</div>;
@@ -339,6 +339,15 @@ const App: React.FC = () => {
           settings={db.settings} onViewClient={id => { setSelectedClientId(id); setActiveTab('client-detail'); }}
           pendingRequests={db.requests} onViewRequests={() => setActiveTab('requests')}
           onSyncCloud={async () => { await saveDB(db); const freshData = await loadDB(); setDb(freshData); }}
+          onPayOverdue={(clientId, amount) => {
+            setDb((prev: any) => {
+              const updatedCompetences = applyFIFOPayment([...prev.competences], clientId, amount, 0);
+              const newTx = { id: `t-ovd-${Date.now()}`, clientId, type: TransactionType.AMORTIZATION, amount, description: 'Pagamento de juros - Clientes Vencidos', createdAt: Date.now() };
+              const newState = { ...prev, competences: updatedCompetences, transactions: [...prev.transactions, newTx] };
+              saveDB(newState);
+              return newState;
+            });
+          }}
         />;
 
       case 'clients':
@@ -358,7 +367,7 @@ const App: React.FC = () => {
             <div className="flex flex-col items-center justify-center py-20 px-4">
               <div className="w-24 h-24 bg-red-100 text-red-600 rounded-[2rem] flex items-center justify-center mb-8 shadow-xl shadow-red-100 border-b-4 border-red-200"><ShieldCheck size={48} /></div>
               <h2 className="text-3xl font-black tracking-tighter text-slate-800 mb-4 uppercase">ACESSO BLOQUEADO</h2>
-              <p className="text-slate-500 font-bold text-center max-w-md leading-relaxed mb-10 uppercase text-xs tracking-widest">Seu painel de terceiros estÃ¡ temporariamente bloqueado. Fale com o administrador para liberaÃ§Ã£o.</p>
+              <p className="text-slate-500 font-bold text-center max-w-md leading-relaxed mb-10 uppercase text-xs tracking-widest">Seu painel de terceiros estÃÂ¡ temporariamente bloqueado. Fale com o administrador para liberaÃÂ§ÃÂ£o.</p>
               <button onClick={() => setActiveTab('dashboard')} className="px-10 py-4 bg-slate-900 text-white rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl shadow-slate-200 border-b-4 border-black hover:bg-black transition-all">Voltar para o Painel Principal</button>
             </div>
           );
@@ -377,14 +386,14 @@ const App: React.FC = () => {
             try {
               const emailExists = db.users.some((u: any) => u.email.toLowerCase() === d.email.toLowerCase());
               if (emailExists) {
-                alert("Este e-mail jÃ¡ estÃ¡ cadastrado.");
+                alert("Este e-mail jÃÂ¡ estÃÂ¡ cadastrado.");
                 return;
               }
               const newGroupId = `g-${Date.now()}`;
               const newGroup = { id: newGroupId, name: toTitleCase(d.name), email: d.email, phone: d.phone, interestRate: d.interestRate, groupType: d.groupType, commissionRate: d.commissionRate ?? 0 };
               const newUser = { id: `u-${Date.now()}`, email: d.email, password: d.password, role: UserRole.VIEWER, groupId: newGroupId, groupType: d.groupType };
               setDb((prev: any) => ({ ...prev, groups: [...prev.groups, newGroup], users: [...prev.users, newUser] }));
-              alert("SÃ³cio cadastrado com sucesso!");
+              alert("SÃÂ³cio cadastrado com sucesso!");
             } catch (err) {
               console.error(err);
             }
@@ -438,7 +447,7 @@ const App: React.FC = () => {
             </h2>
             {pendingClients.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-20 text-slate-400">
-                <div className="text-6xl mb-4">✅</div>
+                <div className="text-6xl mb-4">â</div>
                 <p className="text-lg font-bold uppercase tracking-wider">Nenhum cadastro pendente</p>
               </div>
             ) : (
@@ -452,25 +461,25 @@ const App: React.FC = () => {
                           <div className="flex items-center gap-3 mb-2">
                             <span className="text-xl font-black text-slate-800">{client.name}</span>
                             <span className="text-xs bg-amber-100 text-amber-700 font-bold px-2 py-0.5 rounded-full uppercase">
-                              {client.approvalStatus === ClientApprovalStatus.PRE_CADASTRO ? 'Pré-cadastro' : 'Aguardando ADM'}
+                              {client.approvalStatus === ClientApprovalStatus.PRE_CADASTRO ? 'PrÃ©-cadastro' : 'Aguardando ADM'}
                             </span>
                           </div>
-                          <p className="text-sm text-slate-500">📱 {client.phone || 'Sem telefone'}</p>
-                          {client.notes && <p className="text-sm text-slate-600 mt-1 bg-slate-50 p-2 rounded-lg">📝 {client.notes}</p>}
+                          <p className="text-sm text-slate-500">ð± {client.phone || 'Sem telefone'}</p>
+                          {client.notes && <p className="text-sm text-slate-600 mt-1 bg-slate-50 p-2 rounded-lg">ð {client.notes}</p>}
                           <p className="text-xs text-slate-400 mt-2">Cadastrado por: <span className="font-bold">{createdByUser?.email || 'Desconhecido'}</span></p>
                         </div>
                         <div className="flex flex-col gap-2 min-w-[160px]">
                           <button onClick={() => {
                             const contractValue = parseFloat(prompt('Valor do contrato (R$):') || '0');
-                            if (!contractValue || contractValue <= 0) { alert('Valor inválido.'); return; }
+                            if (!contractValue || contractValue <= 0) { alert('Valor invÃ¡lido.'); return; }
                             const contractRate = parseFloat(prompt('Taxa de juros mensal (%):') || '0');
                             const dueDay = parseInt(prompt('Dia de vencimento (1-28):') || '5');
-                            const firstDueDateStr = prompt('Data do 1º vencimento (dd/mm/aaaa):') || '';
+                            const firstDueDateStr = prompt('Data do 1Âº vencimento (dd/mm/aaaa):') || '';
                             const groupId = createdByUser?.groupId || db.groups[0]?.id;
                             handleApproveClient(client.id, { groupId, contractValue, contractRate, dueDay: isNaN(dueDay) ? 5 : dueDay, firstDueDate: firstDueDateStr, contractCommission: 0, contractNotes: '' });
-                          }} className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs uppercase rounded-xl transition-colors shadow">✅ Aprovar</button>
-                          <button onClick={() => { const reason = prompt('Motivo (opcional):') || ''; if (confirm('Rejeitar?')) handleRejectClient(client.id, reason); }} className="px-4 py-2.5 bg-red-100 hover:bg-red-200 text-red-700 font-black text-xs uppercase rounded-xl transition-colors">❌ Rejeitar</button>
-                          <button onClick={() => { setSelectedClientId(client.id); setActiveTab('client-detail'); }} className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-black text-xs uppercase rounded-xl transition-colors">👁 Ver Detalhes</button>
+                          }} className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs uppercase rounded-xl transition-colors shadow">â Aprovar</button>
+                          <button onClick={() => { const reason = prompt('Motivo (opcional):') || ''; if (confirm('Rejeitar?')) handleRejectClient(client.id, reason); }} className="px-4 py-2.5 bg-red-100 hover:bg-red-200 text-red-700 font-black text-xs uppercase rounded-xl transition-colors">â Rejeitar</button>
+                          <button onClick={() => { setSelectedClientId(client.id); setActiveTab('client-detail'); }} className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-black text-xs uppercase rounded-xl transition-colors">ð Ver Detalhes</button>
                         </div>
                       </div>
                     </div>
@@ -491,14 +500,14 @@ const App: React.FC = () => {
     <div className="min-h-screen flex items-center justify-center bg-slate-100 p-6">
       <div className="w-full max-w-md bg-white rounded-[2.5rem] shadow-2xl p-10">
         <Logo size="xl" className="mx-auto mb-6" />
-        <h1 className="text-2xl font-black text-center mb-8 uppercase tracking-tighter">CREDPLUS - GESTÃO FINANCEIRA</h1>
+        <h1 className="text-2xl font-black text-center mb-8 uppercase tracking-tighter">CREDPLUS - GESTÃÂO FINANCEIRA</h1>
         <form onSubmit={e => {
           e.preventDefault();
           const found = db.users.find((u: any) => u.email.toLowerCase() === authForm.email.toLowerCase() && u.password === authForm.password);
           if (found) {
-            if (found.status === 'BLOCKED') { alert('Seu acesso foi bloqueado pelo proprietÃ¡rio.'); return; }
+            if (found.status === 'BLOCKED') { alert('Seu acesso foi bloqueado pelo proprietÃÂ¡rio.'); return; }
             setUser(found); localStorage.setItem(SESSION_KEY, JSON.stringify(found));
-          } else { alert('Credenciais invÃ¡lidas.'); }
+          } else { alert('Credenciais invÃÂ¡lidas.'); }
         }} className="space-y-6">
           <input type="email" required className="w-full p-4 bg-slate-50 border rounded-2xl" placeholder="E-mail" value={authForm.email} onChange={e => setAuthForm({ ...authForm, email: e.target.value })} />
           <input type="password" required className="w-full p-4 bg-slate-50 border rounded-2xl" placeholder="Senha" value={authForm.password} onChange={e => setAuthForm({ ...authForm, password: e.target.value })} />
@@ -510,7 +519,7 @@ const App: React.FC = () => {
 
   const liveUserForLayout = db.users.find((u: any) => u.id === user.id) || user;
 
-  // Contar prÃ©-cadastros pendentes para badge no menu
+  // Contar prÃÂ©-cadastros pendentes para badge no menu
   const pendingApprovalsCount = db.clients.filter((c: any) =>
     c.approvalStatus === ClientApprovalStatus.PRE_CADASTRO ||
     c.approvalStatus === ClientApprovalStatus.AGUARDANDO_ADM
@@ -557,10 +566,10 @@ const App: React.FC = () => {
               const createdAt = parseDate(data.startDate) + 12 * 60 * 60 * 1000;
               const firstDueDate = parseDate(data.firstDueDate) + 12 * 60 * 60 * 1000;
               let gid = data.groupId;
-              if (!gid) throw new Error("O ID ou nome do SÃ³cio Ã© obrigatÃ³rio.");
+              if (!gid) throw new Error("O ID ou nome do SÃÂ³cio ÃÂ© obrigatÃÂ³rio.");
               const group = db.groups.find((g: any) => { const search = String(gid).toLowerCase(); const name = g.name.toLowerCase(); return g.id === gid || name === search || name.includes(search) || search.includes(name); });
               if (group) gid = group.id;
-              else throw new Error(`SÃ³cio "${gid}" nÃ£o encontrado.`);
+              else throw new Error(`SÃÂ³cio "${gid}" nÃÂ£o encontrado.`);
               const parseCurrency = (val: any) => { if (typeof val === 'number') return val; if (typeof val !== 'string') return 0; const cleaned = val.replace(/\./g, '').replace(',', '.'); const parsed = parseFloat(cleaned); return isNaN(parsed) ? 0 : parsed; };
               const initialCapital = parseCurrency(data.initialCapital);
               const dueDay = typeof data.dueDay === 'string' ? parseInt(data.dueDay) : data.dueDay;
@@ -568,7 +577,7 @@ const App: React.FC = () => {
               await insertClient(newClient);
               setDb((prev: any) => { const newState = { ...prev, clients: [...prev.clients, newClient] }; return runCompetenceSync(newState); });
               alert("Cliente cadastrado com sucesso!");
-            } catch (err: any) { console.error("â Erro ao cadastrar cliente:", err); alert(`Erro ao cadastrar cliente: ${err?.message || 'Erro desconhecido'}`); throw err; }
+            } catch (err: any) { console.error("Ã¢ÂÂ Erro ao cadastrar cliente:", err); alert(`Erro ao cadastrar cliente: ${err?.message || 'Erro desconhecido'}`); throw err; }
           }}
           onAddTransaction={(trx) => {
             if (user.role !== UserRole.ADMIN) return;
@@ -592,7 +601,7 @@ const App: React.FC = () => {
               const updatedClients = prev.clients.map((c: any) => { if (c.id === data.clientId) return { ...c, currentCapital: Math.max(0, c.currentCapital - data.amortizationAmount) }; return c; });
               const newTransactions = [...prev.transactions];
               if (data.interestAmount > 0) newTransactions.push({ id: `t-int-${Date.now()}`, clientId: data.clientId, type: TransactionType.AMORTIZATION, amount: data.interestAmount, description: data.description || 'Pagamento de juros via Agente', createdAt: Date.now() });
-              if (data.amortizationAmount > 0) newTransactions.push({ id: `t-amo-${Date.now()}`, clientId: data.clientId, type: TransactionType.AMORTIZATION, amount: data.amortizationAmount, description: data.description || 'AmortizaÃ§Ã£o via Agente', createdAt: Date.now() });
+              if (data.amortizationAmount > 0) newTransactions.push({ id: `t-amo-${Date.now()}`, clientId: data.clientId, type: TransactionType.AMORTIZATION, amount: data.amortizationAmount, description: data.description || 'AmortizaÃÂ§ÃÂ£o via Agente', createdAt: Date.now() });
               const newState = { ...prev, competences: updatedCompetences, clients: updatedClients, transactions: newTransactions };
               return runCompetenceSync(newState);
             });
