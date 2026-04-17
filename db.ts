@@ -34,18 +34,18 @@ const prepareForSupabase = (obj: any, table?: string) => {
   
   // Se soubermos a tabela, podemos filtrar campos que não existem no banco
   if (table === 'users') {
-    const { id, email, password, role, groupId, status, thirdPartyBlocked, updatedAt, groupType, managerName, canCreateClient, canCreateContract, canApprove, canDelete, canManageAll, commissionPercent } = obj;
-    return { id, email, password, role, groupId, status, thirdPartyBlocked, updatedAt, groupType, managerName, canCreateClient, canCreateContract, canApprove, canDelete, canManageAll, commissionPercent };
+    const { id, email, password, role, groupId, status, thirdPartyBlocked, updatedAt, groupType, canCreateClient, canCreateContract, canApprove, canDelete, canManageAll, commissionVisibility } = obj;
+    return { id, email, password, role, groupId, status, thirdPartyBlocked, updatedAt, groupType, canCreateClient, canCreateContract, canApprove, canDelete, canManageAll, commissionVisibility };
   }
-  
+
   if (table === 'groups') {
     const { id, name, email, phone, interestRate } = obj;
     return { id, name, email, phone, interestRate };
   }
- 
+
   if (table === 'clients') {
-    const { id, name, phone, groupId, initialCapital, currentCapital, dueDay, status, notes, createdAt, firstDueDate, interestRate, repaymentTerms, createdBy, approvedBy, approvedAt, loanType, commissionPercent, installmentsCount } = obj;
-    return { id, name, phone, groupId, initialCapital, currentCapital, dueDay, status, notes, createdAt, firstDueDate, interestRate, repaymentTerms, createdBy, approvedBy, approvedAt, loanType, commissionPercent, installmentsCount };
+    const { id, name, phone, groupId, initialCapital, currentCapital, dueDay, status, notes, createdAt, firstDueDate, approvalStatus, createdBy, approvedBy, approvedAt, assignedGroupType, contractValue, contractRate, contractCommission, contractDueDate, contractNotes } = obj;
+    return { id, name, phone, groupId, initialCapital, currentCapital, dueDay, status, notes, createdAt, firstDueDate, approvalStatus, createdBy, approvedBy, approvedAt, assignedGroupType, contractValue, contractRate, contractCommission, contractDueDate, contractNotes };
   }
  
   // Para outras tabelas ou se não especificado, retorna como está
