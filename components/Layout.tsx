@@ -1,6 +1,6 @@
 import React from 'react';
 import { User, UserRole, UserGroupType, getUserPermissions } from '../types';
-import { LogOut, Home, Users, CheckSquare, Settings, Menu, X, Briefcase, ShieldCheck } from 'lucide-react';
+import { LogOut, Home, Users, CheckSquare, Settings, Menu, X, Briefcase, ShieldCheck, Moon, Sun } from 'lucide-react';
 import Logo from './Logo';
 
 interface LayoutProps {
@@ -13,8 +13,21 @@ interface LayoutProps {
   pendingApprovalsCount?: number;
 }
 
+function useTheme() {
+  const [theme, setTheme] = React.useState<'light' | 'dark'>(() => {
+    return (localStorage.getItem('cp-theme') as 'light' | 'dark') ?? 'light';
+  });
+  React.useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('cp-theme', theme);
+  }, [theme]);
+  const toggle = () => setTheme(t => t === 'light' ? 'dark' : 'light');
+  return { theme, toggle };
+}
+
 const Layout: React.FC<LayoutProps> = ({ user, onLogout, children, activeTab, setActiveTab, pendingCount, pendingApprovalsCount = 0 }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
+  const { theme, toggle: toggleTheme } = useTheme();
 
   if (!user) return <div className="p-10 text-center">Carregando sessão...</div>;
 
@@ -89,13 +102,23 @@ const Layout: React.FC<LayoutProps> = ({ user, onLogout, children, activeTab, se
             <p className="text-xs font-bold truncate text-emerald-100/80">{user.email}</p>
           </div>
         </div>
-        <button
-          onClick={onLogout}
-          className="w-full flex items-center gap-3 p-3 rounded-2xl text-emerald-100/40 hover:bg-red-900/30 hover:text-red-300 transition-all font-bold text-sm"
-        >
-          <LogOut size={18} />
-          <span>Sair do Sistema</span>
-        </button>
+        <div className="flex gap-2 mb-1">
+          <button
+            onClick={toggleTheme}
+            className="flex-1 flex items-center justify-center gap-2 p-2.5 rounded-2xl text-emerald-100/50 hover:bg-emerald-800/50 hover:text-emerald-200 transition-all font-bold text-xs"
+            title={theme === 'dark' ? 'Modo claro' : 'Modo escuro'}
+          >
+            {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
+            <span>{theme === 'dark' ? 'Claro' : 'Escuro'}</span>
+          </button>
+          <button
+            onClick={onLogout}
+            className="flex-1 flex items-center justify-center gap-2 p-2.5 rounded-2xl text-emerald-100/40 hover:bg-red-900/30 hover:text-red-300 transition-all font-bold text-xs"
+          >
+            <LogOut size={16} />
+            <span>Sair</span>
+          </button>
+        </div>
       </div>
     </div>
   );

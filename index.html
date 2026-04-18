@@ -6,6 +6,23 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CREDPLUS - Gestão Financeira</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        darkMode: ['attribute', '[data-theme="dark"]'],
+        theme: {
+          extend: {
+            fontFamily: { sans: ['Inter', 'ui-sans-serif', 'system-ui'] },
+            borderRadius: { '2rem': '32px', '2.5rem': '40px', '3rem': '48px' },
+            letterSpacing: { tighter: '-0.04em', widest: '0.15em' },
+            boxShadow: {
+              emerald: '0 10px 15px -3px rgba(16,185,129,.05)',
+              amber:   '0 10px 15px -3px rgba(251,191,36,.1)',
+              red:     '0 10px 15px -3px rgba(239,68,68,.1)',
+            },
+          }
+        }
+      }
+    </script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
