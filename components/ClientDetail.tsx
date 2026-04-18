@@ -133,11 +133,30 @@ const ClientDetail: React.FC<ClientDetailProps> = ({ client, competences, transa
       <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-lg overflow-hidden border-b-8 border-slate-300">
         <div className="bg-emerald-800 p-8 text-white flex flex-col md:flex-row md:items-center justify-between gap-6 relative overflow-hidden">
           <div className="absolute right-0 top-0 w-64 h-64 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl"></div>
-          <div className="relative z-10">
-            <h2 className="text-2xl md:text-4xl font-black tracking-tighter mb-2">{client.name}</h2>
-            <div className="flex flex-wrap gap-x-6 gap-y-2 text-emerald-100 font-bold uppercase text-[10px] tracking-widest opacity-80"><p>Sócio: <span className="text-amber-400">{group.name}</span></p><p>FONE: <span className="text-amber-400">{client.phone}</span></p><p>Vencimento: <span className="text-amber-400">Todo dia {client.dueDay}</span></p></div>
+          <div className="flex items-center gap-5 relative z-10">
+            <div className="w-16 h-16 rounded-[20px] bg-emerald-50 text-emerald-700 flex items-center justify-center text-2xl font-black flex-shrink-0 shadow-inner">
+              {client.name.charAt(0).toUpperCase()}
+            </div>
+            <div>
+              <h2 className="text-2xl md:text-3xl font-black tracking-tighter mb-2">{client.name}</h2>
+              <div className="flex flex-wrap gap-2">
+                <span className="bg-emerald-700/60 text-emerald-100 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border border-emerald-600/40">{group.name}</span>
+                <span className="bg-amber-400/20 text-amber-300 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border border-amber-400/30">Dia {client.dueDay}</span>
+                {client.phone && <span className="bg-emerald-700/40 text-emerald-200 px-3 py-1 rounded-full text-[10px] font-bold tracking-widest border border-emerald-600/30">{client.phone}</span>}
+              </div>
+            </div>
           </div>
-          <div className="flex gap-8 relative z-10"><div className="text-right"><p className="text-[10px] text-emerald-300 uppercase font-black tracking-widest mb-1 opacity-70">Capital Atual</p><p className="text-xl md:text-3xl font-black tracking-tight">{formatCurrency(client.currentCapital)}</p></div><div className="text-right"><p className="text-[10px] text-emerald-300 uppercase font-black tracking-widest mb-1 opacity-70">Juros em Aberto</p><p className="text-xl md:text-3xl font-black tracking-tight text-amber-400">{formatCurrency(totalInterestOwed)}</p></div></div>
+          <div className="flex gap-6 relative z-10 bg-emerald-900/40 rounded-2xl p-4 border border-emerald-700/40">
+            <div className="text-right">
+              <p className="text-[10px] text-emerald-300 uppercase font-black tracking-widest mb-1 opacity-70">Capital Atual</p>
+              <p className="text-xl md:text-2xl font-black tracking-tight font-variant-numeric">{formatCurrency(client.currentCapital)}</p>
+            </div>
+            <div className="w-px bg-emerald-700/40"></div>
+            <div className="text-right">
+              <p className="text-[10px] text-emerald-300 uppercase font-black tracking-widest mb-1 opacity-70">Juros em Aberto</p>
+              <p className="text-xl md:text-2xl font-black tracking-tight text-amber-400 font-variant-numeric">{formatCurrency(totalInterestOwed)}</p>
+            </div>
+          </div>
         </div>
 
         <div className="p-4 md:p-8">

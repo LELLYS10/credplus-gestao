@@ -27,7 +27,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, clients, competences, group
   const tomorrowDate = new Date(todayYear, todayMonth, todayDay + 1);
   tomorrowDate.setHours(0, 0, 0, 0);
 
-  // FILTRO PRIVACIDADE: Garante que o sÃ³cio nÃ£o veja nada de outros sÃ³cios
+  // FILTRO PRIVACIDADE: Garante que o sócio não veja nada de outros sócios
   const filteredClients = React.useMemo(() => {
     if (!user) return [];
     if (user.role === UserRole.ADMIN) return clients.filter(c => c.status === 'ACTIVE');
@@ -42,20 +42,20 @@ const Dashboard: React.FC<DashboardProps> = ({ user, clients, competences, group
     return pendingRequests.filter(r => r.status === RequestStatus.PENDING && (user.role === UserRole.ADMIN || r.groupId === userGroupId));
   }, [pendingRequests, user, groups]);
 
-  // LÃGICA DE CLASSIFICAÃÃO AUTOMÃTICA: Distribui os clientes nos cards baseada em todas as competÃªncias pendentes
+  // LÓGICA DE CLASSIFICAÇÃO AUTOMÁTICA: Distribui os clientes nos cards baseada em todas as competências pendentes
   const agenda = React.useMemo(() => {
     const overdue: (Client & { nextDate: Date })[] = [];
     const dueToday: (Client & { nextDate: Date })[] = [];
     const dueTomorrow: (Client & { nextDate: Date })[] = [];
 
     filteredClients.forEach(client => {
-      // Filtra todas as competÃªncias pendentes do cliente
+      // Filtra todas as competências pendentes do cliente
       const pendingComps = competences
         .filter(c => c.clientId === client.id && (c.originalValue - c.paidAmount) > 0.01)
         .sort((a, b) => (a.year !== b.year ? a.year - b.year : a.month - b.month));
       
-      // Verifica cada competÃªncia para ver em qual card o cliente se encaixa
-      // Um cliente pode aparecer em mais de um card se tiver mÃºltiplas pendÃªncias (ex: uma vencida e uma hoje)
+      // Verifica cada competência para ver em qual card o cliente se encaixa
+      // Um cliente pode aparecer em mais de um card se tiver múltiplas pendências (ex: uma vencida e uma hoje)
       let addedToOverdue = false;
       let addedToToday = false;
       let addedToTomorrow = false;
@@ -115,7 +115,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, clients, competences, group
           : new Date(comp.year, comp.month, getEffectiveDueDay(client.dueDay, comp.month, comp.year));
         
         dDate.setHours(0, 0, 0, 0);
-        // Ajuste de precisÃ£o: garante que qualquer data anterior a hoje (00:00) seja considerada atrasada
+        // Ajuste de precisão: garante que qualquer data anterior a hoje (00:00) seja considerada atrasada
         return dDate.getTime() < todayDate.getTime() && (comp.originalValue - comp.paidAmount) > 0.01;
       })
       .reduce((acc, comp) => acc + (comp.originalValue - comp.paidAmount), 0);
@@ -155,7 +155,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, clients, competences, group
 
     return { totalCapital, overdueInterest, dueTodayInterest, dueTomorrowInterest, receivedThisMonth };
   }, [filteredClients, competences, todayDate, tomorrowDate, todayMonth, todayYear, todayDay]);
-  // ComissÃ£o para Grupo B
+  // Comissão para Grupo B
   const perms = user ? getUserPermissions(user) : null;
   const userGroup = user ? groups.find((g: any) => g.id === user.groupId || g.email === user.email) : null;
   const commissionRate = userGroup?.commissionRate ?? 0;
@@ -221,10 +221,10 @@ const Dashboard: React.FC<DashboardProps> = ({ user, clients, competences, group
     setIsSyncing(true);
     try {
       await onSyncCloud();
-      alert("â SincronizaÃ§Ã£o concluÃ­da com sucesso!");
+      alert("✅ Sincronização concluída com sucesso!");
     } catch (error) {
       console.error(error);
-      alert("â Erro ao sincronizar dados.");
+      alert("❌ Erro ao sincronizar dados.");
     } finally {
       setIsSyncing(false);
     }
@@ -234,7 +234,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, clients, competences, group
 
   return (
     <div className="space-y-8">
-      {/* PAINEL DASHBOARD VISÃVEL PARA TODOS (FILTRADO POR PRIVACIDADE) */}
+      {/* PAINEL DASHBOARD VISÍVEL PARA TODOS (FILTRADO POR PRIVACIDADE) */}
       <div className="space-y-4">
         {user.role === UserRole.ADMIN && (
           <div className="flex justify-end">
@@ -271,19 +271,19 @@ const Dashboard: React.FC<DashboardProps> = ({ user, clients, competences, group
             highlightColor="blue"
           />
           <StatCard 
-            title="Vence AmanhÃ£" 
+            title="Vence Amanhã" 
             value={stats.dueTomorrowInterest} 
             icon={Calendar} 
             colorClass="bg-blue-100 text-blue-600" 
             highlight={stats.dueTomorrowInterest > 0}
             highlightColor="blue"
           />
-          <StatCard title="Recebido no MÃªs" value={stats.receivedThisMonth} icon={CheckCircle2} colorClass="bg-green-100 text-green-600" />
+          <StatCard title="Recebido no Mês" value={stats.receivedThisMonth} icon={CheckCircle2} colorClass="bg-green-100 text-green-600" />
               {perms?.canViewCommission && !perms?.isAdmin && (
-                <StatCard title={`ComissÃ£o MÃªs (${commissionRate}%)`} value={commissionParcial} icon={DollarSign} colorClass="bg-purple-100 text-purple-600" />
+                <StatCard title={`Comissão Mês (${commissionRate}%)`} value={commissionParcial} icon={DollarSign} colorClass="bg-purple-100 text-purple-600" />
               )}
               {perms?.canViewCommission && !perms?.isAdmin && (
-                <StatCard title="ComissÃ£o Total Acum." value={commissionTotal} icon={DollarSign} colorClass="bg-indigo-100 text-indigo-600" />
+                <StatCard title="Comissão Total Acum." value={commissionTotal} icon={DollarSign} colorClass="bg-indigo-100 text-indigo-600" />
               )}
         </div>
       </div>
@@ -366,14 +366,14 @@ const Dashboard: React.FC<DashboardProps> = ({ user, clients, competences, group
               <AlertTriangle size={32} className="text-amber-900" />
             </div>
             <div>
-              <h3 className="text-2xl font-black tracking-tighter uppercase leading-none">AtenÃ§Ã£o: Pagamentos Pendentes</h3>
-              <p className="text-amber-900/70 mt-1 font-bold uppercase text-[10px] tracking-widest">Existem sinalizaÃ§Ãµes de sÃ³cios aguardando sua conferÃªncia</p>
+              <h3 className="text-2xl font-black tracking-tighter uppercase leading-none">Atenção: Pagamentos Pendentes</h3>
+              <p className="text-amber-900/70 mt-1 font-bold uppercase text-[10px] tracking-widest">Existem sinalizações de sócios aguardando sua conferência</p>
             </div>
           </div>
           <div className="flex items-center gap-4">
             <div className="bg-white/50 rounded-2xl px-8 py-4 border-b-4 border-white/30 flex items-center gap-3">
               <span className="font-black text-4xl text-amber-950">{activePendingRequests.length}</span>
-              <span className="text-[10px] uppercase font-black tracking-widest text-amber-900 leading-tight">SolicitaÃ§Ãµes<br/>para Validar</span>
+              <span className="text-[10px] uppercase font-black tracking-widest text-amber-900 leading-tight">Solicitações<br/>para Validar</span>
             </div>
             <div className="w-12 h-12 bg-amber-950 text-white rounded-full flex items-center justify-center shadow-lg">
               <ArrowRight size={24} />
@@ -389,7 +389,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, clients, competences, group
               <span className="w-2.5 h-2.5 bg-red-500 rounded-full"></span> Vencidos
             </h3>
             <button 
-              onClick={() => window.dispatchEvent(new CustomEvent('open-ai', { detail: { message: 'Quem sÃ£o os clientes vencidos?' } }))}
+              onClick={() => window.dispatchEvent(new CustomEvent('open-ai', { detail: { message: 'Quem são os clientes vencidos?' } }))}
               className="flex items-center gap-1.5 px-3 py-1 bg-slate-100 text-slate-500 rounded-full text-[9px] font-black uppercase tracking-widest hover:bg-emerald-100 hover:text-emerald-700 transition-all"
             >
               <Bot size={12} /> Consultar IA
@@ -414,16 +414,16 @@ const Dashboard: React.FC<DashboardProps> = ({ user, clients, competences, group
         <div className="space-y-4">
           <div className="flex items-center justify-between px-2">
             <h3 className="font-black text-sm uppercase tracking-widest text-slate-500 flex items-center gap-2">
-              <span className="w-2.5 h-2.5 bg-emerald-500 rounded-full"></span> Vence AmanhÃ£
+              <span className="w-2.5 h-2.5 bg-emerald-500 rounded-full"></span> Vence Amanhã
             </h3>
             <button 
-              onClick={() => window.dispatchEvent(new CustomEvent('open-ai', { detail: { message: 'Quem vence amanhÃ£?' } }))}
+              onClick={() => window.dispatchEvent(new CustomEvent('open-ai', { detail: { message: 'Quem vence amanhã?' } }))}
               className="flex items-center gap-1.5 px-3 py-1 bg-slate-100 text-slate-500 rounded-full text-[9px] font-black uppercase tracking-widest hover:bg-emerald-100 hover:text-emerald-700 transition-all"
             >
               <Bot size={12} /> Consultar IA
             </button>
           </div>
-          <div className="space-y-3">{agenda.dueTomorrow.length === 0 ? <p className="text-center text-slate-400 py-10 bg-white rounded-3xl border border-dashed border-slate-300 text-[10px] font-black uppercase tracking-widest italic">Livre para amanhÃ£.</p> : agenda.dueTomorrow.map(c => <div key={c.id}><ClientAgendaCard client={c} colorClass="text-emerald-600" subtitle="Vence AmanhÃ£" /></div>)}</div>
+          <div className="space-y-3">{agenda.dueTomorrow.length === 0 ? <p className="text-center text-slate-400 py-10 bg-white rounded-3xl border border-dashed border-slate-300 text-[10px] font-black uppercase tracking-widest italic">Livre para amanhã.</p> : agenda.dueTomorrow.map(c => <div key={c.id}><ClientAgendaCard client={c} colorClass="text-emerald-600" subtitle="Vence Amanhã" /></div>)}</div>
         </div>
       </div>
     </div>

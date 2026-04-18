@@ -1,0 +1,338 @@
+/* CREDPLUS Design System — Colors & Type
+   Source of truth: tailwind classes used in LELLYS10/credplus-gestao repo.
+   Palette: emerald primary, amber accent, slate neutrals, red/blue/green/purple/indigo semantic.
+*/
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+
+:root {
+  /* ============ CORE PALETTE ============ */
+
+  /* Emerald — primary brand (logo gradient, sidebar, CTAs) */
+  --emerald-50:  #ecfdf5;
+  --emerald-100: #d1fae5;
+  --emerald-200: #a7f3d0;
+  --emerald-300: #6ee7b7;
+  --emerald-400: #34d399;
+  --emerald-500: #10b981;
+  --emerald-600: #059669;  /* default primary */
+  --emerald-700: #047857;
+  --emerald-800: #065f46;
+  --emerald-900: #064e3b;  /* sidebar background */
+
+  /* Amber — accent (badges, alert banner, logo dot) */
+  --amber-50:  #fffbeb;
+  --amber-100: #fef3c7;
+  --amber-200: #fde68a;
+  --amber-300: #fcd34d;
+  --amber-400: #fbbf24;  /* logo ring, alert banner */
+  --amber-500: #f59e0b;  /* badges */
+  --amber-600: #d97706;
+  --amber-700: #b45309;
+  --amber-800: #92400e;
+  --amber-900: #78350f;
+  --amber-950: #451a03;  /* amber banner text */
+
+  /* Slate — neutrals (bg, text, borders) */
+  --slate-50:  #f8fafc;   /* page background */
+  --slate-100: #f1f5f9;
+  --slate-200: #e2e8f0;
+  --slate-300: #cbd5e1;
+  --slate-400: #94a3b8;
+  --slate-500: #64748b;
+  --slate-600: #475569;
+  --slate-700: #334155;
+  --slate-800: #1e293b;
+  --slate-900: #0f172a;   /* dark card bg */
+
+  /* Red — danger / overdue */
+  --red-50:  #fef2f2;
+  --red-100: #fee2e2;
+  --red-200: #fecaca;
+  --red-300: #fca5a5;
+  --red-500: #ef4444;
+  --red-600: #dc2626;
+  --red-700: #b91c1c;
+
+  /* Blue — tomorrow / info */
+  --blue-50:  #eff6ff;
+  --blue-100: #dbeafe;
+  --blue-400: #60a5fa;
+  --blue-600: #2563eb;
+  --blue-700: #1d4ed8;
+
+  /* Green — received / confirmed (slightly cooler than emerald) */
+  --green-100: #dcfce7;
+  --green-600: #16a34a;
+
+  /* Purple / Indigo — commission (VIEWER only) */
+  --purple-100: #f3e8ff;
+  --purple-600: #9333ea;
+  --indigo-100: #e0e7ff;
+  --indigo-600: #4f46e5;
+
+  /* ============ SEMANTIC TOKENS ============ */
+
+  /* Surfaces */
+  --bg-page:          var(--slate-50);
+  --bg-card:          #ffffff;
+  --bg-card-dark:     var(--slate-900);
+  --bg-sidebar:       var(--emerald-900);
+  --bg-subtle:        var(--slate-100);
+  --bg-muted:         rgba(241, 245, 249, 0.5);
+
+  /* Foreground */
+  --fg-1:             var(--slate-900);  /* strongest text */
+  --fg-2:             var(--slate-800);  /* body headings */
+  --fg-3:             var(--slate-500);  /* secondary */
+  --fg-4:             var(--slate-400);  /* labels, eyebrow */
+  --fg-on-emerald:    #ffffff;
+  --fg-on-amber:      var(--amber-950);
+  --fg-on-dark:       #ffffff;
+
+  /* Brand */
+  --brand:            var(--emerald-600);
+  --brand-hover:      var(--emerald-700);
+  --brand-border:     var(--emerald-800);  /* bottom-border press shadow */
+  --brand-soft-bg:    var(--emerald-50);
+  --brand-soft-fg:    var(--emerald-700);
+
+  --accent:           var(--amber-400);
+  --accent-fg:        var(--amber-950);
+
+  /* Semantic states */
+  --status-overdue-bg:   var(--red-100);
+  --status-overdue-fg:   var(--red-700);
+  --status-today-bg:     var(--amber-100);
+  --status-today-fg:     var(--amber-700);
+  --status-tomorrow-bg:  var(--blue-100);
+  --status-tomorrow-fg:  var(--blue-700);
+  --status-paid-bg:      var(--emerald-100);
+  --status-paid-fg:      var(--emerald-700);
+  --status-future-bg:    var(--slate-100);
+  --status-future-fg:    var(--slate-700);
+
+  /* Logo radial gradient */
+  --logo-gradient: radial-gradient(circle, #059669 0%, #064e3b 100%);
+
+  /* ============ TYPE ============ */
+  --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+
+  /* Type scale — Inter-based, matches usage across components */
+  --fs-eyebrow:   10px;   /* 9–10px uppercase labels */
+  --fs-micro:     11px;
+  --fs-xs:        12px;
+  --fs-sm:        14px;
+  --fs-base:      16px;
+  --fs-lg:        18px;
+  --fs-xl:        20px;
+  --fs-2xl:       24px;   /* h2 screen titles */
+  --fs-3xl:       30px;   /* h1 bold */
+  --fs-4xl:       36px;
+
+  --fw-medium:    500;
+  --fw-semibold:  600;
+  --fw-bold:      700;
+  --fw-black:     900;   /* the defining weight — used everywhere for headings, labels, numbers */
+
+  --tracking-tighter: -0.04em;  /* h1, h2 — font-black tracking-tighter */
+  --tracking-tight:   -0.025em;
+  --tracking-normal:  0;
+  --tracking-wide:    0.025em;
+  --tracking-widest:  0.15em;   /* uppercase labels — tracking-widest */
+
+  --lh-tight:   1.1;
+  --lh-snug:    1.25;
+  --lh-normal:  1.5;
+
+  /* ============ RADIUS ============ */
+  --r-sm:  6px;
+  --r-md:  8px;
+  --r-lg:  12px;
+  --r-xl:  16px;   /* rounded-xl — buttons, nav items */
+  --r-2xl: 16px;
+  --r-3xl: 24px;
+  --r-pill: 9999px;
+  --r-card: 32px;  /* rounded-[2rem] — cards */
+  --r-card-lg: 40px; /* rounded-[2.5rem] — modals, hero cards */
+
+  /* ============ SHADOW ============ */
+  --shadow-sm:   0 1px 2px 0 rgba(0,0,0,0.05);
+  --shadow:      0 1px 3px 0 rgba(0,0,0,0.1), 0 1px 2px -1px rgba(0,0,0,0.1);
+  --shadow-md:   0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -2px rgba(0,0,0,0.1);
+  --shadow-lg:   0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -4px rgba(0,0,0,0.1);
+  --shadow-xl:   0 20px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1);
+  --shadow-2xl:  0 25px 50px -12px rgba(0,0,0,0.25);
+
+  /* Tinted shadows — a CredPlus signature; cards lift with a hint of color */
+  --shadow-emerald: 0 10px 15px -3px rgba(16,185,129,0.05);
+  --shadow-amber:   0 10px 15px -3px rgba(251,191,36,0.1);
+  --shadow-red:     0 10px 15px -3px rgba(239,68,68,0.1);
+
+  /* Press-depth — the "border-b-4" press-in look on primary buttons */
+  --press-depth: 4px;
+
+  /* ============ SPACING (tailwind-aligned) ============ */
+  --s-0:   0;
+  --s-1:   4px;
+  --s-2:   8px;
+  --s-3:   12px;
+  --s-4:   16px;
+  --s-5:   20px;
+  --s-6:   24px;
+  --s-8:   32px;
+  --s-10:  40px;
+  --s-12:  48px;
+  --s-16:  64px;
+
+  /* ============ MOTION ============ */
+  --ease-out:    cubic-bezier(0, 0, 0.2, 1);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --dur-fast:    150ms;
+  --dur:         200ms;
+  --dur-slow:    300ms;
+}
+
+/* ============ DARK MODE ============
+   Opt-in via [data-theme="dark"] on <html> or <body>.
+   Philosophy: keep emerald + amber brand identity, invert surfaces to
+   near-black slate, lift borders subtly. NO pure black — slate-950 feels
+   richer and less clinical. Eyebrow labels get brighter to retain legibility.
+   Amber-400 stays the single "look at me" accent.
+*/
+[data-theme="dark"] {
+  /* Surfaces — layered slate, darkest at the back */
+  --bg-page:          #020617;                /* slate-950 — page floor */
+  --bg-card:          #0b1426;                /* card surface — between slate-900 and slate-800 */
+  --bg-card-dark:     #000000;                /* true black for the dark-highlight stat card */
+  --bg-sidebar:       #031c15;                /* deeper emerald-950 */
+  --bg-subtle:        #111f35;                /* hover/stripe */
+  --bg-muted:         rgba(15, 23, 42, 0.6);
+
+  /* Foreground — flipped slate scale */
+  --fg-1:             #f8fafc;                /* primary */
+  --fg-2:             #e2e8f0;                /* body */
+  --fg-3:             #94a3b8;                /* secondary */
+  --fg-4:             #64748b;                /* eyebrow — slate-500 for enough contrast on dark */
+
+  /* Brand — push emerald one step brighter so it glows, not mutes */
+  --brand:            var(--emerald-500);
+  --brand-hover:      var(--emerald-400);
+  --brand-border:     var(--emerald-700);
+  --brand-soft-bg:    rgba(16,185,129,0.12);  /* emerald-500/12 */
+  --brand-soft-fg:    var(--emerald-300);
+
+  --accent:           var(--amber-400);
+  --accent-fg:        var(--amber-950);
+
+  /* Semantic states — dim fills, bright fg */
+  --status-overdue-bg:   rgba(239, 68, 68, 0.15);
+  --status-overdue-fg:   #fca5a5;
+  --status-today-bg:     rgba(251, 191, 36, 0.18);
+  --status-today-fg:     #fcd34d;
+  --status-tomorrow-bg:  rgba(37, 99, 235, 0.18);
+  --status-tomorrow-fg:  #93c5fd;
+  --status-paid-bg:      rgba(16, 185, 129, 0.15);
+  --status-paid-fg:      var(--emerald-300);
+  --status-future-bg:    rgba(148, 163, 184, 0.15);
+  --status-future-fg:    #cbd5e1;
+
+  /* Borders are no longer slate-100 — they are faint white over dark */
+  --border:           rgba(255, 255, 255, 0.08);
+  --border-strong:    rgba(255, 255, 255, 0.14);
+
+  /* Logo — brighten the radial center */
+  --logo-gradient: radial-gradient(circle, #10b981 0%, #064e3b 100%);
+
+  /* Shadows don't travel well on dark — swap to emerald glow + solid edge */
+  --shadow-sm:   0 1px 2px 0 rgba(0,0,0,0.6);
+  --shadow:      0 1px 3px 0 rgba(0,0,0,0.6), 0 1px 2px -1px rgba(0,0,0,0.4);
+  --shadow-md:   0 4px 6px -1px rgba(0,0,0,0.6), 0 2px 4px -2px rgba(0,0,0,0.4);
+  --shadow-lg:   0 10px 15px -3px rgba(0,0,0,0.7), 0 4px 6px -4px rgba(0,0,0,0.5);
+  --shadow-xl:   0 20px 25px -5px rgba(0,0,0,0.8), 0 8px 10px -6px rgba(0,0,0,0.5);
+  --shadow-2xl:  0 25px 50px -12px rgba(0,0,0,0.9);
+
+  --shadow-emerald: 0 10px 25px -5px rgba(16,185,129,0.25);
+  --shadow-amber:   0 10px 25px -5px rgba(251,191,36,0.25);
+  --shadow-red:     0 10px 25px -5px rgba(239,68,68,0.3);
+}
+
+/* Auto — respect OS preference when the page hasn't explicitly opted in */
+@media (prefers-color-scheme: dark) {
+  :root[data-theme="auto"] {
+    --bg-page: #020617;
+    --bg-card: #0b1426;
+    --bg-card-dark: #000000;
+    --bg-sidebar: #031c15;
+    --bg-subtle: #111f35;
+    --bg-muted: rgba(15, 23, 42, 0.6);
+    --fg-1: #f8fafc; --fg-2: #e2e8f0; --fg-3: #94a3b8; --fg-4: #64748b;
+    --brand: var(--emerald-500); --brand-hover: var(--emerald-400);
+    --brand-soft-bg: rgba(16,185,129,0.12); --brand-soft-fg: var(--emerald-300);
+    --border: rgba(255,255,255,0.08);
+  }
+}
+
+/* ============ BASE ============ */
+html, body {
+  font-family: var(--font-sans);
+  background: var(--bg-page);
+  color: var(--fg-1);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ============ SEMANTIC TEXT STYLES ============ */
+.ds-h1 {
+  font-size: var(--fs-3xl);
+  font-weight: var(--fw-black);
+  letter-spacing: var(--tracking-tighter);
+  line-height: var(--lh-tight);
+  color: var(--fg-1);
+  text-transform: uppercase;
+}
+
+.ds-h2 {
+  font-size: var(--fs-2xl);
+  font-weight: var(--fw-black);
+  letter-spacing: var(--tracking-tighter);
+  line-height: var(--lh-tight);
+  color: var(--fg-2);
+}
+
+.ds-h3 {
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-black);
+  letter-spacing: var(--tracking-tight);
+  color: var(--fg-2);
+}
+
+/* Eyebrow / kicker — the omnipresent uppercase label */
+.ds-eyebrow {
+  font-size: var(--fs-eyebrow);
+  font-weight: var(--fw-black);
+  letter-spacing: var(--tracking-widest);
+  text-transform: uppercase;
+  color: var(--fg-4);
+}
+
+.ds-body {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+  color: var(--fg-2);
+  line-height: var(--lh-normal);
+}
+
+.ds-number {
+  font-size: var(--fs-xl);
+  font-weight: var(--fw-black);
+  letter-spacing: var(--tracking-tight);
+  color: var(--fg-1);
+  font-variant-numeric: tabular-nums;
+}
+
+.ds-mono-code {
+  font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  font-size: var(--fs-xs);
+  color: var(--fg-3);
+}

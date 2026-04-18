@@ -8,22 +8,61 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Credplus-Geral">
     <style>
-        body { font-family: 'Inter', sans-serif; }
-        .logo-gradient {
-            background: radial-gradient(circle, #059669 0%, #064e3b 100%);
+        :root {
+          --emerald-50:#ecfdf5;--emerald-100:#d1fae5;--emerald-200:#a7f3d0;
+          --emerald-400:#34d399;--emerald-500:#10b981;--emerald-600:#059669;
+          --emerald-700:#047857;--emerald-800:#065f46;--emerald-900:#064e3b;
+          --amber-100:#fef3c7;--amber-300:#fcd34d;--amber-400:#fbbf24;
+          --amber-500:#f59e0b;--amber-600:#d97706;--amber-700:#b45309;--amber-950:#451a03;
+          --slate-50:#f8fafc;--slate-100:#f1f5f9;--slate-200:#e2e8f0;
+          --slate-300:#cbd5e1;--slate-400:#94a3b8;--slate-500:#64748b;
+          --slate-700:#334155;--slate-800:#1e293b;--slate-900:#0f172a;
+          --red-50:#fef2f2;--red-100:#fee2e2;--red-300:#fca5a5;
+          --red-500:#ef4444;--red-600:#dc2626;--red-700:#b91c1c;
+          --bg-page:var(--slate-50);--bg-card:#ffffff;--bg-sidebar:var(--emerald-900);
+          --brand:var(--emerald-600);--brand-hover:var(--emerald-700);
+          --brand-border:var(--emerald-800);--accent:var(--amber-400);
+          --shadow-emerald:0 10px 15px -3px rgba(16,185,129,.05);
+          --shadow-amber:0 10px 15px -3px rgba(251,191,36,.1);
+          --shadow-red:0 10px 15px -3px rgba(239,68,68,.1);
         }
+        *, *::before, *::after { box-sizing: border-box; }
+        body { font-family: 'Inter', ui-sans-serif, system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+        .font-variant-numeric { font-variant-numeric: tabular-nums; }
+        .logo-gradient { background: radial-gradient(circle, #059669 0%, #064e3b 100%); }
         @keyframes bounce-subtle {
             0%, 100% { transform: translateY(0); }
             50% { transform: translateY(-5px); }
         }
-        .animate-bounce-subtle {
-            animation: bounce-subtle 2s infinite ease-in-out;
+        .animate-bounce-subtle { animation: bounce-subtle 2s infinite ease-in-out; }
+        .sidebar-gradient {
+            background: linear-gradient(145deg, #064e3b 0%, #065f46 50%, #047857 100%);
+            box-shadow: 4px 0 24px rgba(6,78,59,0.35);
         }
+        .sidebar-sheen::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(180deg, rgba(255,255,255,0.07) 0%, transparent 40%);
+            pointer-events: none;
+            border-radius: inherit;
+        }
+        .press-depth {
+            border-bottom: 4px solid var(--brand-border);
+            transform: translateY(0);
+            transition: transform 150ms, border-bottom-width 150ms;
+        }
+        .press-depth:active {
+            transform: translateY(2px);
+            border-bottom-width: 2px;
+        }
+        .press-depth-amber { border-bottom: 4px solid #b45309; }
+        .press-depth-danger { border-bottom: 4px solid #b91c1c; }
     </style>
 <script type="importmap">
 {
